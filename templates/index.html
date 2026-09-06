@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataNova &mdash; Smart Analytics Platform</title>
+    <meta name="description"
+        content="DataNova automatically cleans, analyzes, visualizes and explains your CSV or Excel data. No coding, no SQL, no BI tools required.">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Google Fonts: Space Grotesk (display), Inter (body), JetBrains Mono (data/labels) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/favicon.png') }}">
+</head>
+
+<body>
+
+    <!-- ===================== NAVBAR ===================== -->
+    <nav class="navbar navbar-expand-lg dn-navbar fixed-top" id="dnNavbar">
+        <div class="container">
+            <a class="navbar-brand dn-brand" href="#home">
+                <span class="dn-brand-icon"><i class="bi bi-cpu-fill"></i></span>
+                <span class="dn-brand-text">Data<span class="dn-brand-accent">Nova</span></span>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#dnNavContent"
+                aria-controls="dnNavContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="dnNavContent">
+                <ul class="navbar-nav mx-auto dn-nav-links">
+                    <li class="nav-item"><a class="nav-link dn-nav-link" href="#home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link dn-nav-link" href="#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link dn-nav-link" href="#how-it-works">How It Works</a></li>
+                    <li class="nav-item"><a class="nav-link dn-nav-link" href="#ai-insights">AI Insights</a></li>
+                </ul>
+                <div class="d-flex align-items-center gap-2 dn-nav-actions">
+                    <a href="{{ url_for('auth.login') }}" class="btn dn-btn-ghost">Login</a>
+                    <a href="{{ url_for('auth.signup') }}" class="btn dn-btn-primary">Get Started</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===================== HERO ===================== -->
+    <header class="dn-hero" id="home">
+        <div class="dn-hero-glow"></div>
+        <div class="container">
+            <div class="row align-items-center gy-5">
+
+                <!-- Hero copy -->
+                <div class="col-lg-6 dn-reveal">
+                    <span class="dn-eyebrow"><i class="bi bi-stars"></i> AI-POWERED ANALYTICS ENGINE</span>
+                    <h1 class="dn-hero-title">Turn Your Data Into <span class="dn-text-gradient">Smart Decisions</span>
+                    </h1>
+                    <p class="dn-hero-sub">
+                        Upload your data and let DataNova automatically clean, analyze, visualize, and explain it
+                        &mdash;
+                        no coding or data analytics skills required.
+                    </p>
+
+                    <div class="d-flex flex-wrap gap-3 dn-hero-ctas">
+                        <a href="{{ url_for('auth.signup') }}" class="btn dn-btn-primary btn-lg">Get Started <i class="bi bi-arrow-right"></i></a>
+                        <a href="#features" class="btn dn-btn-outline btn-lg">Explore Features</a>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3 dn-badges">
+                        <span class="dn-badge"><i class="bi bi-check-circle-fill"></i> No Coding Required</span>
+                        <span class="dn-badge"><i class="bi bi-cpu"></i> AI-Powered</span>
+                        <span class="dn-badge"><i class="bi bi-lightning-charge-fill"></i> Automatic Analytics</span>
+                    </div>
+                </div>
+
+                <!-- Hero visual: analytics console mockup -->
+                <div class="col-lg-6 dn-reveal">
+                    <div class="dn-console">
+                        <div class="dn-console-topbar">
+                            <span class="dn-dot dn-dot-red"></span>
+                            <span class="dn-dot dn-dot-amber"></span>
+                            <span class="dn-dot dn-dot-green"></span>
+                            <span class="dn-console-filename">sales_data.csv &mdash; live sample preview</span>
+                            <span class="badge bg-indigo text-white ms-auto" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 12px; background: rgba(79, 70, 229, 0.85);">Sample Preview</span>
+                        </div>
+
+                        <div class="dn-console-body">
+
+                            <!-- Pipeline strip -->
+                            <div class="dn-pipeline-mini" id="heroPipeline">
+                                <div class="dn-pipeline-mini-step is-active" data-step="1">
+                                    <i class="bi bi-cloud-upload"></i><span>Upload</span>
+                                </div>
+                                <div class="dn-pipeline-mini-line"></div>
+                                <div class="dn-pipeline-mini-step" data-step="2">
+                                    <i class="bi bi-magic"></i><span>Clean</span>
+                                </div>
+                                <div class="dn-pipeline-mini-line"></div>
+                                <div class="dn-pipeline-mini-step" data-step="3">
+                                    <i class="bi bi-cpu"></i><span>Analyze</span>
+                                </div>
+                                <div class="dn-pipeline-mini-line"></div>
+                                <div class="dn-pipeline-mini-step" data-step="4">
+                                    <i class="bi bi-lightbulb"></i><span>Insights</span>
+                                </div>
+                            </div>
+
+                            <!-- KPI mini cards -->
+                            <div class="row g-2 dn-kpi-row">
+                                <div class="col-4">
+                                    <div class="dn-kpi-card">
+                                        <span class="dn-kpi-label">REVENUE</span>
+                                        <span class="dn-kpi-value">$482K</span>
+                                        <span class="dn-kpi-trend dn-up"><i class="bi bi-arrow-up-short"></i>21%</span>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="dn-kpi-card">
+                                        <span class="dn-kpi-label">ORDERS</span>
+                                        <span class="dn-kpi-value">9,214</span>
+                                        <span class="dn-kpi-trend dn-up"><i class="bi bi-arrow-up-short"></i>8%</span>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="dn-kpi-card">
+                                        <span class="dn-kpi-label">CHURN</span>
+                                        <span class="dn-kpi-value">2.1%</span>
+                                        <span class="dn-kpi-trend dn-down"><i
+                                                class="bi bi-arrow-down-short"></i>4%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mini bar chart + sparkline -->
+                            <div class="dn-chart-row">
+                                <div class="dn-mini-bars" aria-hidden="true">
+                                    <span style="--h:40%"></span>
+                                    <span style="--h:65%"></span>
+                                    <span style="--h:35%"></span>
+                                    <span style="--h:80%"></span>
+                                    <span style="--h:55%"></span>
+                                    <span style="--h:95%"></span>
+                                    <span style="--h:70%"></span>
+                                </div>
+                                <svg class="dn-sparkline" viewBox="0 0 160 60" preserveAspectRatio="none"
+                                    aria-hidden="true">
+                                    <path d="M0,45 L20,38 L40,42 L60,25 L80,30 L100,15 L120,20 L140,8 L160,12"
+                                        fill="none" stroke="url(#sparkGrad)" stroke-width="3" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <defs>
+                                        <linearGradient id="sparkGrad" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0%" stop-color="#4F46E5" />
+                                            <stop offset="100%" stop-color="#06B6D4" />
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- ===================== PROBLEM SECTION ===================== -->
+    <section class="dn-section" id="problem">
+        <div class="container">
+            <div class="text-center dn-reveal">
+                <span class="dn-eyebrow dn-eyebrow-muted">THE PROBLEM</span>
+                <h2 class="dn-section-title">Data Analysis Shouldn&rsquo;t Be Complicated</h2>
+                <p class="dn-section-sub mx-auto">
+                    Organizations sit on large amounts of data, but making sense of it usually means knowing Python,
+                    SQL,
+                    or a visualization tool &mdash; or paying a professional data analyst to do it for you.
+                </p>
+            </div>
+
+            <div class="row g-4 mt-2">
+                <div class="col-md-4 dn-reveal">
+                    <div class="dn-problem-card">
+                        <div class="dn-problem-icon"><i class="bi bi-code-slash"></i></div>
+                        <h3>Technical Skills Required</h3>
+                        <p>Python, SQL, and BI tools have a steep learning curve most teams don&rsquo;t have time for.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4 dn-reveal">
+                    <div class="dn-problem-card">
+                        <div class="dn-problem-icon"><i class="bi bi-cash-stack"></i></div>
+                        <h3>Expensive Analysis</h3>
+                        <p>Hiring dedicated data analysts or consultants adds real cost for insights you need every
+                            week.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 dn-reveal">
+                    <div class="dn-problem-card">
+                        <div class="dn-problem-icon"><i class="bi bi-eye-slash"></i></div>
+                        <h3>Hidden Insights</h3>
+                        <p>Important patterns and trends stay buried in spreadsheets nobody has time to dig through.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dn-solution-strip dn-reveal">
+                <i class="bi bi-arrow-down-circle"></i>
+                <span>DataNova removes every one of these barriers &mdash; automatically.</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== FEATURES SECTION ===================== -->
+    <section class="dn-section dn-section-alt" id="features">
+        <div class="container">
+            <div class="text-center dn-reveal">
+                <span class="dn-eyebrow dn-eyebrow-muted">CAPABILITIES</span>
+                <h2 class="dn-section-title">Everything You Need to Understand Your Data</h2>
+                <p class="dn-section-sub mx-auto">One platform, from raw file to finished report.</p>
+            </div>
+
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-4 mt-2">
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-magic"></i></div>
+                        <h3>Automatic Data Cleaning</h3>
+                        <p>Finds and fixes missing values, duplicates, and formatting issues on its own.</p>
+                    </div>
+                </div>
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-search"></i></div>
+                        <h3>Automatic EDA</h3>
+                        <p>Explores your dataset and surfaces the structure and statistics that matter.</p>
+                    </div>
+                </div>
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-bar-chart-line"></i></div>
+                        <h3>Smart Visualizations</h3>
+                        <p>Generates the right chart for the right data, automatically chosen for clarity.</p>
+                    </div>
+                </div>
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-stars"></i></div>
+                        <h3>AI-Generated Insights</h3>
+                        <p>Plain-language explanations of what&rsquo;s happening in your data and why it matters.</p>
+                    </div>
+                </div>
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                        <h3>Pattern &amp; Trend Detection</h3>
+                        <p>Flags seasonality, outliers, and shifts you would otherwise miss.</p>
+                    </div>
+                </div>
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-grid-1x2"></i></div>
+                        <h3>Interactive Dashboards</h3>
+                        <p>Live dashboards built for you, no drag-and-drop design work required.</p>
+                    </div>
+                </div>
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-file-earmark-text"></i></div>
+                        <h3>Automatic Reports</h3>
+                        <p>Turns any analysis into a shareable, ready-to-send report in seconds.</p>
+                    </div>
+                </div>
+
+                <div class="col dn-reveal">
+                    <div class="dn-feature-card">
+                        <div class="dn-feature-icon"><i class="bi bi-cpu"></i></div>
+                        <h3>Prediction &amp; Forecasting</h3>
+                        <p>Projects future trends from historical data using built-in AI models.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== HOW IT WORKS ===================== -->
+    <section class="dn-section" id="how-it-works">
+        <div class="container">
+            <div class="text-center dn-reveal">
+                <span class="dn-eyebrow dn-eyebrow-muted">THE FLOW</span>
+                <h2 class="dn-section-title">From Raw File to Finished Insight</h2>
+                <p class="dn-section-sub mx-auto">Four steps. Zero configuration.</p>
+            </div>
+
+            <div class="dn-pipeline-full dn-reveal">
+
+                <div class="dn-pipeline-full-step">
+                    <div class="dn-pipeline-full-icon"><i class="bi bi-cloud-upload"></i></div>
+                    <h3>Upload Dataset</h3>
+                    <p>CSV or Excel</p>
+                </div>
+
+                <div class="dn-pipeline-full-track"><span class="dn-pipeline-pulse"></span></div>
+
+                <div class="dn-pipeline-full-step">
+                    <div class="dn-pipeline-full-icon"><i class="bi bi-magic"></i></div>
+                    <h3>DataNova Analyzes</h3>
+                    <p>Understands, validates, and cleans the data</p>
+                </div>
+
+                <div class="dn-pipeline-full-track"><span class="dn-pipeline-pulse"></span></div>
+
+                <div class="dn-pipeline-full-step">
+                    <div class="dn-pipeline-full-icon"><i class="bi bi-bar-chart"></i></div>
+                    <h3>Automatic Analytics</h3>
+                    <p>EDA, patterns, trends, and visualizations</p>
+                </div>
+
+                <div class="dn-pipeline-full-track"><span class="dn-pipeline-pulse"></span></div>
+
+                <div class="dn-pipeline-full-step">
+                    <div class="dn-pipeline-full-icon"><i class="bi bi-lightbulb"></i></div>
+                    <h3>Get Insights</h3>
+                    <p>Dashboard, AI insights, and reports</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== WHY DATANOVA ===================== -->
+    <section class="dn-section dn-section-dark" id="why">
+        <div class="container">
+            <div class="text-center dn-reveal">
+                <span class="dn-eyebrow dn-eyebrow-on-dark">THE DIFFERENCE</span>
+                <h2 class="dn-section-title dn-title-on-dark">Why Teams Choose DataNova</h2>
+            </div>
+
+            <div class="row g-3 mt-3">
+                <div class="col-6 col-md-4 dn-reveal">
+                    <div class="dn-why-chip"><i class="bi bi-x-circle"></i> No Coding</div>
+                </div>
+                <div class="col-6 col-md-4 dn-reveal">
+                    <div class="dn-why-chip"><i class="bi bi-x-circle"></i> No SQL</div>
+                </div>
+                <div class="col-6 col-md-4 dn-reveal">
+                    <div class="dn-why-chip"><i class="bi bi-x-circle"></i> No Manual Dashboard Design</div>
+                </div>
+                <div class="col-6 col-md-4 dn-reveal">
+                    <div class="dn-why-chip"><i class="bi bi-check-circle"></i> Fast Analysis</div>
+                </div>
+                <div class="col-6 col-md-4 dn-reveal">
+                    <div class="dn-why-chip"><i class="bi bi-check-circle"></i> AI-Powered Insights</div>
+                </div>
+                <div class="col-6 col-md-4 dn-reveal">
+                    <div class="dn-why-chip"><i class="bi bi-check-circle"></i> Easy to Use</div>
+                </div>
+            </div>
+
+            <p class="dn-why-tagline dn-reveal">From raw data to meaningful insights &mdash; <span>automatically.</span>
+            </p>
+        </div>
+    </section>
+
+    <!-- ===================== SUPPORTED DATA ===================== -->
+    <section class="dn-section" id="supported-data">
+        <div class="container">
+            <div class="text-center dn-reveal">
+                <span class="dn-eyebrow dn-eyebrow-muted">WORKS WITH YOUR FILES</span>
+                <h2 class="dn-section-title">Bring the Data You Already Have</h2>
+            </div>
+
+            <div class="row g-4 mt-2 justify-content-center">
+                <div class="col-6 col-md-3 dn-reveal">
+                    <div class="dn-data-card dn-data-card-primary">
+                        <i class="bi bi-filetype-csv"></i>
+                        <span>CSV</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 dn-reveal">
+                    <div class="dn-data-card dn-data-card-primary">
+                        <i class="bi bi-file-earmark-excel"></i>
+                        <span>Excel</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 dn-reveal">
+                    <div class="dn-data-card">
+                        <i class="bi bi-database"></i>
+                        <span>MySQL</span>
+                        <small>Planned</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 dn-reveal">
+                    <div class="dn-data-card">
+                        <i class="bi bi-file-earmark-spreadsheet"></i>
+                        <span>Google Sheets</span>
+                        <small>Planned</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== AI INSIGHTS PREVIEW ===================== -->
+    <section class="dn-section dn-section-alt" id="ai-insights">
+        <div class="container">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-5 dn-reveal">
+                    <span class="dn-eyebrow dn-eyebrow-muted"><i class="bi bi-cpu-fill text-primary me-1"></i> AI INSIGHTS PREVIEW</span>
+                    <h2 class="dn-section-title">Insights, Written in Plain English</h2>
+                    <p class="dn-section-sub">
+                        Instead of complex charts you have to interpret yourself, DataNova automatically writes out what your data means &mdash; in clear, actionable sentences anyone on the team can act on immediately.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2"><i class="bi bi-check2-circle me-1"></i> Automated Executive Summaries</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"><i class="bi bi-graph-up-arrow me-1"></i> Trend &amp; Growth Detection</span>
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2"><i class="bi bi-shield-exclamation me-1"></i> Outlier &amp; Anomaly Detection</span>
+                    </div>
+                </div>
+
+                <div class="col-lg-7 dn-reveal">
+                    <div class="dn-insights-card shadow-lg border border-primary border-opacity-25" style="border-radius: 16px; overflow: hidden; background: #ffffff;">
+                        <div class="dn-insights-header d-flex align-items-center justify-content-between p-3" style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white;">
+                            <div class="d-flex align-items-center gap-2 fw-semibold">
+                                <i class="bi bi-stars fs-5"></i>
+                                <span>DataNova AI Insights Engine</span>
+                            </div>
+                            <span class="badge bg-white text-primary fw-bold px-2 py-1" style="font-size: 0.75rem;">LIVE DEMO</span>
+                        </div>
+                        <div class="p-4">
+                            <ul class="dn-insights-list list-unstyled d-flex flex-column gap-3 mb-0">
+                                <li class="p-3 rounded border" style="background: rgba(79, 70, 229, 0.04); border-color: rgba(79, 70, 229, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-indigo mt-1"></span>
+                                        <div>
+                                            <strong class="text-indigo">Top Performing Segment:</strong> Electronics category generated <strong>$218,400</strong>, contributing to <strong>45.2%</strong> of overall revenue.
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="p-3 rounded border" style="background: rgba(6, 182, 212, 0.04); border-color: rgba(6, 182, 212, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-cyan mt-1"></span>
+                                        <div>
+                                            <strong class="text-info">Growth Momentum:</strong> Sales increased by <span class="badge bg-success text-white">+21%</span> over the last quarter, driven by strong repeat orders in the West Region.
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="p-3 rounded border" style="background: rgba(124, 58, 237, 0.04); border-color: rgba(124, 58, 237, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-violet mt-1"></span>
+                                        <div>
+                                            <strong style="color:#7C3AED;">Geographic Leader:</strong> West region outperformed all other territories with a customer satisfaction score of <strong>4.8 / 5.0</strong>.
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="p-3 rounded border" style="background: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-green mt-1"></span>
+                                        <div>
+                                            <strong class="text-success">Anomaly Flagged:</strong> Product A experienced a <strong>3.4x spike</strong> in demand during flash weekend promotions without inventory shortages.
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== ABOUT (for nav anchor) ===================== -->
+    <section class="dn-section" id="about">
+        <div class="container">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6 dn-reveal">
+                    <span class="dn-eyebrow dn-eyebrow-muted">ABOUT DATANOVA</span>
+                    <h2 class="dn-section-title">Built for People Who Aren&rsquo;t Data Analysts</h2>
+                    <p class="dn-section-sub">
+                        DataNova exists for the marketer, founder, or operations lead who has data but not the time to
+                        learn a BI tool. Upload a file, and the platform takes on the technical work &mdash;
+                        cleaning, exploring, visualizing, and explaining &mdash; so the only thing left for you to do is
+                        decide.
+                    </p>
+                </div>
+                <div class="col-lg-6 dn-reveal">
+                    <div class="dn-about-visual">
+                        <i class="bi bi-diagram-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CTA SECTION ===================== -->
+    <section class="dn-cta">
+        <div class="container text-center dn-reveal">
+            <h2>Ready to Understand Your Data?</h2>
+            <p>Upload your dataset and let DataNova do the analysis for you.</p>
+            <a href="{{ url_for('auth.signup') }}" class="btn dn-btn-cta btn-lg">Get Started <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </section>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer class="dn-footer">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <a class="dn-brand dn-brand-footer" href="#home">
+                        <span class="dn-brand-icon"><i class="bi bi-cpu-fill"></i></span>
+                        <span class="dn-brand-text">Data<span class="dn-brand-accent">Nova</span></span>
+                    </a>
+                    <p class="dn-footer-tagline">Smart Analytics Platform</p>
+                    <p class="dn-footer-desc">Making data analytics simple, automatic, and accessible for everyone.</p>
+                </div>
+
+                <div class="col-6 col-lg-2 offset-lg-2">
+                    <h6 class="dn-footer-heading">Navigate</h6>
+                    <ul class="dn-footer-links">
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#about">About</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-lg-2">
+                    <h6 class="dn-footer-heading">Company</h6>
+                    <ul class="dn-footer-links">
+                        <li><a href="#">Contact</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-2">
+                    <h6 class="dn-footer-heading">Status</h6>
+                    <span class="dn-footer-badge"><i class="bi bi-circle-fill"></i> In Development</span>
+                </div>
+            </div>
+
+            <hr class="dn-footer-divider">
+            <p class="dn-footer-copy">&copy; 2026 DataNova. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Back to top -->
+    <button id="dnBackToTop" class="dn-back-to-top" aria-label="Back to top">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom Script -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
