@@ -27,9 +27,9 @@ def create_user_account(first_name, last_name, email, password, role, allowed_ro
         return False, "All user fields (first_name, last_name, email, password) are required.", 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    conn = get_db_connection()
+    conn = get_db_connection(auto_init=True)
     if not conn:
-        return False, "Database connection error.", 500
+        return False, "Database connection failed. Please check your DB credentials in Vercel Environment Variables.", 500
 
     try:
         with conn.cursor() as cursor:
@@ -41,8 +41,8 @@ def create_user_account(first_name, last_name, email, password, role, allowed_ro
         return True, "Account created successfully.", 200
     except pymysql.IntegrityError:
         return False, "An account with this email already exists.", 400
-    except Exception:
-        return False, "An error occurred while creating the account.", 500
+    except Exception as e:
+        return False, f"Database error: {str(e)}", 500
     finally:
         conn.close()
 
