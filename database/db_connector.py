@@ -16,13 +16,96 @@ class DatabaseConnectionError(Exception):
     pass
 
 
-def get_db_connection(raise_on_error: bool = False) -> Optional[pymysql.connections.Connection]:
+def init_db_schema(connection: pymysql.connections.Connection):
+    """
+    Ensures all required tables exist in the database.
+    """
+    tables_sql = [
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            first_name VARCHAR(50) NOT NULL,
+            last_name VARCHAR(50) NOT NULL,
+            email VARCHAR(100) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            role VARCHAR(20) NOT NULL DEFAULT 'viewer',
+            status VARCHAR(20) NOT NULL DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS datasets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            file_name VARCHAR(255) NOT NULL,
+            file_path VARCHAR(255) NOT NULL,
+            file_size BIGINT,
+            file_type VARCHAR(10),
+            row_count INT,
+            column_count INT,
+            missing_values_count INT DEFAULT 0,
+            duplicate_rows_count INT DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'uploaded',
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            eda_charts_json JSON,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS reports (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            dataset_id INT NOT NULL,
+            report_name VARCHAR(255) NOT NULL,
+            report_type VARCHAR(50) DEFAULT 'HTML',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE CASCADE
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS api_usage_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            endpoint VARCHAR(255) NOT NULL,
+            status VARCHAR(20) NOT NULL,
+            is_ai_call BOOLEAN DEFAULT FALSE,
+            called_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS shared_dashboards (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            owner_id INT NOT NULL,
+            shared_with_role VARCHAR(20) DEFAULT NULL,
+            shared_with_user_id INT DEFAULT NULL,
+            title VARCHAR(255) NOT NULL,
+            description TEXT,
+            dataset_id INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE SET NULL
+        );
+        """
+    ]
+    try:
+        with connection.cursor() as cursor:
+            for sql in tables_sql:
+                cursor.execute(sql)
+        connection.commit()
+    except Exception as e:
+        logger.warning(f"Auto-schema initialization notice: {e}")
+
+
+def get_db_connection(raise_on_error: bool = False, auto_init: bool = False) -> Optional[pymysql.connections.Connection]:
     """
     Creates and returns a safe MySQL database connection.
 
     Args:
         raise_on_error (bool): If True, raises DatabaseConnectionError on failure.
                                If False (default), logs error and returns None.
+        auto_init (bool): If True, automatically creates any missing database tables.
 
     Returns:
         Optional[pymysql.connections.Connection]: Active connection or None.
@@ -44,7 +127,7 @@ def get_db_connection(raise_on_error: bool = False) -> Optional[pymysql.connecti
         missing.append("DB_NAME")
 
     if missing:
-        msg = f"Missing database configuration: {', '.join(missing)}"
+        msg = f"Missing database configuration in environment variables: {', '.join(missing)}"
         logger.warning(msg)
         if raise_on_error:
             raise DatabaseConnectionError(msg)
@@ -88,6 +171,8 @@ def get_db_connection(raise_on_error: bool = False) -> Optional[pymysql.connecti
             connect_kwargs["ssl"] = ssl_config
 
         connection = pymysql.connect(**connect_kwargs)
+        if auto_init:
+            init_db_schema(connection)
         return connection
 
     except Exception as e:
