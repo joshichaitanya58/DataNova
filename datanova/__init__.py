@@ -9,14 +9,16 @@ def create_app():
     """
     Application factory to create and configure the Flask app.
     """
-    # When creating the app from within a package, we need to explicitly
-    # tell Flask where the templates and static folders are, relative to the
-    # application's root path.
+    # Determine absolute paths for templates and static folders
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    templates_dir = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
+    static_dir = os.path.abspath(os.path.join(base_dir, '..', 'static'))
+
     app = Flask(
         __name__,
         instance_relative_config=True,
-        template_folder='../templates',
-        static_folder='../static'
+        template_folder=templates_dir,
+        static_folder=static_dir
     )
 
     # --- Load environment variables ---
