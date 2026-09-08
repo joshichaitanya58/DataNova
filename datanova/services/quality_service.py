@@ -182,19 +182,16 @@ def calculate_quality_score(df, semantic_types=None, invalid_count=0, outlier_co
 def evaluate_column_usefulness(df, semantic_types):
     """
     Evaluates dataset columns for analytical value and identifies candidates for removal/dropping
-    using hyper-intelligent deterministic rules designed to work on ANY dataset in the world.
+    using hyper-intelligent deterministic rules (without requiring external AI APIs).
 
     Detects:
-    1. System/Export Artifacts ('unnamed', 'index', 'tmp_*', etc.)
-    2. 100% missing value columns
-    3. High missing value columns (>= 40% nulls)
-    4. Zero variance / Single constant value columns
-    5. Quasi-constant columns (>= 98% dominant value ratio)
-    6. Primary keys, UUIDs, row IDs, hashes, tokens, IP/MAC addresses (>= 90% unique)
-    7. Technical audit metadata ('created_by', 'updated_by', 'etag', etc.)
-    8. Exact duplicate columns (identical data across columns)
-    9. High collinearity / redundant numerical pairs (|corr| >= 0.95)
-    10. High-cardinality unstructured text noise
+    1. 100% or high missing values (>= 50%)
+    2. Single constant (zero variance) columns
+    3. Quasi-constant columns (>= 99% single value ratio)
+    4. Exact duplicate columns (identical data across columns)
+    5. High-cardinality ID / Row index / UUID columns
+    6. High collinearity / redundant numerical pairs (corr >= 0.98)
+    7. Unnamed / export noise columns ('Unnamed: 0', 'index', etc.)
 
     Args:
         df (pd.DataFrame): Input dataset
@@ -203,7 +200,6 @@ def evaluate_column_usefulness(df, semantic_types):
     Returns:
         list: List of dicts with column evaluation details.
     """
-    import re
     total_rows = max(len(df), 1)
     results = []
     seen_columns_data = {}
@@ -218,7 +214,7 @@ def evaluate_column_usefulness(df, semantic_types):
         else:
             seen_columns_data[col_hash] = col
 
-    # Pre-compute collinear numeric columns (|corr| >= 0.95)
+    # Pre-compute collinear numeric columns
     collinear_map = {}
     numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and df[c].dropna().nunique() > 1]
     if len(numeric_cols) >= 2:
@@ -227,22 +223,12 @@ def evaluate_column_usefulness(df, semantic_types):
             for i in range(len(numeric_cols)):
                 for j in range(i + 1, len(numeric_cols)):
                     c1, c2 = numeric_cols[i], numeric_cols[j]
-                    if c2 not in collinear_map and corr_matrix.loc[c1, c2] >= 0.95:
+                    # NOTE: guard on c2 (the column that would be marked redundant),
+                    # not c1 - c2 is the dict key, so this is what must stay unique.
+                    if c2 not in collinear_map and corr_matrix.loc[c1, c2] >= 0.98:
                         collinear_map[c2] = (c1, round(corr_matrix.loc[c1, c2], 3))
         except Exception as e:
             logger.debug(f"Collinearity check skipped: {e}")
-
-    # Universal primary key / identifier regex pattern
-    id_pattern = re.compile(
-        r'(^id$|_id$|_uuid$|_guid$|_hash$|_token$|_pk$|_sk$|^sys_|^row_|^serial_|^index_|^entry_|^ip_address|^mac_address|transaction_id|order_id|session_id|row_num)',
-        re.IGNORECASE
-    )
-
-    # Universal technical audit metadata regex pattern
-    audit_pattern = re.compile(
-        r'(created_by|updated_by|modified_by|sys_created|last_modified|etag|version_num|_timestamp_ms|_ns$)',
-        re.IGNORECASE
-    )
 
     for col in df.columns:
         series = df[col]
@@ -258,11 +244,11 @@ def evaluate_column_usefulness(df, semantic_types):
 
         col_lower = str(col).lower().strip()
 
-        # 1. System Export Artifact / Temporary Column
-        if any(k in col_lower for k in ["unnamed:", "index", "level_0", "id_0", "tmp_", "temp_"]) or col_lower.startswith("__"):
+        # 1. Junk / Unnamed Export Artifact
+        if col_lower in ["unnamed: 0", "index", "level_0", "_id", "id_0"]:
             is_drop = True
             tag = " (Junk Artifact)"
-            reason = f"System/Export artifact or temporary column '{col}'."
+            reason = f"System/Export artifact index column '{col}'."
 
         # 2. 100% Missing
         elif non_null_cnt == 0:
@@ -277,54 +263,48 @@ def evaluate_column_usefulness(df, semantic_types):
             val = str(series.dropna().iloc[0]) if non_null_cnt > 0 else ""
             reason = f"Single constant value '{val}' across all rows (zero variance)."
 
-        # 4. Quasi-Constant (>= 98% dominant value ratio)
+        # 4. Quasi-Constant (>= 99% single value concentration)
         elif non_null_cnt > 10:
             top_val_count = series.value_counts(dropna=True).iloc[0]
             top_val_ratio = round((top_val_count / non_null_cnt) * 100.0, 2)
-            if top_val_ratio >= 98.0:
+            if top_val_ratio >= 99.0:
                 is_drop = True
                 tag = " (Quasi-Constant)"
                 top_val = str(series.value_counts(dropna=True).index[0])
-                reason = f"98%+ rows contain the exact same value '{top_val}' ({top_val_ratio}% dominant)."
+                reason = f"99%+ rows contain the exact same value '{top_val}' ({top_val_ratio}% dominant)."
 
-        # 5. Technical Audit Metadata
-        if not is_drop and audit_pattern.search(col_lower):
-            is_drop = True
-            tag = " (Audit Meta)"
-            reason = f"Technical database audit metadata column '{col}' (low analytical value)."
-
-        # 6. Exact Duplicate Column
+        # 5. Exact Duplicate Column
         if not is_drop and col in duplicate_map:
             is_drop = True
             tag = " (Duplicate)"
             reason = f"100% duplicate data content of column '{duplicate_map[col]}'."
 
-        # 7. High Missing Rate (>= 40%)
-        elif not is_drop and missing_pct >= 40.0:
+        # 6. High Missing Rate (>= 50%)
+        elif not is_drop and missing_pct >= 50.0:
             is_drop = True
             tag = " (High Nulls)"
             reason = f"High missing value percentage ({missing_pct}% cells missing)."
 
-        # 8. High-Cardinality Primary Key / UUID / Row Identifier
-        elif not is_drop and (sem_type in ["identifier", "possible_identifier"] or id_pattern.search(col_lower)):
-            if unique_cnt == total_rows or (unique_cnt >= total_rows * 0.90 and total_rows > 15):
+        # 7. High-Cardinality Row Identifier / Index
+        elif not is_drop and (sem_type in ["identifier", "possible_identifier"] or any(k in col_lower for k in ["_id", "row_id", "serial", "guid", "uuid"])):
+            if unique_cnt == total_rows or (unique_cnt >= total_rows * 0.95 and total_rows > 20):
                 is_drop = True
                 tag = " (Identifier)"
                 reason = f"High cardinality primary key/row identifier with {unique_cnt} unique values."
 
-        # 9. High Collinearity / Redundant Numeric Pair (|corr| >= 0.95)
+        # 8. High Collinearity / Redundant Numeric Pair
         elif not is_drop and col in collinear_map:
             primary_col, corr_val = collinear_map[col]
             is_drop = True
             tag = " (Redundant)"
             reason = f"Extremely high correlation ({corr_val}) with '{primary_col}' (redundant feature)."
 
-        # 10. Uninformative Raw Noise Text
-        elif not is_drop and sem_type in ["text"] and unique_cnt >= total_rows * 0.90 and total_rows > 30:
-            if not any(k in col_lower for k in ["name", "code", "id", "date", "sales", "revenue", "profit", "amount", "city", "country"]):
+        # 9. Uninformative Raw Noise Text
+        elif not is_drop and sem_type in ["text"] and unique_cnt == total_rows and total_rows > 50:
+            if not any(k in col_lower for k in ["name", "code", "id", "date", "sales", "revenue", "profit", "amount"]):
                 is_drop = True
                 tag = " (Low Value)"
-                reason = "High-cardinality unstructured text noise without aggregate analytical metrics."
+                reason = "High-cardinality unstructured noise text without aggregate analytical metrics."
 
         display_name = f"{col}{tag}" if tag else col
 

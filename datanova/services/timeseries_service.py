@@ -71,23 +71,18 @@ def time_series_analysis(df, date_column, value_column):
     temp.set_index(date_column, inplace=True)
     temp.sort_index(inplace=True)
 
-    # 1. Daily Aggregation & Trend
-    daily = temp[value_column].resample('D').sum().round(2)
-    daily_records = [{"date": dt.strftime("%Y-%m-%d"), "value": float(val)} for dt, val in daily.items() if not pd.isna(val)]
-
-    # 2. Monthly Aggregation & Growth
+    # 1. Monthly Aggregation & Growth
     monthly = temp[value_column].resample('ME').sum().round(2)
 
-    # Only return early if dataset has 0 monthly observations
-    if monthly.empty:
-        logger.warning("Monthly aggregation resulted in empty data.")
+    # If monthly is empty or all zeros, return early
+    if monthly.empty or monthly.sum() == 0:
+        logger.warning("Monthly aggregation resulted in empty or all-zero data.")
         return {
             "date_column": date_column,
             "value_column": value_column,
             "data_points": 0,
             "total_value": 0.0,
             "overall_growth_pct": 0.0,
-            "daily_trend": [],
             "monthly_trend": [],
             "quarterly_trend": [],
             "yearly_trend": [],
@@ -106,15 +101,15 @@ def time_series_analysis(df, date_column, value_column):
             "yoy_growth_pct": float(yoy_growth.loc[dt]) if not pd.isna(yoy_growth.loc[dt]) else 0.0
         })
 
-    # 3. Quarterly Aggregation
+    # 2. Quarterly Aggregation
     quarterly = temp[value_column].resample('QE').sum().round(2)
     quarterly_records = [{"quarter": f"{dt.year}-Q{dt.quarter}", "value": float(val)} for dt, val in quarterly.items()]
 
-    # 4. Yearly Aggregation
+    # 3. Yearly Aggregation
     yearly = temp[value_column].resample('YE').sum().round(2)
     yearly_records = [{"year": dt.strftime("%Y"), "value": float(val)} for dt, val in yearly.items()]
 
-    # 5. Seasonality Breakdown (Month-of-Year & Day-of-Week)
+    # 4. Seasonality Breakdown (Month-of-Year & Day-of-Week)
     temp['month_name'] = temp.index.strftime('%B')
     temp['day_name'] = temp.index.strftime('%A')
 
@@ -122,8 +117,8 @@ def time_series_analysis(df, date_column, value_column):
                    'July', 'August', 'September', 'October', 'November', 'December']
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-    month_agg = temp.groupby('month_name')[value_column].mean().reindex(month_order).dropna().round(2).to_dict()
-    day_agg = temp.groupby('day_name')[value_column].mean().reindex(day_order).dropna().round(2).to_dict()
+    month_agg = temp.groupby('month_name')[value_column].sum().reindex(month_order).dropna().round(2).to_dict()
+    day_agg = temp.groupby('day_name')[value_column].sum().reindex(day_order).dropna().round(2).to_dict()
 
     # Overall growth
     overall_growth = 0.0
@@ -133,9 +128,8 @@ def time_series_analysis(df, date_column, value_column):
     logger.info(f"Time series analysis completed for '{value_column}' over '{date_column}'. "
                 f"Found {len(monthly)} monthly data points. Overall growth: {overall_growth}%")
 
-    # 6. Future Trend Forecasting (allow negative if metric is profit/margin/loss)
-    allow_negative = any(k in str(value_column).lower() for k in ['profit', 'margin', 'loss', 'net', 'balance'])
-    forecast_records = generate_arima_forecast(monthly, periods=6, allow_negative=allow_negative)
+    # 5. Statsmodels Future Trend Forecasting
+    forecast_records = generate_statsmodels_forecast(monthly, periods=6)
 
     return {
         "date_column": date_column,
@@ -143,7 +137,6 @@ def time_series_analysis(df, date_column, value_column):
         "data_points": len(monthly),
         "total_value": float(monthly.sum()),
         "overall_growth_pct": overall_growth,
-        "daily_trend": daily_records[:30],  # Limit to 30 recent daily records
         "monthly_trend": monthly_records,
         "quarterly_trend": quarterly_records,
         "yearly_trend": yearly_records,
@@ -155,99 +148,44 @@ def time_series_analysis(df, date_column, value_column):
     }
 
 
-def generate_arima_forecast(monthly_series, periods=6, allow_negative=False):
+def generate_statsmodels_forecast(monthly_series, periods=6):
     """
-    Uses statsmodels ARIMA (AutoRegressive Integrated Moving Average) model
-    to perform time-series forecasting for future sales, revenue, or demand.
-    Falls back gracefully to ExponentialSmoothing or Linear Regression if series is short/fails to converge.
-
-    Args:
-        monthly_series (pd.Series): Aggregated time-series data indexed by date.
-        periods (int): Number of future periods (months) to forecast.
-        allow_negative (bool): Whether to allow negative predicted values (e.g. for Profit/Margin).
-
-    Returns:
-        list of dict: Forecasted records containing date, predicted_value, and method.
+    Uses Statsmodels ExponentialSmoothing to compute future trend forecast.
+    Falls back gracefully to linear trend extrapolation if series is short.
     """
     if len(monthly_series) < 2:
         return []
 
     forecast_values = []
-    last_dt = monthly_series.index[-1]
-
-    def _clean_val(v):
-        return float(v) if allow_negative else max(0.0, float(v))
-
-    # Try 1: ARIMA Model (1, 1, 1) or (1, 0, 0)
-    try:
-        from statsmodels.tsa.arima.model import ARIMA
-        y_vals = monthly_series.values.astype(float)
-        
-        # Select p, d, q based on sample size
-        order = (1, 1, 1) if len(y_vals) >= 10 else (1, 0, 0)
-        model = ARIMA(y_vals, order=order)
-        fit_model = model.fit()
-        pred = fit_model.forecast(steps=periods)
-
-        for i in range(1, periods + 1):
-            future_dt = last_dt + pd.DateOffset(months=i)
-            val = _clean_val(pred[i - 1])
-            forecast_values.append({
-                "date": future_dt.strftime("%Y-%m"),
-                "predicted_value": round(val, 2),
-                "method": f"ARIMA{order}"
-            })
-        logger.info(f"Generated {periods}-period ARIMA forecast successfully.")
-        return forecast_values
-
-    except Exception as e:
-        logger.debug(f"ARIMA model fit warning: {e}. Trying ExponentialSmoothing fallback.")
-
-    # Try 2: Exponential Smoothing
     try:
         from statsmodels.tsa.api import ExponentialSmoothing
         model = ExponentialSmoothing(monthly_series.values, trend="add", initialization_method="estimated")
         fit_model = model.fit()
         pred = fit_model.forecast(periods)
 
+        last_dt = monthly_series.index[-1]
         for i in range(1, periods + 1):
             future_dt = last_dt + pd.DateOffset(months=i)
-            val = _clean_val(pred[i - 1])
+            val = max(0.0, float(pred[i - 1]))
             forecast_values.append({
                 "date": future_dt.strftime("%Y-%m"),
-                "predicted_value": round(val, 2),
-                "method": "ExponentialSmoothing"
+                "predicted_value": round(val, 2)
             })
-        logger.info(f"Generated {periods}-period ExponentialSmoothing forecast successfully.")
-        return forecast_values
+        logger.info(f"Generated {periods}-period statsmodels forecast successfully.")
 
     except Exception as e:
-        logger.debug(f"ExponentialSmoothing warning: {e}. Using Linear Regression trend fallback.")
-
-    # Try 3: Linear Regression Fallback
-    try:
-        import numpy as np
+        logger.debug(f"Statsmodels fit warning: {e}. Using linear trend fallback.")
         y = monthly_series.values
-        x = np.arange(len(y)).reshape(-1, 1)
-        from sklearn.linear_model import LinearRegression
-        reg = LinearRegression()
-        reg.fit(x, y)
-        future_x = np.arange(len(y), len(y) + periods).reshape(-1, 1)
-        pred = reg.predict(future_x)
+        x = np.arange(len(y))
+        slope, intercept = np.polyfit(x, y, 1)
+        last_dt = monthly_series.index[-1]
 
         for i in range(1, periods + 1):
             future_dt = last_dt + pd.DateOffset(months=i)
-            val = _clean_val(pred[i - 1])
+            val = max(0.0, float(slope * (len(y) + i - 1) + intercept))
             forecast_values.append({
                 "date": future_dt.strftime("%Y-%m"),
-                "predicted_value": round(val, 2),
-                "method": "LinearRegressionTrend"
+                "predicted_value": round(val, 2)
             })
-    except Exception as ex:
-        logger.warning(f"All forecast methods failed: {ex}")
 
     return forecast_values
-
-
-def generate_statsmodels_forecast(monthly_series, periods=6, allow_negative=False):
-    return generate_arima_forecast(monthly_series, periods=periods, allow_negative=allow_negative)

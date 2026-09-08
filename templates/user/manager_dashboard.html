@@ -33,22 +33,23 @@
             <nav class="dn-sidebar-scroll">
                 <div class="dn-nav-section-label">Overview</div>
                 <a href="#" class="dn-nav-link active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
-                <a href="#" class="dn-nav-link" data-action="view-business"><i class="bi bi-graph-up-arrow"></i> Business Overview</a>
-                <a href="#" class="dn-nav-link" data-action="view-datasets"><i class="bi bi-database"></i> My Datasets</a>
-
-                <div class="dn-nav-section-label">Management</div>
-                <a href="#teamSection" class="dn-nav-link" data-action="view-team"><i class="bi bi-people-fill"></i> Team Management</a>
-                <a href="#taskSection" class="dn-nav-link" data-action="view-tasks"><i class="bi bi-check2-square"></i> Task Assignments</a>
-                <a href="#sharedDashboardsSection" class="dn-nav-link" data-action="view-shared"><i class="bi bi-share"></i> Shared Dashboards</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-graph-up-arrow"></i> Business Overview</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-database"></i> My Datasets</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-grid-3x3-gap"></i> Dashboards</a>
 
                 <div class="dn-nav-section-label">Intelligence</div>
-                <a href="#" class="dn-nav-link" data-action="ai-insights"><i class="bi bi-stars"></i> AI Insights</a>
-                <a href="#" class="dn-nav-link" data-action="view-trends"><i class="bi bi-graph-up"></i> Trends</a>
-                <a href="#" class="dn-nav-link" data-action="view-predictions"><i class="bi bi-cpu"></i> Predictions</a>
-                <a href="#" class="dn-nav-link" data-action="view-reports"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
-                <a href="#" class="dn-nav-link" data-action="compare-data"><i class="bi bi-columns-gap"></i> Compare Data</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-stars"></i> AI Insights</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-graph-up"></i> Trends</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-cpu"></i> Predictions</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-columns-gap"></i> Compare Data</a>
+
+                <div class="dn-nav-section-label">Team</div>
+                <a href="#" class="dn-nav-link"><i class="bi bi-people"></i> Team</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-share"></i> Shared Dashboards</a>
 
                 <div class="dn-nav-section-label">Account</div>
+                <a href="#" class="dn-nav-link"><i class="bi bi-gear"></i> Settings</a>
                 <a href="{{ url_for('auth.logout') }}" class="dn-nav-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
             </nav>
 
@@ -65,12 +66,12 @@
 
                 <div class="dn-topbar-search">
                     <i class="bi bi-search"></i>
-                    <input type="text" id="managerGlobalSearch" placeholder="Search team members, tasks, reports...">
+                    <input type="text" placeholder="Search dashboards, reports...">
                 </div>
 
                 <div class="dn-topbar-spacer"></div>
 
-                <button class="dn-icon-btn d-none d-sm-inline-flex" aria-label="Help" data-action="help"><i
+                <button class="dn-icon-btn d-none d-sm-inline-flex" aria-label="Help"><i
                         class="bi bi-question-circle"></i></button>
                 <button class="dn-icon-btn dn-theme-toggle" aria-label="Toggle dark mode"><i
                         class="bi bi-moon-stars"></i></button>
@@ -81,13 +82,27 @@
                         <i class="bi bi-bell"></i>
                         <span class="dn-notif-dot"></span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu" id="managerNotifDropdown">
+                    <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
                         <div class="dn-dropdown-header-custom"><strong>Notifications</strong></div>
                         <div class="dn-notif-item">
-                            <div class="dn-notif-icon"><i class="bi bi-people text-primary"></i></div>
+                            <div class="dn-notif-icon"><i class="bi bi-stars"></i></div>
                             <div>
-                                <div class="dn-notif-text">Team Workload tracking enabled.</div>
-                                <div class="dn-notif-time">Active</div>
+                                <div class="dn-notif-text">New AI insight ready for Q2 Sales.</div>
+                                <div class="dn-notif-time">20 min ago</div>
+                            </div>
+                        </div>
+                        <div class="dn-notif-item">
+                            <div class="dn-notif-icon"><i class="bi bi-file-earmark-check"></i></div>
+                            <div>
+                                <div class="dn-notif-text">Report &ldquo;Regional Performance&rdquo; is ready.</div>
+                                <div class="dn-notif-time">2 hrs ago</div>
+                            </div>
+                        </div>
+                        <div class="dn-notif-item">
+                            <div class="dn-notif-icon"><i class="bi bi-share"></i></div>
+                            <div>
+                                <div class="dn-notif-text">Analyst shared a dashboard with you.</div>
+                                <div class="dn-notif-time">1 day ago</div>
                             </div>
                         </div>
                     </div>
@@ -95,17 +110,19 @@
 
                 <div class="dropdown">
                     <div class="dn-user-trigger" data-bs-toggle="dropdown">
-                        <span class="dn-avatar">{{ (user.first_name|default('M'))[0] }}{{ (user.last_name|default(''))[0] if user and user.last_name else '' }}</span>
+                        <span class="dn-avatar">{{ (user.first_name|default('U'))[0] }}{{ (user.last_name|default(''))[0] if user and user.last_name else '' }}</span>
                         <div>
-                            <div class="dn-user-trigger-name">{{ user.first_name|default('Manager') }} {{ user.last_name|default('') }}</div>
-                            <div class="dn-user-trigger-role">Manager</div>
+                            <div class="dn-user-trigger-name">{{ user.first_name|default('User') }} {{ user.last_name|default('') }}</div>
+                            <div class="dn-user-trigger-role">{{ (user.role|default('Manager'))|capitalize }}</div>
                         </div>
                         <i class="bi bi-chevron-down small text-secondary"></i>
                     </div>
                     <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
-                        <a class="dropdown-item" href="#teamSection"><i class="bi bi-people"></i> Team Members</a>
+                        <a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a>
+                        <a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a>
                         <div class="dropdown-divider"></div>
-                        <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+                        <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i>
+                            Logout</a>
                     </div>
                 </div>
             </header>
@@ -114,13 +131,14 @@
 
                 <div class="dn-page-header">
                     <div>
-                        <span class="dn-eyebrow"><i class="bi bi-graph-up-arrow"></i> EXECUTIVE & TEAM CONTROL PANEL</span>
+                        <span class="dn-eyebrow"><i class="bi bi-graph-up-arrow"></i> BUSINESS INTELLIGENCE</span>
                         <h1 class="dn-page-title">Manager Dashboard</h1>
-                        <p class="dn-page-sub">Monitor business performance, assign team tasks, and manage staff operations.</p>
+                        <p class="dn-page-sub">Monitor performance, trends, and important business insights.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <button class="btn dn-btn-outline-dn" data-action="add-member"><i class="bi bi-person-plus"></i> Add Team Member</button>
-                        <button class="btn dn-btn-primary" data-action="assign-task"><i class="bi bi-plus-circle"></i> Assign Task</button>
+                        <a href="#" class="btn dn-btn-outline-dn"><i class="bi bi-share"></i> Share Dashboard</a>
+                        <a href="#" class="btn dn-btn-primary"><i class="bi bi-file-earmark-arrow-down"></i> Generate
+                            Report</a>
                     </div>
                 </div>
 
@@ -128,329 +146,50 @@
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-lg-2">
                         <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-primary)"><i class="bi bi-cash-stack"></i></span></div>
+                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-primary)"><i
+                                        class="bi bi-cash-stack"></i></span></div>
                             <div class="dn-kpi-label">Total Revenue</div>
                             <div class="dn-kpi-value" id="kpiTotalRevenue">{{ kpi.total_revenue|default('₹0') }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
                         <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-violet)"><i class="bi bi-people"></i></span></div>
-                            <div class="dn-kpi-label">Team Members</div>
-                            <div class="dn-kpi-value" id="kpiTeamMembersCount">{{ kpi.team_members_count|default(0) }}</div>
+                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-violet)"><i
+                                        class="bi bi-cart-check"></i></span></div>
+                            <div class="dn-kpi-label">Total Sales</div>
+                            <div class="dn-kpi-value" id="kpiTotalSales">{{ kpi.total_sales|default('0') }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
                         <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-green)"><i class="bi bi-check2-circle"></i></span></div>
-                            <div class="dn-kpi-label">Task Completion</div>
-                            <div class="dn-kpi-value" id="kpiTaskCompletionRate">{{ kpi.task_completion_rate|default('0.0%') }}</div>
+                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-green)"><i
+                                        class="bi bi-graph-up"></i></span></div>
+                            <div class="dn-kpi-label">Growth Rate</div>
+                            <div class="dn-kpi-value" id="kpiGrowthRate">{{ kpi.growth_rate|default('0.0%') }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
                         <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-amber)"><i class="bi bi-clock-history"></i></span></div>
-                            <div class="dn-kpi-label">Pending Tasks</div>
-                            <div class="dn-kpi-value" id="kpiPendingTasksCount">{{ kpi.pending_tasks_count|default(0) }}</div>
+                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-cyan)"><i
+                                        class="bi bi-award"></i></span></div>
+                            <div class="dn-kpi-label">Top Category</div>
+                            <div class="dn-kpi-value" id="kpiTopCategory" style="font-size:1.15rem">{{ kpi.top_category|default('N/A') }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
                         <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-cyan)"><i class="bi bi-list-task"></i></span></div>
-                            <div class="dn-kpi-label">Total Assigned</div>
-                            <div class="dn-kpi-value" id="kpiTotalTasksCount">{{ kpi.total_tasks_count|default(0) }}</div>
+                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-amber)"><i
+                                        class="bi bi-database"></i></span></div>
+                            <div class="dn-kpi-label">Active Datasets</div>
+                            <div class="dn-kpi-value" id="kpiActiveDatasets">{{ kpi.active_datasets|default(0) }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
                         <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-red)"><i class="bi bi-file-earmark-text"></i></span></div>
-                            <div class="dn-kpi-label">Reports Active</div>
+                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-red)"><i
+                                        class="bi bi-file-earmark-text"></i></span></div>
+                            <div class="dn-kpi-label">Reports Generated</div>
                             <div class="dn-kpi-value" id="kpiReportsGenerated">{{ kpi.reports_generated|default(0) }}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ===================== TEAM & TASK MANAGEMENT SYSTEM ===================== -->
-                <div class="dn-panel mb-4" id="teamSection">
-                    <div class="dn-panel-head flex-wrap gap-2">
-                        <div>
-                            <h3 class="dn-panel-title"><i class="bi bi-people-fill text-primary"></i> Team Management & Task Delegation</h3>
-                            <p class="dn-panel-sub text-muted small mb-0">Manage your active team roster, add available platform users, and delegate analysis tasks.</p>
-                        </div>
-                        <div class="d-flex gap-2 align-items-center">
-                            <button class="btn btn-sm dn-btn-primary" data-action="assign-task"><i class="bi bi-plus-circle me-1"></i> Assign Task</button>
-                        </div>
-                    </div>
-
-                    <!-- Navigation Tabs for My Team vs Available Users -->
-                    <div class="d-flex flex-wrap align-items-center justify-content-between border-bottom pb-2 mb-3 gap-2">
-                        <ul class="nav nav-pills gap-2" id="teamTabNav" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active px-3 py-1 fw-semibold d-flex align-items-center gap-2" id="myTeamTabBtn" data-bs-toggle="pill" data-bs-target="#myTeamTabPane" type="button" role="tab">
-                                    <i class="bi bi-people-fill"></i> My Team Roster
-                                    <span class="badge rounded-pill bg-primary" id="teamMembersBadge">{{ kpi.team_members|length if kpi.team_members else 0 }}</span>
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link px-3 py-1 fw-semibold d-flex align-items-center gap-2" id="availableUsersTabBtn" data-bs-toggle="pill" data-bs-target="#availableUsersTabPane" type="button" role="tab">
-                                    <i class="bi bi-person-plus-fill"></i> Available Platform Users
-                                    <span class="badge rounded-pill bg-info text-dark" id="availableUsersBadge">{{ kpi.available_users|length if kpi.available_users else 0 }}</span>
-                                </button>
-                            </li>
-                        </ul>
-
-                        <!-- Search and Role Filter -->
-                        <div class="d-flex gap-2 flex-grow-1 flex-md-grow-0" style="min-width: 280px; max-width: 480px;">
-                            <div class="input-group input-group-sm flex-grow-1">
-                                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-secondary"></i></span>
-                                <input type="text" id="teamSearchInput" class="form-control border-start-0" placeholder="Search by name, email, or role...">
-                            </div>
-                            <select id="teamRoleFilter" class="form-select form-select-sm" style="width: auto;">
-                                <option value="all">All Roles</option>
-                                <option value="analyst">Analyst</option>
-                                <option value="viewer">Viewer</option>
-                                <option value="manager">Manager</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Tab Content -->
-                    <div class="tab-content" id="teamTabContent">
-                        <!-- TAB 1: My Team Roster -->
-                        <div class="tab-pane fade show active" id="myTeamTabPane" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table dn-table align-middle">
-                                    <thead>
-                                        <tr>
-                                            <th>Member Name</th>
-                                            <th>Email</th>
-                                            <th>Role</th>
-                                            <th>Status</th>
-                                            <th>Active Tasks</th>
-                                            <th>Completed</th>
-                                            <th class="text-end">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="managerTeamTableBody">
-                                        {% if kpi.team_members %}
-                                            {% for member in kpi.team_members %}
-                                            <tr data-member-id="{{ member.id }}">
-                                                <td>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <div class="dn-avatar-sm">{{ member.first_name[0] }}{{ member.last_name[0] if member.last_name else '' }}</div>
-                                                        <div>
-                                                            <div class="fw-semibold text-body">{{ member.first_name }} {{ member.last_name }}</div>
-                                                            <div class="small text-secondary">Joined {{ member.joined_at }}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td class="small">{{ member.email }}</td>
-                                                <td>
-                                                    <span class="badge dn-role-badge dn-role-{{ member.role }}">{{ member.role|capitalize }}</span>
-                                                </td>
-                                                <td>
-                                                    {% if member.status == 'active' %}
-                                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill small me-1"></i>Active</span>
-                                                    {% else %}
-                                                        <span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-dash-circle small me-1"></i>Inactive</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td><span class="fw-bold text-primary">{{ member.active_tasks }}</span></td>
-                                                <td><span class="fw-bold text-success">{{ member.completed_tasks }}</span></td>
-                                                <td class="text-end">
-                                                    <button class="btn btn-sm btn-outline-primary me-1" data-action="assign-task-to" data-member-id="{{ member.id }}" data-member-name="{{ member.first_name }} {{ member.last_name }}"><i class="bi bi-plus-lg"></i> Task</button>
-                                                    <button class="btn btn-sm btn-outline-secondary me-1" data-action="toggle-status" data-member-id="{{ member.id }}" data-current-status="{{ member.status }}" title="Toggle Status"><i class="bi bi-power"></i></button>
-                                                    <button class="btn btn-sm btn-outline-danger" data-action="remove-team-member" data-member-id="{{ member.id }}" data-member-name="{{ member.first_name }} {{ member.last_name }}" title="Remove Team Member"><i class="bi bi-trash"></i> Remove</button>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        {% else %}
-                                            <tr>
-                                                <td colspan="7" class="text-center py-4 text-muted">
-                                                    <i class="bi bi-people fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                                                    <div class="fw-semibold">No team members added yet</div>
-                                                    <p class="small text-muted mb-2">Select from the "Available Platform Users" tab to build your team squad.</p>
-                                                    <button class="btn btn-sm dn-btn-primary" onclick="document.getElementById('availableUsersTabBtn').click()"><i class="bi bi-person-plus-fill me-1"></i> Browse Available Users</button>
-                                                </td>
-                                            </tr>
-                                        {% endif %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- TAB 2: Available Platform Users (Active Directory) -->
-                        <div class="tab-pane fade" id="availableUsersTabPane" role="tabpanel">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div class="small text-muted"><i class="bi bi-info-circle me-1"></i> Registered active platform users that you can add to your team.</div>
-                                <button class="btn btn-sm btn-link text-decoration-none text-info p-0" data-action="add-member"><i class="bi bi-plus-circle me-1"></i> Register New User</button>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table dn-table align-middle">
-                                    <thead>
-                                        <tr>
-                                            <th>User Name</th>
-                                            <th>Email Address</th>
-                                            <th>Platform Role</th>
-                                            <th>Status</th>
-                                            <th>Registered Date</th>
-                                            <th class="text-end">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="managerAvailableUsersTableBody">
-                                        {% if kpi.available_users %}
-                                            {% for u in kpi.available_users %}
-                                            <tr data-user-id="{{ u.id }}">
-                                                <td>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <div class="dn-avatar-sm">{{ u.first_name[0] }}{{ u.last_name[0] if u.last_name else '' }}</div>
-                                                        <div class="fw-semibold text-body">{{ u.first_name }} {{ u.last_name }}</div>
-                                                    </div>
-                                                </td>
-                                                <td class="small">{{ u.email }}</td>
-                                                <td>
-                                                    <span class="badge dn-role-badge dn-role-{{ u.role }}">{{ u.role|capitalize }}</span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill small me-1"></i>Active</span>
-                                                </td>
-                                                <td class="small text-secondary">{{ u.joined_at }}</td>
-                                                <td class="text-end">
-                                                    <button class="btn btn-sm dn-btn-primary" data-action="quick-add-to-team" data-user-id="{{ u.id }}" data-user-name="{{ u.first_name }} {{ u.last_name }}">
-                                                        <i class="bi bi-person-plus-fill me-1"></i> Add in Team
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        {% else %}
-                                            <tr>
-                                                <td colspan="6" class="text-center py-4 text-muted">
-                                                    <i class="bi bi-check2-all fs-2 d-block mb-2 text-success opacity-50"></i>
-                                                    <div class="fw-semibold">All active users are currently assigned to teams</div>
-                                                    <p class="small text-muted mb-2">You can register a new user account if needed.</p>
-                                                    <button class="btn btn-sm btn-outline-primary" data-action="add-member"><i class="bi bi-person-plus me-1"></i> Register New User</button>
-                                                </td>
-                                            </tr>
-                                        {% endif %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ===================== ASSIGNED TASKS BOARD ===================== -->
-                <div class="dn-panel mb-4" id="taskSection">
-                    <div class="dn-panel-head flex-wrap gap-2">
-                        <div>
-                            <h3 class="dn-panel-title"><i class="bi bi-check2-square text-success"></i> Assigned Tasks & Workload Tracker</h3>
-                            <p class="dn-panel-sub text-muted small mb-0">Track pending deliverables, review completion progress, and re-assign tasks.</p>
-                        </div>
-                        <button class="btn btn-sm dn-btn-primary" data-action="assign-task"><i class="bi bi-plus-circle"></i> New Task</button>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table dn-table align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Task Title</th>
-                                    <th>Assigned To</th>
-                                    <th>Priority</th>
-                                    <th>Status</th>
-                                    <th>Due Date</th>
-                                    <th class="text-end">Update Status / Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="managerTaskTableBody">
-                                {% if kpi.manager_tasks %}
-                                    {% for task in kpi.manager_tasks %}
-                                    <tr data-task-id="{{ task.id }}">
-                                        <td>
-                                            <div class="fw-semibold">{{ task.task_title }}</div>
-                                            {% if task.description %}
-                                                <div class="small text-secondary text-truncate" style="max-width:250px;">{{ task.description }}</div>
-                                            {% endif %}
-                                            {% if task.dataset_file_name %}
-                                                <div class="small mt-1 text-primary d-inline-flex align-items-center bg-primary-subtle px-2 py-0 rounded border border-primary-subtle" style="font-size:0.75rem;">
-                                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ task.dataset_file_name }}
-                                                </div>
-                                            {% endif %}
-                                            {% if task.remark %}
-                                                <div class="small mt-1 p-1 px-2 rounded bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="max-width:280px;">
-                                                    <i class="bi bi-chat-left-dots-fill me-1"></i><strong>Remark:</strong> {{ task.remark }}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="small fw-semibold">{{ task.assigned_to_name }}</div>
-                                            <div class="small text-secondary">{{ task.assigned_to_email }}</div>
-                                        </td>
-                                        <td>
-                                            {% if task.priority == 'High' %}
-                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-exclamation-triangle me-1"></i>High</span>
-                                            {% elif task.priority == 'Medium' %}
-                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Medium</span>
-                                            {% else %}
-                                                <span class="badge bg-info-subtle text-info border border-info-subtle">Low</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if task.status == 'Completed' %}
-                                                <span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Completed</span>
-                                            {% elif task.status == 'In Progress' %}
-                                                <span class="badge bg-primary text-white"><i class="bi bi-hourglass-split me-1"></i>In Progress</span>
-                                            {% elif task.status == 'Reopened' %}
-                                                <span class="badge bg-warning text-dark border border-warning-subtle"><i class="bi bi-arrow-counterclockwise me-1"></i>Reopened</span>
-                                            {% else %}
-                                                <span class="badge bg-amber text-dark" style="background:#f59e0b"><i class="bi bi-clock me-1"></i>Pending</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="small">{{ task.due_date }}</td>
-                                        <td class="text-end">
-                                            <div class="btn-group btn-group-sm">
-                                                {% if task.status != 'Completed' %}
-                                                    <button class="btn btn-outline-success" data-action="update-task-status" data-task-id="{{ task.id }}" data-status="Completed"><i class="bi bi-check-lg"></i> Done</button>
-                                                    <button class="btn btn-outline-primary" data-action="update-task-status" data-task-id="{{ task.id }}" data-status="In Progress"><i class="bi bi-play-fill"></i> In Progress</button>
-                                                {% else %}
-                                                    <button class="btn btn-outline-warning" data-action="reopen-task-modal" data-task-id="{{ task.id }}" data-task-title="{{ task.task_title }}" data-assigned-to="{{ task.assigned_to_name }}"><i class="bi bi-arrow-counterclockwise"></i> Re-open</button>
-                                                {% endif %}
-                                                <button class="btn btn-outline-danger" data-action="delete-task" data-task-id="{{ task.id }}"><i class="bi bi-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="6" class="text-center py-4 text-muted">
-                                            <i class="bi bi-check2-circle fs-3 d-block mb-1"></i> No tasks assigned yet. Click "Assign Task" to allocate workload.
-                                        </td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Shared Dashboards Section for Manager -->
-                <div class="dn-panel mb-4" id="sharedDashboardsSection">
-                    <div class="dn-panel-head flex-wrap gap-2 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h3 class="dn-panel-title"><i class="bi bi-share text-primary"></i> Team Shared Dashboards</h3>
-                            <p class="dn-panel-sub text-muted small mb-0">Review analytical dashboards submitted by your team, provide remarks, request revisions, or approve.</p>
-                        </div>
-                        <button class="btn btn-sm btn-outline-secondary" id="refreshManagerSharedBtn" title="Refresh Shared Dashboards"><i class="bi bi-arrow-clockwise"></i></button>
-                    </div>
-                    <div id="managerSharedLoading" class="text-center py-4" style="display: none;">
-                        <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
-                        <span class="ms-2 text-secondary small">Loading team shared dashboards...</span>
-                    </div>
-                    <div class="row g-3" id="managerSharedCardsContainer">
-                        <div class="col-12">
-                            <div class="p-4 text-center text-secondary border rounded bg-body-tertiary">
-                                <i class="bi bi-share fs-2 mb-2 d-block text-muted"></i>
-                                <div class="fw-medium">No shared dashboards yet</div>
-                                <small>Dashboards shared by analysts and team members will appear here for review and remarks.</small>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -494,13 +233,30 @@
                                     {% for reg in kpi.regional_perf %}
                                     <div class="dn-quality-row"><span class="dn-quality-label">{{ reg.region }}</span>
                                         <div class="dn-quality-track">
-                                            <div class="dn-quality-fill" style="--reg-w: {{ reg.percentage }}%; --reg-bg: {{ reg.color }}; width: var(--reg-w); background: var(--reg-bg);"></div>
+                                            <div class="dn-quality-fill" style="width:{{ reg.percentage }}%;background:{{ reg.color }}"></div>
                                         </div><span class="dn-quality-value">{{ reg.percentage }}%</span>
                                     </div>
                                     {% endfor %}
                                 {% else %}
-                                    <div class="p-3 text-center text-secondary">
-                                        <small><i class="bi bi-info-circle"></i> No regional metrics available for the active dataset.</small>
+                                    <div class="dn-quality-row"><span class="dn-quality-label">West India</span>
+                                        <div class="dn-quality-track">
+                                            <div class="dn-quality-fill" style="width:88%;background:var(--dn-primary)"></div>
+                                        </div><span class="dn-quality-value">88%</span>
+                                    </div>
+                                    <div class="dn-quality-row"><span class="dn-quality-label">North India</span>
+                                        <div class="dn-quality-track">
+                                            <div class="dn-quality-fill" style="width:64%;background:var(--dn-violet)"></div>
+                                        </div><span class="dn-quality-value">64%</span>
+                                    </div>
+                                    <div class="dn-quality-row"><span class="dn-quality-label">South India</span>
+                                        <div class="dn-quality-track">
+                                            <div class="dn-quality-fill" style="width:52%;background:var(--dn-cyan)"></div>
+                                        </div><span class="dn-quality-value">52%</span>
+                                    </div>
+                                    <div class="dn-quality-row"><span class="dn-quality-label">East India</span>
+                                        <div class="dn-quality-track">
+                                            <div class="dn-quality-fill" style="width:41%;background:var(--dn-amber)"></div>
+                                        </div><span class="dn-quality-value">41%</span>
                                     </div>
                                 {% endif %}
                             </div>
@@ -521,8 +277,10 @@
                                     <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>{{ insight|safe }}</li>
                                     {% endfor %}
                                 {% else %}
-                                    <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>Total revenue across dataset is <b>{{ kpi.total_revenue|default('N/A') }}</b>.</li>
-                                    <li><span class="dn-insight-dot" style="background:var(--dn-green)"></span>Growth rate is estimated at <b>{{ kpi.growth_rate|default('0.0%') }}</b>.</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>Total revenue generated is <b>{{ kpi.total_revenue|default('₹0') }}</b> across active datasets.</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-cyan)"></span>Electronics & Services are best-performing categories.</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-violet)"></span>West India region generated highest revenue contribution.</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-green)"></span>Growth rate is accelerating steadily at {{ kpi.growth_rate|default('0.0%') }}.</li>
                                 {% endif %}
                             </ul>
                         </div>
@@ -538,7 +296,10 @@
                                     <li><span class="dn-insight-dot" style="background:var(--dn-green)"></span>{{ trend|safe }}</li>
                                     {% endfor %}
                                 {% else %}
-                                    <li><span class="dn-insight-dot" style="background:var(--dn-green)"></span>No trend metrics detected for the current dataset.</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-green)"></span>Increasing trend: Category revenue up 4th straight month.</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-red)"></span>Returns rate contained under 1.2% across major segments.</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>Fastest-growing category: Home &amp; Appliances (+18%).</li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-amber)"></span>Notable change: West region overtook North in volume.</li>
                                 {% endif %}
                             </ul>
                         </div>
@@ -555,31 +316,31 @@
                         <div class="col-6 col-md-3">
                             <div class="dn-predict-card"><span class="dn-predict-flag">FORECAST</span>
                                 <div class="dn-kpi-label">Predicted Sales</div>
-                                <div class="dn-kpi-value" id="predSales">{{ (kpi.predictions.predicted_sales if kpi.predictions else None)|default('N/A') }}</div>
+                                <div class="dn-kpi-value" id="predSales">{{ (kpi.predictions.predicted_sales if kpi.predictions else None)|default('10,450') }}</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3">
                             <div class="dn-predict-card"><span class="dn-predict-flag">FORECAST</span>
                                 <div class="dn-kpi-label">Predicted Revenue</div>
-                                <div class="dn-kpi-value" id="predRevenue">{{ (kpi.predictions.predicted_revenue if kpi.predictions else None)|default('N/A') }}</div>
+                                <div class="dn-kpi-value" id="predRevenue">{{ (kpi.predictions.predicted_revenue if kpi.predictions else None)|default('₹5.38L') }}</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3">
                             <div class="dn-predict-card"><span class="dn-predict-flag">FORECAST</span>
                                 <div class="dn-kpi-label">Expected Demand</div>
-                                <div class="dn-kpi-value" id="predDemand">{{ (kpi.predictions.expected_demand if kpi.predictions else None)|default('N/A') }}</div>
+                                <div class="dn-kpi-value" id="predDemand">{{ (kpi.predictions.expected_demand if kpi.predictions else None)|default('+14.5%') }}</div>
                             </div>
                         </div>
                         <div class="col-6 col-md-3">
                             <div class="dn-predict-card"><span class="dn-predict-flag">FORECAST</span>
                                 <div class="dn-kpi-label">Growth Forecast</div>
-                                <div class="dn-kpi-value" id="predGrowth">{{ (kpi.predictions.growth_forecast if kpi.predictions else None)|default('N/A') }}</div>
+                                <div class="dn-kpi-value" id="predGrowth">{{ (kpi.predictions.growth_forecast if kpi.predictions else None)|default('16.8%') }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Team activity & Recommendations -->
+                <!-- Recommendations + Team activity -->
                 <div class="row g-3 mb-4">
                     <div class="col-lg-6">
                         <div class="dn-panel">
@@ -593,7 +354,8 @@
                                     {% endfor %}
                                 {% else %}
                                     <div class="dn-rec-item"><i class="bi bi-box-seam dn-rec-icon"></i><span class="dn-rec-text">Increase stock for high-demand products ahead of next quarter.</span></div>
-                                    <div class="dn-rec-item"><i class="bi bi-geo dn-rec-icon"></i><span class="dn-rec-text">Focus marketing spend on high-growth territories to maximize ROI.</span></div>
+                                    <div class="dn-rec-item"><i class="bi bi-geo dn-rec-icon"></i><span class="dn-rec-text">Focus marketing spend on the West region, which continues to outperform.</span></div>
+                                    <div class="dn-rec-item"><i class="bi bi-arrow-down-circle dn-rec-icon"></i><span class="dn-rec-text">Optimize inventory for low-performing product lines to free up capital.</span></div>
                                 {% endif %}
                             </div>
                         </div>
@@ -601,7 +363,7 @@
                     <div class="col-lg-6">
                         <div class="dn-panel">
                             <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-activity"></i> Team Activity Log</h3>
+                                <h3 class="dn-panel-title"><i class="bi bi-people"></i> Team Activity</h3>
                             </div>
                             <ul class="dn-insight-list" id="managerTeamActivityList">
                                 {% if kpi.team_activity %}
@@ -609,351 +371,38 @@
                                     <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span><strong>{{ act.user_name }}</strong> {{ act.action }} <span class="text-secondary ms-auto small">{{ act.time_ago }}</span></li>
                                     {% endfor %}
                                 {% else %}
-                                    <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>System initialized team activity tracking. <span class="text-secondary ms-auto small">Active</span></li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>Aditya K. analyzed sales dataset <span class="text-secondary ms-auto small">2h</span></li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-violet)"></span>Rohan J. generated quarterly business report <span class="text-secondary ms-auto small">5h</span></li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-cyan)"></span>Priya M. shared regional overview dashboard <span class="text-secondary ms-auto small">1d</span></li>
                                 {% endif %}
                             </ul>
                         </div>
                     </div>
                 </div>
 
+                <!-- Quick actions -->
+                <div class="dn-panel">
+                    <div class="dn-panel-head">
+                        <h3 class="dn-panel-title"><i class="bi bi-lightning-charge"></i> Quick Actions</h3>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action"><i
+                                    class="bi bi-speedometer2"></i><span>Business Dashboard</span></button></div>
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action"><i
+                                    class="bi bi-stars"></i><span>AI Insights</span></button></div>
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action"><i
+                                    class="bi bi-columns-gap"></i><span>Compare Datasets</span></button></div>
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action"><i
+                                    class="bi bi-cpu"></i><span>View Predictions</span></button></div>
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action"><i
+                                    class="bi bi-file-earmark-arrow-down"></i><span>Generate Report</span></button>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action"><i
+                                    class="bi bi-share"></i><span>Share Dashboard</span></button></div>
+                    </div>
+                </div>
+
             </main>
-        </div>
-    </div>
-
-    <!-- ===================== MODALS FOR TEAM MANAGEMENT ===================== -->
-
-
-
-    <!-- Assign Task Modal -->
-    <div class="modal fade" id="dnAssignTaskModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content dn-panel p-3">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle text-primary me-2"></i>Assign Team Task</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="dnAssignTaskForm">
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Select Team Member</label>
-                            <select id="taskAssignedToSelect" class="form-select" required>
-                                <option value="">-- Choose Member --</option>
-                                {% for member in kpi.team_members %}
-                                    <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }} ({{ member.role|capitalize }})</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Task Title</label>
-                            <input type="text" id="taskTitleInput" class="form-control" placeholder="e.g. Prepare Q3 Financial EDA Report" required>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold">Priority Level</label>
-                                <select id="taskPrioritySelect" class="form-select">
-                                    <option value="High">High Priority</option>
-                                    <option value="Medium" selected>Medium Priority</option>
-                                    <option value="Low">Low Priority</option>
-                                </select>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold">Due Date</label>
-                                <input type="date" id="taskDueDateInput" class="form-control">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Task Description / Instructions</label>
-                            <textarea id="taskDescInput" class="form-control" rows="3" placeholder="Specify deliverables, analysis scope, or guidelines..."></textarea>
-                        </div>
-                        <div class="mb-3 p-3 rounded" style="background: rgba(var(--dn-primary-rgb, 99, 102, 241), 0.05); border: 1px dashed rgba(var(--dn-primary-rgb, 99, 102, 241), 0.3);">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <label class="form-label small fw-bold text-primary mb-0">
-                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i> Give Dataset to User (Optional)
-                                </label>
-                                <span class="badge bg-primary-subtle text-primary small">CSV / Excel</span>
-                            </div>
-                            <div class="text-secondary small mb-2" style="font-size: 0.78rem;">
-                                Upload a dataset file for the assigned analyst to use for analysis, or select one of your existing datasets:
-                            </div>
-                            <div class="mb-2">
-                                <input type="file" id="taskDatasetFileInput" class="form-control form-control-sm" accept=".csv, .xlsx, .xls">
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="small text-muted" style="font-size: 0.75rem; white-space: nowrap;">Or Existing:</span>
-                                <select id="taskExistingDatasetSelect" class="form-select form-select-sm">
-                                    <option value="">-- Select Active Dataset (Optional) --</option>
-                                    {% for ds in kpi.datasets_list or [] %}
-                                        <option value="{{ ds.id }}">{{ ds.file_name }} ({{ ds.row_count }} rows)</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div id="assignTaskAlert" class="alert alert-danger p-2 small d-none mb-3"></div>
-                        <div class="text-end">
-                            <button type="button" class="btn btn-sm btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary" id="btnSubmitAssignTask"><i class="bi bi-send me-1"></i>Assign Workload</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Compare Datasets Modal -->
-    <div class="modal fade" id="dnCompareDatasetsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content dn-panel p-3">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-columns-gap text-primary me-2"></i>Compare Platform Datasets</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="dnCompareDatasetsForm">
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Primary Dataset ID / Name</label>
-                                <input type="text" id="compareDs1Input" class="form-control" placeholder="Dataset 1 ID (e.g. 1)" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Secondary Dataset ID / Name</label>
-                                <input type="text" id="compareDs2Input" class="form-control" placeholder="Dataset 2 ID (e.g. 2)" required>
-                            </div>
-                        </div>
-                        <div id="compareDatasetsAlert" class="alert alert-danger p-2 small d-none mb-3"></div>
-                        <div class="text-end mb-3">
-                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary" id="btnSubmitCompare"><i class="bi bi-arrow-left-right me-1"></i>Run Comparison</button>
-                        </div>
-                    </form>
-                    <div id="compareResultsContainer" class="d-none border-top pt-3">
-                        <h6 class="fw-bold mb-2"><i class="bi bi-bar-chart-steps text-success me-1"></i>Comparison Results Summary</h6>
-                        <div class="table-responsive">
-                            <table class="table dn-table align-middle text-center small mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Metric</th>
-                                        <th id="compHeadDs1">Dataset 1</th>
-                                        <th id="compHeadDs2">Dataset 2</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td class="fw-semibold text-start">Total Rows</td>
-                                        <td id="compRows1">0</td>
-                                        <td id="compRows2">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="fw-semibold text-start">Total Columns</td>
-                                        <td id="compCols1">0</td>
-                                        <td id="compCols2">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="fw-semibold text-start">Missing Values</td>
-                                        <td id="compMiss1">0</td>
-                                        <td id="compMiss2">0</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-2 text-muted small" id="compCommonColsText"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== ADD TEAM MEMBER MODAL ===================== -->
-    <div class="modal fade" id="dnAddTeamMemberModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content dn-panel p-3">
-                <div class="modal-header border-0 pb-2">
-                    <h5 class="modal-title fw-bold text-black"><i class="bi bi-person-plus text-primary me-2"></i>Add Platform User to Team</h5>
-                    <button type="button" class="btn-close btn-close-black" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="dnAddTeamMemberForm" novalidate>
-                        <!-- Primary: Select Existing Active Platform User -->
-                        <div class="mb-3" id="selectExistingUserBlock">
-                            <label class="form-label small fw-semibold text-black">Select Active Platform User</label>
-                            <select id="addMemberUserSelect" class="form-select">
-                                <option value="">-- Select Registered Active User --</option>
-                                {% if kpi and kpi.available_users %}
-                                    {% for u in kpi.available_users %}
-                                        <option value="{{ u.id }}">{{ u.first_name }} {{ u.last_name|default('') }} ({{ u.email }}) - {{ (u.role|default('Analyst'))|upper }}</option>
-                                    {% endfor %}
-                                {% else %}
-                                    <option value="" disabled>No unassigned active users available. (Use Register New User below)</option>
-                                {% endif %}
-                            </select>
-                            <div class="form-text small text-secondary mt-1">Select any registered active Analyst or Viewer on DataNova to assign to your team.</div>
-                        </div>
-
-                        <!-- Secondary Optional: Register New User -->
-                        <div class="mb-2 text-end">
-                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-info" id="toggleNewUserFormBtn" onclick="toggleNewMemberFields()">
-                                <i class="bi bi-person-plus-fill me-1"></i>Or Register New User Account
-                            </button>
-                        </div>
-
-                        <div id="newMemberFieldsBlock" class="d-none border-top border-secondary border-opacity-25 pt-3 mt-2">
-                            <div class="row g-3">
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold text-black">First Name</label>
-                                    <input type="text" id="addMemberFirstName" class="form-control" placeholder="Rohan">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold text-black">Last Name</label>
-                                    <input type="text" id="addMemberLastName" class="form-control" placeholder="Sharma">
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label small fw-semibold text-black">Email Address</label>
-                                    <input type="email" id="addMemberEmail" class="form-control" placeholder="rohan@example.com">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold text-black">Password</label>
-                                    <input type="password" id="addMemberPassword" class="form-control" placeholder="••••••••">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold text-black">Team Role</label>
-                                    <select id="addMemberRole" class="form-select">
-                                        <option value="analyst">Analyst</option>
-                                        <option value="viewer">Viewer</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="addMemberErrorAlert" class="alert alert-danger mt-3 d-none p-2 small"></div>
-
-                        <div class="mt-4 text-end">
-                            <button type="button" class="btn btn-sm btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary" id="btnSubmitAddMember">
-                                <i class="bi bi-person-check me-1"></i>Add to Team
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Reopen Task & Add Remark -->
-    <div class="modal fade" id="reopenTaskModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content dn-panel p-3">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">
-                        <i class="bi bi-arrow-counterclockwise text-warning me-2"></i>Re-open Task &amp; Add Remark
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="reopenTaskForm">
-                    <div class="modal-body py-3">
-                        <input type="hidden" id="reopenTaskId">
-                        <div class="mb-3">
-                            <label class="form-label small text-secondary fw-semibold mb-1">Task Title</label>
-                            <div class="fw-semibold text-body" id="reopenTaskTitleText">Task Title</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small text-secondary fw-semibold mb-1">Assigned To</label>
-                            <div class="small text-muted" id="reopenTaskAssigneeText">Assignee Name</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="reopenTaskRemark" class="form-label small text-secondary fw-semibold">
-                                Remark / Revision Instructions <span class="text-danger">*</span>
-                            </label>
-                            <textarea class="form-control" id="reopenTaskRemark" rows="3" placeholder="Enter remarks/instructions for why this task is being reopened and what needs to be fixed..." required></textarea>
-                            <div class="form-text small">This remark will appear directly on the assigned user's dashboard.</div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-sm btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-sm btn-warning" id="submitReopenTaskBtn">
-                            <i class="bi bi-arrow-counterclockwise me-1"></i>Confirm &amp; Re-open
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== SHARED DASHBOARD DETAIL MODAL ===================== -->
-    <div class="modal fade" id="sharedDashboardDetailModal" tabindex="-1" aria-labelledby="sharedDashboardDetailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-            <div class="modal-content dn-panel p-4">
-                <div class="modal-header border-0 pb-2">
-                    <div>
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <h5 class="modal-title fw-bold mb-0" id="sharedDetailTitle">Shared Dashboard</h5>
-                            <span class="badge bg-primary" id="sharedDetailStatusBadge">Shared</span>
-                        </div>
-                        <div class="small text-secondary" id="sharedDetailMeta">Shared by Analyst &bull; Date</div>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body py-3">
-                    <input type="hidden" id="activeSharedDashboardId" value="">
-
-                    <!-- Note / Description Alert -->
-                    <div class="dn-alert dn-alert-info mb-3" id="sharedDetailDescContainer" style="display: none;">
-                        <i class="bi bi-chat-quote-fill me-2 fs-5"></i>
-                        <div>
-                            <strong>Analyst Note:</strong>
-                            <div id="sharedDetailDescText" class="mt-1"></div>
-                        </div>
-                    </div>
-
-                    <!-- Manager Remark Banner (if exists) -->
-                    <div class="dn-alert dn-alert-warn mb-3" id="sharedDetailRemarkBanner" style="display: none;">
-                        <i class="bi bi-exclamation-circle-fill me-2 fs-5 text-warning"></i>
-                        <div>
-                            <strong id="sharedDetailRemarkTitle">Current Manager Remark:</strong>
-                            <div id="sharedDetailRemarkText" class="mt-1"></div>
-                        </div>
-                    </div>
-
-                    <!-- Dataset KPIs -->
-                    <div class="row g-2 mb-3 text-center" id="sharedDetailKpiRow">
-                        <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Rows</small><strong class="fs-6" id="sdKpiRows">0</strong></div></div>
-                        <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Columns</small><strong class="fs-6" id="sdKpiCols">0</strong></div></div>
-                        <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Memory</small><strong class="fs-6" id="sdKpiMemory">0 KB</strong></div></div>
-                        <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Quality</small><strong class="fs-6 text-success" id="sdKpiQuality">100%</strong></div></div>
-                        <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Missing</small><strong class="fs-6 text-warning" id="sdKpiMissing">0</strong></div></div>
-                        <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Duplicates</small><strong class="fs-6 text-info" id="sdKpiDuplicates">0</strong></div></div>
-                    </div>
-
-                    <!-- Data Preview Table -->
-                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-table me-1"></i> Dataset Preview (First 10 Rows)</h6>
-                    <div class="table-responsive border rounded mb-3" style="max-height: 260px;" id="sharedDetailPreviewContainer">
-                        <!-- Preview HTML -->
-                    </div>
-
-                    <!-- AI Insights -->
-                    <div id="sharedDetailInsightsSection" class="mb-3">
-                        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-stars me-1"></i> Key AI Insights &amp; Findings</h6>
-                        <div class="p-3 border rounded bg-body-tertiary" id="sharedDetailInsightsContainer">
-                            <!-- AI insights list -->
-                        </div>
-                    </div>
-
-                    <!-- Manager Review Action Section -->
-                    <div id="managerReviewActionContainer" class="p-3 border rounded bg-body-tertiary mt-3">
-                        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-pencil-square me-1"></i> Manager Review &amp; Actions</h6>
-                        <div class="mb-2">
-                            <label class="form-label small fw-semibold">Manager Feedback / Remarks</label>
-                            <textarea class="form-control form-control-sm" id="managerReviewRemarkInput" rows="2" placeholder="Write feedback, directions, or revision remarks for the analyst..."></textarea>
-                        </div>
-                        <div class="d-flex justify-content-end gap-2 flex-wrap">
-                            <button type="button" class="btn btn-sm btn-outline-warning" id="btnManagerActionReopen"><i class="bi bi-arrow-counterclockwise me-1"></i> Re-open for Revision</button>
-                            <button type="button" class="btn btn-sm btn-outline-success" id="btnManagerActionApprove"><i class="bi bi-check2-circle me-1"></i> Approve Dashboard</button>
-                            <button type="button" class="btn btn-sm dn-btn-primary" id="btnManagerActionSaveRemark"><i class="bi bi-chat-left-text me-1"></i> Save Remark</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
-                    <span class="small text-secondary" id="sharedDetailDatasetFile"></span>
-                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
         </div>
     </div>
 

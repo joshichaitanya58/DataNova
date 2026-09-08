@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (askForm) {
         askForm.addEventListener('submit', function (e) {
             e.preventDefault();
-            // Ask Your Data AI Engine Query Request
+            // Placeholder only — chatbot is not connected to an API yet.
             const question = askInput.value.trim();
             if (!question) {
                 showToast("Please enter a question.", "warning");
@@ -98,12 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             </div>
                         `;
                     } else {
-                        askResultContainer.innerHTML = `<div class="dn-alert dn-alert-danger">${data.message || 'Failed to get an answer.'}</div>`;
-                    }
-                    askResultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    const modalBody = document.querySelector('.dn-ask-data-body');
-                    if (modalBody) {
-                        modalBody.scrollTop = modalBody.scrollHeight;
+                        askResultContainer.innerHTML = `<div class="dn-alert dn-alert-danger">${data.message || 'Failed to get an answer.'}</div>`
                     }
                 }
             })
@@ -585,33 +580,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             missingColumnInfo.forEach(function (col) {
                 var row = document.createElement('tr');
-                var recBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                    <i class="bi bi-magic me-1"></i> Replace with ${col.recommended_method || 'Smart Impute'}: <strong>${col.recommended_value || 'N/A'}</strong>
-                </span>`;
-                var explanationText = col.explanation ? `<div class="text-muted extra-small mt-1" style="font-size:0.75rem;">${col.explanation}</div>` : '';
-
                 row.innerHTML = `
-                    <td class="fw-medium">${col.name}</td>
-                    <td class="text-end fw-semibold text-danger">${col.count.toLocaleString()}</td>
-                    <td class="text-end fw-semibold text-warning">${col.percentage}%</td>
-                    <td>${recBadge}${explanationText}</td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-outline-primary dn-apply-rec-btn py-0 px-2" data-col="${col.name}">
-                            <i class="bi bi-lightning-charge-fill me-1"></i> Auto Impute
-                        </button>
-                    </td>
+                    <td>${col.name}</td>
+                    <td class="text-end">${col.count.toLocaleString()}</td>
+                    <td class="text-end">${col.percentage}%</td>
                 `;
                 missingValueContent.appendChild(row);
-            });
-
-            // Bind click handler for quick auto impute buttons
-            missingValueContent.querySelectorAll('.dn-apply-rec-btn').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const colName = this.getAttribute('data-col');
-                    if (missingColumnSelect) missingColumnSelect.value = colName;
-                    if (missingStrategySelect) missingStrategySelect.value = 'smart_clean';
-                    if (applyCleaningBtn) applyCleaningBtn.click();
-                });
             });
 
             if (missingColumnSelect) {
@@ -629,14 +603,7 @@ document.addEventListener('DOMContentLoaded', function () {
             missingValuePanel.style.display = 'block';
             if (missingValueActions) missingValueActions.style.display = 'block';
         } else {
-            if (missingValuePanel) {
-                missingValuePanel.style.display = 'block';
-                if (missingValueSummary) {
-                    missingValueSummary.className = 'dn-alert dn-alert-success bg-success-subtle text-success border border-success-subtle p-3 rounded';
-                    missingValueSummary.innerHTML = '<i class="bi bi-check-circle-fill me-2 fs-5"></i> <strong>Zero Missing Values Remaining!</strong> All null values have been successfully imputed and cleaned.';
-                }
-                if (missingValueContent) missingValueContent.innerHTML = '<tr><td colspan="5" class="text-center text-success py-3"><i class="bi bi-check-circle-fill me-1"></i> No missing values detected in dataset.</td></tr>';
-            }
+            if (missingValuePanel) missingValuePanel.style.display = 'none';
             if (missingValueActions) missingValueActions.style.display = 'none';
         }
 
@@ -703,6 +670,64 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             })
             .catch(error => showFetchError('loadCurrentDataset', error));
+    }
+
+    // Handle Drop Columns Confirmation
+    const confirmDropBtn = document.getElementById('dnConfirmDropColumnsBtn');
+    if (confirmDropBtn) {
+        confirmDropBtn.addEventListener('click', function () {
+            if (!activeDatasetId) { alert('Please upload a dataset first.'); return; }
+
+            const dropGrid = document.getElementById('dnDropColumnsGrid');
+            if (!dropGrid) return;
+
+            const selectedCols = Array.from(dropGrid.querySelectorAll('.dn-col-drop-check:checked')).map(chk => chk.value);
+            if (selectedCols.length === 0) { alert('Please select at least one column to drop.'); return; }
+
+            if (!confirm(`Are you sure you want to drop the following ${selectedCols.length} column(s)?\n\n${selectedCols.join(', ')}\n\nThis will update your dataset snapshot.`)) {
+                return;
+            }
+
+            confirmDropBtn.disabled = true;
+            confirmDropBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Dropping...';
+
+            fetch('/api/drop_columns', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dataset_id: activeDatasetId,
+                    columns: selectedCols
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message || 'Columns dropped successfully!', 'success');
+                        populateDatasetWorkspace(data, data.file_name, false);
+                        addTooltipsToStatsTable();
+                        // Show download button after successful drop
+                        const downloadBtn = document.getElementById('dnDownloadAfterDropBtn');
+                        if (downloadBtn) {
+                            downloadBtn.href = `/api/download_cleaned_dataset/${activeDatasetId}?format=csv`;
+                            downloadBtn.style.display = 'inline-flex';
+                        }
+                        if(confirmDropBtn) {
+                            confirmDropBtn.style.display = 'none'; // Hide the drop button
+                        }
+                        if (data.recommended_charts) renderEdaCharts(data.recommended_charts);
+                    } else {
+                        showToast('Error dropping columns: ' + (data.message || 'Unknown error'), 'danger');
+                    }
+                })
+                .catch(err => {
+                    showFetchError('confirmDropBtn', err);
+                    alert('An error occurred while dropping columns.');
+                })
+                .finally(() => {
+                    confirmDropBtn.disabled = false;
+                    confirmDropBtn.innerHTML = '<i class="bi bi-trash"></i> Drop Selected Columns';
+                });
+        });
     }
 
     if (uploadForm && fileInput) {
@@ -1039,7 +1064,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
-                            showToast(data.message || 'Data cleaning applied successfully!', 'success');
                             missingValueActions.style.display = 'none';
 
                             const cleanedData = data.cleaned_data;
@@ -1057,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 cleanedCols.textContent = cleanedData.column_count.toLocaleString();
 
                                 cleanedPreviewPanel.style.display = 'block';
+                                cleanedPreviewPanel.scrollIntoView({ behavior: 'smooth' });
 
                                 const cleanedPanelFooter = cleanedPreviewPanel.querySelector('.dn-panel-footer');
                                 if (cleanedPanelFooter) {
@@ -1074,9 +1099,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             } else {
                                 console.warn('[DataNova] clean_data succeeded but response missing cleaned_data/cleaning_summary:', data);
                             }
-
-                            // Re-fetch dataset workspace state so Missing Values table & all overview cards reload instantly!
-                            loadCurrentDataset();
                         } else {
                             alert('Error cleaning data: ' + (data.message || 'Unknown error'));
                         }
@@ -1089,72 +1111,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         applyCleaningBtn.disabled = false;
                         applyCleaningBtn.innerHTML = 'Apply';
                     });
-            });
-        }
-
-        /* ---------------------------------------------------------------------
-           3b. Smart AI Column Recommendations & Auto-Clean Actions
-           ------------------------------------------------------------------- */
-        const autoCleanAllBtn = document.getElementById('dnAutoCleanAllRecommendedBtn');
-        const confirmDropBtn = document.getElementById('dnConfirmDropColumnsBtn');
-
-        function executeDropColumns(columnsToDrop, btnElement, loadingText) {
-            if (!activeDatasetId || !columnsToDrop || columnsToDrop.length === 0) {
-                showToast('Please select at least one column to remove.', 'warning');
-                return;
-            }
-
-            const origHtml = btnElement ? btnElement.innerHTML : '';
-            if (btnElement) {
-                btnElement.disabled = true;
-                btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> ${loadingText}`;
-            }
-
-            fetch('/api/drop_columns', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dataset_id: activeDatasetId, columns: columnsToDrop })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast(data.message || `Successfully removed ${columnsToDrop.length} column(s)!`, 'success');
-                        populateDatasetWorkspace(data);
-                    } else {
-                        showToast(data.message || 'Failed to drop columns.', 'danger');
-                    }
-                })
-                .catch(err => {
-                    showFetchError('executeDropColumns', err);
-                    showToast('Could not connect to server. Please try again.', 'danger');
-                })
-                .finally(() => {
-                    if (btnElement) {
-                        btnElement.disabled = false;
-                        btnElement.innerHTML = origHtml;
-                    }
-                });
-        }
-
-        if (autoCleanAllBtn) {
-            autoCleanAllBtn.addEventListener('click', function () {
-                const grid = document.getElementById('dnDropColumnsGrid');
-                if (!grid) return;
-                const checkedCols = Array.from(grid.querySelectorAll('.dn-col-drop-check:checked')).map(cb => cb.value);
-                if (checkedCols.length === 0) {
-                    showToast('No recommended columns found to auto-clean.', 'info');
-                    return;
-                }
-                executeDropColumns(checkedCols, autoCleanAllBtn, 'Auto-Cleaning...');
-            });
-        }
-
-        if (confirmDropBtn) {
-            confirmDropBtn.addEventListener('click', function () {
-                const grid = document.getElementById('dnDropColumnsGrid');
-                if (!grid) return;
-                const checkedCols = Array.from(grid.querySelectorAll('.dn-col-drop-check:checked')).map(cb => cb.value);
-                executeDropColumns(checkedCols, confirmDropBtn, 'Removing...');
             });
         }
 
@@ -1588,7 +1544,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const exportReportBtn = document.getElementById('dnExportReportBtn');
     if (exportReportBtn) {
         exportReportBtn.addEventListener('click', function () {
-            if (!activeDatasetId) { showToast('Please upload a dataset first.', 'warning'); return; }
+            if (!activeDatasetId) { alert('Please upload a dataset first.'); return; }
             window.location.href = `/api/export_eda_report/${activeDatasetId}`;
         });
     }
@@ -1732,12 +1688,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (customChartSpinner) customChartSpinner.style.display = 'none';
                     if (data.success && data.plot) {
                         if (customChartImg) {
-                            const rawPlot = typeof data.plot === 'object' ? data.plot.plot : data.plot;
-                            if (rawPlot) {
-                                const imgSrc = rawPlot.startsWith('data:image') ? rawPlot : `data:image/png;base64,${rawPlot}`;
-                                customChartImg.src = imgSrc;
-                                customChartImg.style.display = 'inline-block';
-                            }
+                            customChartImg.src = `data:image/png;base64,${data.plot}`;
+                            customChartImg.style.display = 'inline-block';
                         }
                     } else {
                         alert('Error generating graph: ' + (data.message || 'Unknown error'));
@@ -2002,984 +1954,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    /* ---------------------------------------------------------------------
-       Assigned Work / Tasks Handlers for Analyst
-       ------------------------------------------------------------------- */
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
+    fetchAnalystAnalytics();
 
-    function renderAnalystTasks(tasks) {
-        const tbody = document.getElementById('analystAssignedTasksTableBody');
-        const badge = document.getElementById('analystAssignedTasksBadge');
-        if (badge) {
-            badge.textContent = tasks ? tasks.length : 0;
-        }
-        if (!tbody) return;
-
-        if (!tasks || tasks.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center text-secondary py-4">
-                        <i class="bi bi-check2-circle fs-3 d-block mb-1 text-muted"></i> No tasks currently assigned to you.
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        tbody.innerHTML = tasks.map(task => {
-            let priorityBadge = '<span class="badge bg-info-subtle text-info border border-info-subtle">Low</span>';
-            if (task.priority === 'High') {
-                priorityBadge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-exclamation-triangle me-1"></i>High</span>';
-            } else if (task.priority === 'Medium') {
-                priorityBadge = '<span class="badge bg-warning-subtle text-warning border border-warning-subtle">Medium</span>';
-            }
-
-            let statusBadge = '<span class="badge bg-amber text-dark" style="background:#f59e0b"><i class="bi bi-clock me-1"></i>Pending</span>';
-            let actionButtons = `
-                <button class="btn btn-outline-primary" data-action="update-task-status" data-task-id="${task.id}" data-status="In Progress"><i class="bi bi-play-fill me-1"></i> Start</button>
-                <button class="btn btn-outline-success" data-action="update-task-status" data-task-id="${task.id}" data-status="Completed"><i class="bi bi-check-lg me-1"></i> Done</button>
-            `;
-
-            if (task.status === 'Completed') {
-                statusBadge = '<span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Completed</span>';
-                actionButtons = `<span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2"><i class="bi bi-check2-all me-1"></i>Completed</span>`;
-            } else if (task.status === 'In Progress') {
-                statusBadge = '<span class="badge bg-primary text-white"><i class="bi bi-hourglass-split me-1"></i>In Progress</span>';
-                actionButtons = `
-                    <button class="btn btn-outline-success" data-action="update-task-status" data-task-id="${task.id}" data-status="Completed"><i class="bi bi-check-lg me-1"></i> Complete</button>
-                    <button class="btn btn-outline-secondary" data-action="update-task-status" data-task-id="${task.id}" data-status="Pending"><i class="bi bi-pause-fill me-1"></i> Pause</button>
-                `;
-            } else if (task.status === 'Reopened') {
-                statusBadge = '<span class="badge bg-warning text-dark border border-warning-subtle"><i class="bi bi-arrow-counterclockwise me-1"></i>Reopened</span>';
-                actionButtons = `
-                    <button class="btn btn-outline-primary" data-action="update-task-status" data-task-id="${task.id}" data-status="In Progress"><i class="bi bi-play-fill me-1"></i> Start</button>
-                    <button class="btn btn-outline-success" data-action="update-task-status" data-task-id="${task.id}" data-status="Completed"><i class="bi bi-check-lg me-1"></i> Done</button>
-                `;
-            }
-
-            const descHtml = task.description ? `<div class="small text-secondary text-truncate" style="max-width:300px;">${escapeHtml(task.description)}</div>` : '';
-            const datasetHtml = task.dataset_id ? `
-                <div class="mt-2 d-flex flex-wrap align-items-center gap-2">
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center" style="font-size:0.75rem;">
-                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>${escapeHtml(task.dataset_file_name || 'Task Dataset')}
-                    </span>
-                    <button type="button" class="btn btn-sm btn-primary py-0 px-2 btn-load-task-dataset" data-dataset-id="${task.dataset_id}" data-filename="${escapeHtml(task.dataset_file_name || 'Task Dataset')}" style="font-size:0.75rem; border-radius:4px;">
-                        <i class="bi bi-play-circle-fill me-1"></i> Analyze Dataset
-                    </button>
-                </div>
-            ` : '';
-            const remarkHtml = task.remark ? `<div class="small mt-1 p-1 px-2 rounded bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="max-width:320px;"><i class="bi bi-chat-left-dots-fill me-1"></i><strong>Manager Remark:</strong> ${escapeHtml(task.remark)}</div>` : '';
-
-            return `
-                <tr data-task-id="${task.id}">
-                    <td>
-                        <div class="fw-semibold">${escapeHtml(task.task_title || '')}</div>
-                        ${descHtml}
-                        ${datasetHtml}
-                        ${remarkHtml}
-                    </td>
-                    <td>
-                        <div class="small fw-semibold">${escapeHtml(task.manager_name || 'Management')}</div>
-                        <div class="small text-secondary">${escapeHtml(task.manager_email || '')}</div>
-                    </td>
-                    <td>${priorityBadge}</td>
-                    <td class="small">${escapeHtml(task.due_date || 'Flexible')}</td>
-                    <td>${statusBadge}</td>
-                    <td class="text-end">
-                        <div class="btn-group btn-group-sm">
-                            ${actionButtons}
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-    }
-
-    function refreshAnalystTasks() {
-        const btn = document.getElementById('refreshAnalystTasksBtn');
-        if (btn) btn.classList.add('disabled');
-        fetch('/api/user/assigned_tasks')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.tasks) {
-                    renderAnalystTasks(data.tasks);
-                }
-            })
-            .catch(err => console.warn('Could not refresh assigned tasks:', err))
-            .finally(() => {
-                if (btn) btn.classList.remove('disabled');
-            });
-    }
-
-    // Status update click delegation
-    document.addEventListener('click', function (e) {
-        const btn = e.target.closest('[data-action="update-task-status"]');
-        if (!btn) return;
-        e.preventDefault();
-        const taskId = btn.getAttribute('data-task-id');
-        const status = btn.getAttribute('data-status');
-        if (!taskId || !status) return;
-
-        btn.disabled = true;
-        fetch('/api/manager/update_task_status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ task_id: taskId, status: status })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                if (typeof showToast === 'function') {
-                    showToast(data.message || `Task updated to ${status}.`, "success");
-                }
-                refreshAnalystTasks();
-                if (window.DataNovaStateBus) {
-                    if (typeof window.DataNovaStateBus.notify === 'function') {
-                        window.DataNovaStateBus.notify('MUTATION_TASK_UPDATE', { task_id: taskId, status: status });
-                    } else if (typeof window.DataNovaStateBus.emit === 'function') {
-                        window.DataNovaStateBus.emit('MUTATION_TASK_UPDATE', { task_id: taskId, status: status });
-                    }
-                }
-            } else {
-                if (typeof showToast === 'function') {
-                    showToast(data.message || 'Failed to update task status.', "danger");
-                }
-            }
-        })
-        .catch(err => {
-            console.error('Error updating task status:', err);
-            if (typeof showToast === 'function') {
-                showToast('Network error while updating task.', 'danger');
-            }
-        })
-        .finally(() => {
-            btn.disabled = false;
-        });
-    });
-
-    // Task dataset load & analyze click delegation
-    document.addEventListener('click', function (e) {
-        const loadBtn = e.target.closest('.btn-load-task-dataset');
-        if (!loadBtn) return;
-        e.preventDefault();
-        const dsId = loadBtn.getAttribute('data-dataset-id');
-        const fName = loadBtn.getAttribute('data-filename') || 'Task Dataset';
-        if (!dsId) return;
-
-        const origHtml = loadBtn.innerHTML;
-        loadBtn.disabled = true;
-        loadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Loading...';
-
-        fetch(`/api/load_dataset/${dsId}`, { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    populateDatasetWorkspace(data, fName, true);
-                    if (typeof showToast === 'function') {
-                        showToast(data.message || `Assigned dataset '${fName}' loaded into analysis workspace!`, 'success');
-                    }
-                    const previewPanel = document.getElementById('dnDataPreviewPanel') || document.getElementById('step-preview') || document.getElementById('dnDatasetStatsGrid');
-                    if (previewPanel) {
-                        previewPanel.scrollIntoView({ behavior: 'smooth' });
-                    }
-                } else {
-                    if (typeof showToast === 'function') {
-                        showToast(data.message || 'Failed to load task dataset.', 'danger');
-                    }
-                    loadBtn.disabled = false;
-                    loadBtn.innerHTML = origHtml;
-                }
-            })
-            .catch(err => {
-                console.error('Error loading task dataset:', err);
-                if (typeof showToast === 'function') {
-                    showToast('Network error while loading task dataset.', 'danger');
-                }
-                loadBtn.disabled = false;
-                loadBtn.innerHTML = origHtml;
-            });
-    });
-
-    const refreshTasksBtn = document.getElementById('refreshAnalystTasksBtn');
-    if (refreshTasksBtn) {
-        refreshTasksBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            refreshAnalystTasks();
-        });
-    }
-
-    /* ---------------------------------------------------------------------
-       Sidebar Navigation & Smooth Scroll Management
-       ------------------------------------------------------------------- */
-    const sidebarNavLinks = document.querySelectorAll('#dnAnalystSidebarNav .dn-nav-link');
-    sidebarNavLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            const href = this.getAttribute('href');
-            if (href && href.startsWith('#') && href.length > 1) {
-                e.preventDefault();
-                const target = document.querySelector(href);
-                if (target) {
-                    sidebarNavLinks.forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }
-        });
-    });
-
-    /* ---------------------------------------------------------------------
-       Quick Action Buttons Navigation
-       ------------------------------------------------------------------- */
-    const btnQuickUpload = document.getElementById('btnQuickUpload');
-    if (btnQuickUpload) {
-        btnQuickUpload.addEventListener('click', function(e) {
-            e.preventDefault();
-            const uploadSection = document.getElementById('upload');
-            if (uploadSection) {
-                uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                const fileInp = document.getElementById('dnFileInput');
-                if (fileInp) setTimeout(() => fileInp.click(), 400);
-            }
-        });
-    }
-
-    const btnQuickClean = document.getElementById('btnQuickClean');
-    if (btnQuickClean) {
-        btnQuickClean.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (!activeDatasetId) {
-                showToast('Please upload a dataset first to start cleaning.', 'warning');
-                const uploadSection = document.getElementById('upload');
-                if (uploadSection) uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return;
-            }
-            const cleanSection = document.getElementById('step-cleaning');
-            if (cleanSection) cleanSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-    }
-
-    const btnQuickEDA = document.getElementById('btnQuickEDA');
-    if (btnQuickEDA) {
-        btnQuickEDA.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (!activeDatasetId) {
-                showToast('Please upload a dataset first to run EDA.', 'warning');
-                const uploadSection = document.getElementById('upload');
-                if (uploadSection) uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return;
-            }
-            const edaSection = document.getElementById('step-eda');
-            if (edaSection) edaSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            const genBtn = document.getElementById('dnGenerateEDABtn');
-            if (genBtn) genBtn.click();
-        });
-    }
-
-    /* ---------------------------------------------------------------------
-       Analyst Preferences & Settings
-       ------------------------------------------------------------------- */
-    window.saveAnalystPreferences = function() {
-        const theme = document.getElementById('prefThemeSelect')?.value || 'system';
-        const chartType = document.getElementById('prefChartTypeSelect')?.value || 'interactive_3d';
-        const aiLang = document.getElementById('prefAILangSelect')?.value || 'en';
-        const autoEda = document.getElementById('prefAutoEdaToggle')?.checked ?? true;
-        const autoRefresh = document.getElementById('prefAutoRefreshTasksToggle')?.checked ?? true;
-
-        const prefs = { theme, chartType, aiLang, autoEda, autoRefresh };
-        localStorage.setItem('datanova_analyst_prefs', JSON.stringify(prefs));
-
-        // Apply theme immediately
-        if (theme === 'dark' || theme === 'light') {
-            document.documentElement.setAttribute('data-bs-theme', theme);
-            localStorage.setItem('theme', theme);
-        } else {
-            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.setAttribute('data-bs-theme', systemPrefersDark ? 'dark' : 'light');
-            localStorage.removeItem('theme');
-        }
-
-        // Apply AI response language select
-        const langSelect = document.getElementById('dnAskLanguage');
-        if (langSelect) langSelect.value = aiLang;
-
-        // Close modal
-        const modalEl = document.getElementById('analystSettingsModal');
-        if (modalEl && window.bootstrap) {
-            const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-            modalInstance.hide();
-        }
-
-        showToast('Settings saved successfully!', 'success');
-    };
-
-    function loadAnalystPreferences() {
-        try {
-            const raw = localStorage.getItem('datanova_analyst_prefs');
-            if (raw) {
-                const prefs = JSON.parse(raw);
-                if (document.getElementById('prefThemeSelect') && prefs.theme) {
-                    document.getElementById('prefThemeSelect').value = prefs.theme;
-                }
-                if (document.getElementById('prefChartTypeSelect') && prefs.chartType) {
-                    document.getElementById('prefChartTypeSelect').value = prefs.chartType;
-                }
-                if (document.getElementById('prefAILangSelect') && prefs.aiLang) {
-                    document.getElementById('prefAILangSelect').value = prefs.aiLang;
-                    const langSelect = document.getElementById('dnAskLanguage');
-                    if (langSelect) langSelect.value = prefs.aiLang;
-                }
-                if (document.getElementById('prefAutoEdaToggle') && typeof prefs.autoEda === 'boolean') {
-                    document.getElementById('prefAutoEdaToggle').checked = prefs.autoEda;
-                }
-                if (document.getElementById('prefAutoRefreshTasksToggle') && typeof prefs.autoRefresh === 'boolean') {
-                    document.getElementById('prefAutoRefreshTasksToggle').checked = prefs.autoRefresh;
-                }
-            }
-        } catch (e) {
-            console.warn('Could not load analyst preferences:', e);
-        }
-    }
-    loadAnalystPreferences();
-
-    /* ---------------------------------------------------------------------
-       Keyboard Shortcuts
-       ------------------------------------------------------------------- */
-    document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-            e.preventDefault();
-            if (typeof openAskModal === 'function') {
-                openAskModal(e);
-            }
-        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
-            e.preventDefault();
-            const uploadSection = document.getElementById('upload');
-            if (uploadSection) {
-                uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                const fileInp = document.getElementById('dnFileInput');
-                if (fileInp) fileInp.click();
-            }
-        }
-    });
-
-    /* ---------------------------------------------------------------------
-       Previous Datasets Modal & Loader Manager
-       ------------------------------------------------------------------- */
-    let cachedPreviousDatasets = [];
-    const prevModalEl = document.getElementById('previousDatasetsModal');
-    const prevListContainer = document.getElementById('previousDatasetsListContainer');
-    const prevLoading = document.getElementById('previousDatasetsLoading');
-    const searchPrevInput = document.getElementById('searchPreviousDatasetsInput');
-    const refreshPrevBtn = document.getElementById('refreshPreviousDatasetsBtn');
-    const prevCountText = document.getElementById('previousDatasetsCountText');
-
-    function fetchPreviousDatasets() {
-        if (!prevListContainer) return;
-        if (prevLoading) prevLoading.style.display = 'block';
-        prevListContainer.innerHTML = '';
-
-        fetch('/api/previous_datasets')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && Array.isArray(data.datasets)) {
-                    cachedPreviousDatasets = data.datasets;
-                    renderPreviousDatasets(cachedPreviousDatasets);
-                    if (prevCountText) {
-                        prevCountText.textContent = `${data.datasets.length} dataset${data.datasets.length === 1 ? '' : 's'} available`;
-                    }
-                } else {
-                    prevListContainer.innerHTML = `
-                        <div class="text-center py-4 text-muted">
-                            <i class="bi bi-exclamation-triangle fs-3 text-warning mb-2 d-block"></i>
-                            <div>Failed to load previous datasets.</div>
-                            <small>${data.message || 'Please try again.'}</small>
-                        </div>
-                    `;
-                }
-            })
-            .catch(err => {
-                console.error('Error fetching previous datasets:', err);
-                if (prevListContainer) {
-                    prevListContainer.innerHTML = `
-                        <div class="text-center py-4 text-muted">
-                            <i class="bi bi-wifi-off fs-3 text-danger mb-2 d-block"></i>
-                            <div>Network error fetching previous datasets.</div>
-                        </div>
-                    `;
-                }
-            })
-            .finally(() => {
-                if (prevLoading) prevLoading.style.display = 'none';
-            });
-    }
-
-    function renderPreviousDatasets(datasets) {
-        if (!prevListContainer) return;
-        if (!datasets || datasets.length === 0) {
-            prevListContainer.innerHTML = `
-                <div class="text-center py-5">
-                    <div class="dn-avatar mx-auto mb-3" style="width:54px;height:54px;background:rgba(99,102,241,0.1);color:var(--dn-primary);display:flex;align-items:center;justify-content:center;border-radius:50%;">
-                        <i class="bi bi-folder-x fs-4"></i>
-                    </div>
-                    <h6 class="fw-semibold mb-1">No Previous Datasets Found</h6>
-                    <p class="text-secondary small mb-3">Upload a CSV or Excel dataset to begin your data analysis journey.</p>
-                    <button class="btn btn-sm dn-btn-primary" data-bs-dismiss="modal" onclick="document.getElementById('upload')?.scrollIntoView({behavior:'smooth'}); setTimeout(()=>document.getElementById('dnFileInput')?.click(), 400);">
-                        <i class="bi bi-cloud-upload me-1"></i> Upload Dataset Now
-                    </button>
-                </div>
-            `;
-            return;
-        }
-
-        const itemsHtml = datasets.map(ds => {
-            const isActive = activeDatasetId && String(activeDatasetId) === String(ds.id);
-            return `
-                <div class="dn-dataset-card p-3 mb-2 rounded border bg-body-tertiary d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 ${isActive ? 'border-primary shadow-sm' : ''}">
-                    <div class="d-flex align-items-start gap-3">
-                        <span class="dn-kpi-icon flex-shrink-0" style="background:${isActive ? 'var(--dn-primary)' : 'rgba(99,102,241,0.12)'};color:${isActive ? '#fff' : 'var(--dn-primary)'};width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
-                            <i class="bi bi-file-earmark-spreadsheet"></i>
-                        </span>
-                        <div>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="fw-bold">${ds.file_name}</span>
-                                ${isActive ? '<span class="badge bg-primary text-white"><i class="bi bi-check2 me-1"></i>Active Now</span>' : ''}
-                            </div>
-                            <div class="d-flex align-items-center gap-3 mt-1 small text-secondary flex-wrap">
-                                <span><i class="bi bi-calendar3 me-1"></i>${ds.uploaded_at}</span>
-                                <span><i class="bi bi-hdd me-1"></i>${ds.file_size}</span>
-                                <span><i class="bi bi-list-ol me-1"></i>${Number(ds.row_count).toLocaleString()} rows</span>
-                                <span><i class="bi bi-layout-three-columns me-1"></i>${ds.column_count} cols</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2 w-100 w-md-auto justify-content-end mt-2 mt-md-0">
-                        <button class="btn btn-sm ${isActive ? 'btn-outline-primary' : 'dn-btn-primary'} btn-load-prev-dataset" data-dataset-id="${ds.id}" data-filename="${ds.file_name}">
-                            <i class="bi ${isActive ? 'bi-arrow-clockwise' : 'bi-box-arrow-in-down-right'} me-1"></i> ${isActive ? 'Reload' : 'Load Dataset'}
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger btn-delete-prev-dataset" data-dataset-id="${ds.id}" data-filename="${ds.file_name}" title="Delete Dataset">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        prevListContainer.innerHTML = itemsHtml;
-
-        // Attach Load Handlers
-        prevListContainer.querySelectorAll('.btn-load-prev-dataset').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const dsId = this.getAttribute('data-dataset-id');
-                const fName = this.getAttribute('data-filename');
-                if (!dsId) return;
-
-                const origHtml = this.innerHTML;
-                this.disabled = true;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Loading...';
-
-                fetch(`/api/load_dataset/${dsId}`, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (prevModalEl && window.bootstrap) {
-                                const modalInst = bootstrap.Modal.getInstance(prevModalEl);
-                                if (modalInst) modalInst.hide();
-                            }
-                            populateDatasetWorkspace(data, fName, true);
-                            showToast(data.message || `Dataset '${fName}' loaded successfully!`, 'success');
-                        } else {
-                            showToast(data.message || 'Failed to load dataset.', 'danger');
-                            this.disabled = false;
-                            this.innerHTML = origHtml;
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error loading dataset:', err);
-                        showToast('Network error while loading dataset.', 'danger');
-                        this.disabled = false;
-                        this.innerHTML = origHtml;
-                    });
-            });
-        });
-
-        // Attach Delete Handlers
-        prevListContainer.querySelectorAll('.btn-delete-prev-dataset').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const dsId = this.getAttribute('data-dataset-id');
-                const fName = this.getAttribute('data-filename');
-                if (!dsId) return;
-
-                if (!confirm(`Are you sure you want to delete dataset "${fName}"? This action cannot be undone.`)) {
-                    return;
-                }
-
-                this.disabled = true;
-                fetch(`/api/delete_dataset/${dsId}`, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            showToast(`Dataset "${fName}" deleted successfully.`, 'success');
-                            if (String(activeDatasetId) === String(dsId)) {
-                                activeDatasetId = null;
-                                location.reload();
-                            } else {
-                                fetchPreviousDatasets();
-                            }
-                        } else {
-                            showToast(data.message || 'Failed to delete dataset.', 'danger');
-                            this.disabled = false;
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error deleting dataset:', err);
-                        showToast('Error deleting dataset.', 'danger');
-                        this.disabled = false;
-                    });
-            });
-        });
-    }
-
-    if (searchPrevInput) {
-        searchPrevInput.addEventListener('input', function(e) {
-            const query = e.target.value.toLowerCase().trim();
-            if (!query) {
-                renderPreviousDatasets(cachedPreviousDatasets);
-                return;
-            }
-            const filtered = cachedPreviousDatasets.filter(ds => 
-                (ds.file_name && ds.file_name.toLowerCase().includes(query)) ||
-                (ds.uploaded_at && ds.uploaded_at.toLowerCase().includes(query))
-            );
-            renderPreviousDatasets(filtered);
-        });
-    }
-
-    if (refreshPrevBtn) {
-        refreshPrevBtn.addEventListener('click', function() {
-            fetchPreviousDatasets();
-        });
-    }
-
-    if (prevModalEl) {
-        prevModalEl.addEventListener('show.bs.modal', function() {
-            if (searchPrevInput) searchPrevInput.value = '';
-            fetchPreviousDatasets();
-        });
-    }
-
-    /* ---------------------------------------------------------------------
-       17. Share Active Dashboard & Collaborative Review
-       ------------------------------------------------------------------- */
-    const shareModalEl = document.getElementById('shareDashboardModal');
-    let shareModalInstance = null;
-    if (shareModalEl) {
-        shareModalInstance = new bootstrap.Modal(shareModalEl);
-    }
-    const teamMembersContainer = document.getElementById('teamMembersChecklistContainer');
-    const selectAllTeamCheckbox = document.getElementById('selectAllTeamMembers');
-    const shareDashboardForm = document.getElementById('shareDashboardForm');
-    const shareTitleInput = document.getElementById('shareDashboardTitle');
-    const shareDescInput = document.getElementById('shareDashboardDesc');
-    const shareModalSubtitle = document.getElementById('shareModalDatasetSubtitle');
-
-    let cachedTeamMembers = [];
-
-    function fetchTeamMembersForSharing() {
-        if (!teamMembersContainer) return;
-        teamMembersContainer.innerHTML = `
-            <div class="text-center py-3 text-secondary small">
-                <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Loading team members...
-            </div>`;
-        fetch('/api/team_members_for_sharing')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.members) {
-                    cachedTeamMembers = data.members;
-                    renderTeamMembersChecklist(cachedTeamMembers);
-                } else {
-                    teamMembersContainer.innerHTML = `<div class="text-danger small p-2">${escapeHtml(data.message || 'Failed to load team members.')}</div>`;
-                }
-            })
-            .catch(err => {
-                console.error('Error fetching team members:', err);
-                teamMembersContainer.innerHTML = `<div class="text-danger small p-2">Error loading team members.</div>`;
-            });
-    }
-
-    function renderTeamMembersChecklist(members) {
-        if (!teamMembersContainer) return;
-        if (!members || members.length === 0) {
-            teamMembersContainer.innerHTML = `<div class="text-muted small p-2 text-center">No other team members found in the organization.</div>`;
-            return;
-        }
-
-        teamMembersContainer.innerHTML = members.map(m => {
-            let roleBadge = '<span class="badge bg-secondary">Viewer</span>';
-            if (m.raw_role === 'manager') roleBadge = '<span class="badge bg-primary">Manager</span>';
-            else if (m.raw_role === 'analyst') roleBadge = '<span class="badge bg-info">Analyst</span>';
-            else if (m.raw_role === 'admin') roleBadge = '<span class="badge bg-danger">Admin</span>';
-
-            return `
-                <div class="form-check d-flex align-items-center justify-content-between p-2 border-bottom">
-                    <div class="d-flex align-items-center gap-2">
-                        <input class="form-check-input dn-team-member-chk" type="checkbox" value="${m.id}" id="teamMemberChk_${m.id}" checked>
-                        <label class="form-check-label small fw-semibold text-body" for="teamMemberChk_${m.id}">
-                            ${escapeHtml(m.name)}
-                            <span class="text-secondary fw-normal d-block" style="font-size:0.75rem;">${escapeHtml(m.email)}</span>
-                        </label>
-                    </div>
-                    <div>${roleBadge}</div>
-                </div>
-            `;
-        }).join('');
-
-        if (selectAllTeamCheckbox) {
-            selectAllTeamCheckbox.checked = true;
-        }
-
-        // Attach individual change listener to update Select All state
-        teamMembersContainer.querySelectorAll('.dn-team-member-chk').forEach(chk => {
-            chk.addEventListener('change', function() {
-                const allChks = teamMembersContainer.querySelectorAll('.dn-team-member-chk');
-                const checkedCount = teamMembersContainer.querySelectorAll('.dn-team-member-chk:checked').length;
-                if (selectAllTeamCheckbox) {
-                    selectAllTeamCheckbox.checked = (checkedCount === allChks.length);
-                    selectAllTeamCheckbox.indeterminate = (checkedCount > 0 && checkedCount < allChks.length);
-                }
-            });
-        });
-    }
-
-    if (selectAllTeamCheckbox) {
-        selectAllTeamCheckbox.addEventListener('change', function() {
-            const isChecked = this.checked;
-            if (teamMembersContainer) {
-                teamMembersContainer.querySelectorAll('.dn-team-member-chk').forEach(chk => {
-                    chk.checked = isChecked;
-                });
-            }
-        });
-    }
-
-    // When opening share modal
-    if (shareModalEl) {
-        shareModalEl.addEventListener('show.bs.modal', function(e) {
-            if (!activeDatasetId) {
-                showToast("Please upload or select an active dataset first to share.", "warning");
-            }
-            if (shareModalSubtitle) {
-                const activeMeta = document.getElementById('dnActiveDatasetMeta');
-                const fileName = activeMeta ? activeMeta.textContent : `Dataset #${activeDatasetId || ''}`;
-                shareModalSubtitle.textContent = `Sharing: ${fileName}`;
-            }
-            fetchTeamMembersForSharing();
-        });
-    }
-
-    // Share Form Submit Handler
-    if (shareDashboardForm) {
-        shareDashboardForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            if (!activeDatasetId) {
-                showToast("Please select or upload a dataset before sharing.", "danger");
-                return;
-            }
-
-            const title = shareTitleInput ? shareTitleInput.value.trim() : '';
-            const description = shareDescInput ? shareDescInput.value.trim() : '';
-
-            if (!title) {
-                showToast("Please enter a title for the shared dashboard.", "warning");
-                return;
-            }
-
-            const selectedMemberIds = [];
-            if (teamMembersContainer) {
-                teamMembersContainer.querySelectorAll('.dn-team-member-chk:checked').forEach(chk => {
-                    selectedMemberIds.push(parseInt(chk.value));
-                });
-            }
-
-            if (selectedMemberIds.length === 0) {
-                showToast("Please select at least one team member to share with.", "warning");
-                return;
-            }
-
-            const submitBtn = document.getElementById('btnSubmitShareDashboard');
-            const origHtml = submitBtn ? submitBtn.innerHTML : 'Share Dashboard';
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Sharing...';
-            }
-
-            fetch('/api/share_dashboard_with_team', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    dataset_id: activeDatasetId,
-                    title: title,
-                    description: description,
-                    user_ids: selectedMemberIds
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    showToast(data.message || "Dashboard shared successfully!", "success");
-                    if (shareDashboardForm) shareDashboardForm.reset();
-                    if (shareModalInstance) shareModalInstance.hide();
-                    fetchAnalystSharedDashboards();
-                    if (window.DataNovaStateBus) {
-                        if (typeof window.DataNovaStateBus.notify === 'function') {
-                            window.DataNovaStateBus.notify('MUTATION_DASHBOARD_SHARED', { dataset_id: activeDatasetId });
-                        }
-                    }
-                } else {
-                    showToast(data.message || "Failed to share dashboard.", "danger");
-                }
-            })
-            .catch(err => {
-                console.error("Error sharing dashboard:", err);
-                showToast("Network error while sharing dashboard.", "danger");
-            })
-            .finally(() => {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = origHtml;
-                }
-            });
-        });
-    }
-
-    // --- Shared Dashboards List & Viewer Detail Modal ---
-    const sharedDetailModalEl = document.getElementById('sharedDashboardDetailModal');
-    let sharedDetailModalInstance = null;
-    if (sharedDetailModalEl) {
-        sharedDetailModalInstance = new bootstrap.Modal(sharedDetailModalEl);
-    }
-
-    function fetchAnalystSharedDashboards() {
-        const loadingEl = document.getElementById('analystSharedLoading');
-        const container = document.getElementById('analystSharedCardsContainer');
-        const badge = document.getElementById('analystSharedBadge');
-
-        if (loadingEl) loadingEl.style.display = 'block';
-
-        fetch('/api/shared_dashboards/list')
-            .then(res => res.json())
-            .then(data => {
-                if (loadingEl) loadingEl.style.display = 'none';
-                if (data.success && data.dashboards) {
-                    if (badge) {
-                        badge.textContent = data.dashboards.length;
-                        badge.style.display = data.dashboards.length > 0 ? 'inline-block' : 'none';
-                    }
-                    renderAnalystSharedDashboards(data.dashboards);
-                } else {
-                    if (container) {
-                        container.innerHTML = `<div class="col-12"><div class="alert alert-warning">${escapeHtml(data.message || 'Could not load shared dashboards.')}</div></div>`;
-                    }
-                }
-            })
-            .catch(err => {
-                if (loadingEl) loadingEl.style.display = 'none';
-                console.error('Error fetching shared dashboards:', err);
-            });
-    }
-
-    function renderAnalystSharedDashboards(dashboards) {
-        const container = document.getElementById('analystSharedCardsContainer');
-        if (!container) return;
-
-        if (!dashboards || dashboards.length === 0) {
-            container.innerHTML = `
-                <div class="col-12">
-                    <div class="p-4 text-center text-secondary border rounded bg-body-tertiary">
-                        <i class="bi bi-share fs-2 mb-2 d-block text-muted"></i>
-                        <div class="fw-medium">No shared dashboards yet</div>
-                        <small>Click "Share Active Dataset" to share analytical findings with your team.</small>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = dashboards.map(sd => {
-            let statusBadge = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Shared</span>';
-            if (sd.status === 'Approved') {
-                statusBadge = '<span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Approved</span>';
-            } else if (sd.status === 'Reopened') {
-                statusBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-arrow-counterclockwise me-1"></i>Reopened for Revision</span>';
-            } else if (sd.status === 'Reviewed') {
-                statusBadge = '<span class="badge bg-info text-white"><i class="bi bi-chat-left-text me-1"></i>Reviewed</span>';
-            }
-
-            const remarkHtml = sd.remark ? `
-                <div class="small mt-2 p-2 rounded bg-warning-subtle text-warning-emphasis border border-warning-subtle">
-                    <i class="bi bi-chat-left-quote-fill me-1"></i><strong>Manager Feedback:</strong> ${escapeHtml(sd.remark)}
-                </div>
-            ` : '';
-
-            return `
-                <div class="col-md-6 col-lg-4">
-                    <div class="dn-kpi-card h-100 d-flex flex-column justify-content-between p-3 border rounded shadow-sm">
-                        <div>
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="fw-bold mb-0 text-truncate" title="${escapeHtml(sd.title)}">${escapeHtml(sd.title)}</h6>
-                                ${statusBadge}
-                            </div>
-                            <div class="small text-secondary mb-1"><i class="bi bi-person me-1"></i>Owner: <strong>${escapeHtml(sd.owner_name)}</strong> (${escapeHtml(sd.owner_role)})</div>
-                            <div class="small text-secondary mb-2"><i class="bi bi-database me-1"></i>${escapeHtml(sd.dataset_name)} &bull; ${sd.row_count.toLocaleString()} rows</div>
-                            ${sd.description ? `<p class="small text-muted mb-2 text-truncate" style="max-height:40px;">${escapeHtml(sd.description)}</p>` : ''}
-                            ${remarkHtml}
-                        </div>
-                        <div class="pt-3 mt-2 border-top d-flex justify-content-between align-items-center">
-                            <small class="text-secondary">${escapeHtml(sd.created_at_str)}</small>
-                            <button class="btn btn-sm dn-btn-primary btn-view-shared-dashboard" data-shared-id="${sd.id}">
-                                <i class="bi bi-eye me-1"></i> View Dashboard
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        // Attach View Handlers
-        container.querySelectorAll('.btn-view-shared-dashboard').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const sharedId = this.getAttribute('data-shared-id');
-                if (sharedId) {
-                    openSharedDashboardDetail(sharedId);
-                }
-            });
-        });
-    }
-
-    function openSharedDashboardDetail(sharedId) {
-        if (!sharedDetailModalInstance && sharedDetailModalEl) {
-            sharedDetailModalInstance = new bootstrap.Modal(sharedDetailModalEl);
-        }
-
-        // Fetch shared details
-        fetch(`/api/shared_dashboard/view/${sharedId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.dashboard) {
-                    const sd = data.dashboard;
-
-                    const titleEl = document.getElementById('sharedDetailTitle');
-                    const metaEl = document.getElementById('sharedDetailMeta');
-                    const statusBadge = document.getElementById('sharedDetailStatusBadge');
-                    const descContainer = document.getElementById('sharedDetailDescContainer');
-                    const descText = document.getElementById('sharedDetailDescText');
-                    const remarkBanner = document.getElementById('sharedDetailRemarkBanner');
-                    const remarkText = document.getElementById('sharedDetailRemarkText');
-                    const fileText = document.getElementById('sharedDetailDatasetFile');
-
-                    if (titleEl) titleEl.textContent = sd.title;
-                    if (metaEl) metaEl.textContent = `Shared by ${sd.owner_name} (${sd.owner_role}) • ${sd.created_at_str}`;
-                    if (fileText) fileText.textContent = `Dataset: ${sd.dataset_name}`;
-
-                    if (statusBadge) {
-                        statusBadge.textContent = sd.status;
-                        statusBadge.className = 'badge ' + (sd.status === 'Approved' ? 'bg-success' : sd.status === 'Reopened' ? 'bg-warning text-dark' : 'bg-primary');
-                    }
-
-                    if (descContainer && descText) {
-                        if (sd.description) {
-                            descContainer.style.display = 'flex';
-                            descText.textContent = sd.description;
-                        } else {
-                            descContainer.style.display = 'none';
-                        }
-                    }
-
-                    if (remarkBanner && remarkText) {
-                        if (sd.remark) {
-                            remarkBanner.style.display = 'flex';
-                            remarkText.textContent = sd.remark;
-                        } else {
-                            remarkBanner.style.display = 'none';
-                        }
-                    }
-
-                    // KPIs
-                    const rEl = document.getElementById('sdKpiRows');
-                    const cEl = document.getElementById('sdKpiCols');
-                    const mEl = document.getElementById('sdKpiMemory');
-                    const qEl = document.getElementById('sdKpiQuality');
-                    const miEl = document.getElementById('sdKpiMissing');
-                    const dEl = document.getElementById('sdKpiDuplicates');
-
-                    if (rEl) rEl.textContent = Number(sd.row_count || 0).toLocaleString();
-                    if (cEl) cEl.textContent = Number(sd.column_count || 0).toLocaleString();
-                    if (mEl) mEl.textContent = sd.memory_usage || '0 KB';
-                    if (qEl) qEl.textContent = `${sd.quality_score || 100}%`;
-                    if (miEl) miEl.textContent = Number(sd.missing_count || 0).toLocaleString();
-                    if (dEl) dEl.textContent = Number(sd.duplicate_count || 0).toLocaleString();
-
-                    // Preview Table
-                    const prevContainer = document.getElementById('sharedDetailPreviewContainer');
-                    if (prevContainer) {
-                        prevContainer.innerHTML = sd.preview_html || '<div class="p-3 text-muted">No preview table available.</div>';
-                    }
-
-                    // AI Insights
-                    const insightsContainer = document.getElementById('sharedDetailInsightsContainer');
-                    if (insightsContainer) {
-                        if (sd.insights && sd.insights.length > 0) {
-                            insightsContainer.innerHTML = `<ul class="mb-0 ps-3">${sd.insights.map(i => `<li>${i}</li>`).join('')}</ul>`;
-                        } else {
-                            insightsContainer.innerHTML = '<span class="text-muted small">No AI findings generated yet.</span>';
-                        }
-                    }
-
-                    // Manager Review Action Section
-                    const mgrSection = document.getElementById('managerReviewActionContainer');
-                    if (mgrSection) {
-                        // In Analyst dashboard, hide manager action controls
-                        mgrSection.style.display = 'none';
-                    }
-
-                    if (sharedDetailModalInstance) {
-                        sharedDetailModalInstance.show();
-                    }
-                } else {
-                    showToast(data.message || 'Could not load shared dashboard.', 'danger');
-                }
-            })
-            .catch(err => {
-                console.error('Error fetching dashboard details:', err);
-                showToast('Error loading shared dashboard details.', 'danger');
-            });
-    }
-
-    const refreshSharedBtn = document.getElementById('refreshAnalystSharedBtn');
-    if (refreshSharedBtn) {
-        refreshSharedBtn.addEventListener('click', function() {
-            fetchAnalystSharedDashboards();
-        });
-    }
-
-    // Auto-fetch shared dashboards on load
-    fetchAnalystSharedDashboards();
-
-    // Global State Bus Listener for Analyst Dashboard
-    if (window.DataNovaStateBus) {
-        window.DataNovaStateBus.on('*', function (eventType) {
-            if (eventType === 'MUTATION_TASK_ASSIGNED' || eventType === 'MUTATION_TASK_UPDATE') {
-                refreshAnalystTasks();
-            }
-            if (eventType === 'MUTATION_DASHBOARD_SHARED') {
-                fetchAnalystSharedDashboards();
-            }
-        });
-    }
+    // Restore the active/latest dataset after a page refresh.
+    loadCurrentDataset();
 });

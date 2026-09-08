@@ -292,8 +292,6 @@
   const togglePasswordBtn = document.getElementById('toggle-password');
   const eyeOpen = document.getElementById('eye-open');
   const eyeClosed = document.getElementById('eye-closed');
-  const confirmPasswordInput = document.getElementById('confirm_password');
-  const confirmPasswordError = document.getElementById('confirm-password-error');
 
   function validateEmail() {
     const val = emailInput.value.trim();
@@ -317,18 +315,6 @@
     return '';
   }
 
-  function validateConfirmPassword() {
-    if (!confirmPasswordInput || !passwordInput) return '';
-    const val = confirmPasswordInput.value;
-    const orig = passwordInput.value;
-    if (orig && val !== orig) {
-      if (confirmPasswordError) confirmPasswordError.textContent = 'Passwords do not match.';
-      return 'Passwords do not match.';
-    }
-    if (confirmPasswordError) confirmPasswordError.textContent = '';
-    return '';
-  }
-
   if (emailInput) {
     emailInput.addEventListener('focus', () => { setTyping(true); scheduleRender(); });
     emailInput.addEventListener('blur', () => { setTyping(false); scheduleRender(); });
@@ -340,17 +326,10 @@
     passwordInput.addEventListener('blur', () => { setTyping(false); scheduleRender(); });
     passwordInput.addEventListener('input', () => {
       validatePassword();
-      validateConfirmPassword();
       passwordLength = passwordInput.value.length;
       updatePeekWatcher();
       scheduleRender();
     });
-  }
-
-  if (confirmPasswordInput) {
-    confirmPasswordInput.addEventListener('focus', () => { setTyping(true); scheduleRender(); });
-    confirmPasswordInput.addEventListener('blur', () => { setTyping(false); scheduleRender(); });
-    confirmPasswordInput.addEventListener('input', validateConfirmPassword);
   }
 
   if (togglePasswordBtn && passwordInput) {
@@ -381,10 +360,9 @@
 
     const emailErr = validateEmail();
     const passErr = validatePassword();
-    const confirmErr = validateConfirmPassword();
 
-    if (emailErr || passErr || confirmErr) {
-      formError.textContent = emailErr || passErr || confirmErr;
+    if (emailErr || passErr) {
+      formError.textContent = emailErr || passErr;
       formError.style.display = 'block';
       return;
     }

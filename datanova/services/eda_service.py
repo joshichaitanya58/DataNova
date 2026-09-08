@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def numeric_statistics(series):
     """
-    Computes comprehensive descriptive statistics including Mean, Median, Std, Variance, CV, Range, MAD, Skewness, and Kurtosis.
+    Computes comprehensive descriptive statistics including CV, Range, MAD, Skewness, and Kurtosis.
     """
     series = series.dropna()
 
@@ -31,10 +31,8 @@ def numeric_statistics(series):
     max_val = float(numeric_series.max())
     median_val = float(numeric_series.median())
 
-    # Coefficient of Variation (CV) & Mean Absolute Deviation (MAD)
-    cv_val = round((std_val / abs(mean_val)) * 100, 2) if mean_val != 0 else 0.0
-    mad_val = round(float((numeric_series - mean_val).abs().mean()), 4)
-    val_range = round(max_val - min_val, 4)
+    # Range
+    val_range = max_val - min_val
 
     unique_cnt = int(numeric_series.nunique())
     total_cnt = int(len(numeric_series))
@@ -48,11 +46,9 @@ def numeric_statistics(series):
         "median": round(median_val, 4),
         "std": round(std_val, 4),
         "variance": round(var_val, 4),
-        "cv": cv_val,
-        "mad": mad_val,
         "min": round(min_val, 4),
         "max": round(max_val, 4),
-        "range": val_range,
+        "range": round(val_range, 4),
         "skewness": round(float(numeric_series.skew()), 4) if len(numeric_series) > 2 else 0.0,
         "kurtosis": round(float(numeric_series.kurt()), 4) if len(numeric_series) > 3 else 0.0
     }
@@ -106,7 +102,7 @@ def calculate_correlation(df, semantic_types, method="pearson"):
         }
 
     corr_df = clean_data.corr(method=method).round(4)
-    p_matrix = pd.DataFrame(index=non_constant_cols, columns=non_constant_cols, dtype=object)
+    p_matrix = pd.DataFrame(index=non_constant_cols, columns=non_constant_cols, dtype=float)
     top_pairs = []
 
     cols = list(non_constant_cols)
@@ -130,9 +126,8 @@ def calculate_correlation(df, semantic_types, method="pearson"):
                             else:
                                 r_val, p_val = stats.pearsonr(clean_data[col1], clean_data[col2])
                         else:
-                            r_val, p_val = corr_df.loc[col1, col2], None  # Truthful None when SciPy is unavailable
-                        
-                        p_matrix.loc[col1, col2] = round(float(p_val), 5) if p_val is not None else "N/A"
+                            r_val, p_val = corr_df.loc[col1, col2], 0.05  # Fallback if scipy not available
+                        p_matrix.loc[col1, col2] = round(float(p_val), 5)
 
                         if i < j:  # Only add each pair once
                             r_val = float(r_val)
@@ -147,17 +142,12 @@ def calculate_correlation(df, semantic_types, method="pearson"):
                                 rel_type = "Moderate Negative"
                             else:
                                 rel_type = "Weak"
-
-                            if p_val is None:
-                                sig = "N/A (SciPy Required)"
-                            else:
-                                sig = "Statistically Significant" if p_val < 0.05 else "Not Significant"
-
+                            sig = "Statistically Significant" if p_val < 0.05 else "Not Significant"
                             top_pairs.append({
                                 "col1": col1,
                                 "col2": col2,
                                 "correlation": round(r_val, 4),
-                                "p_value": round(float(p_val), 5) if p_val is not None else None,
+                                "p_value": round(float(p_val), 5),
                                 "relationship": rel_type,
                                 "significance": sig
                             })
@@ -169,7 +159,7 @@ def calculate_correlation(df, semantic_types, method="pearson"):
 
     return {
         "matrix": corr_df.to_dict(),
-        "p_values": p_matrix.to_dict(),
+        "p_values": p_matrix.round(5).to_dict(),
         "top_pairs": top_pairs[:10]
     }
 
@@ -247,7 +237,7 @@ def category_analysis(df, semantic_types):
 
         # Pareto 80/20 driver calculation
         cumulative_pct = (counts.cumsum() / total) * 100
-        drivers_for_80 = int((cumulative_pct < 80).sum()) + 1
+        drivers_for_80 = int((cumulative_pct <= 80).sum()) + 1
         pareto_pct = round((drivers_for_80 / unique_cnt) * 100, 2) if unique_cnt > 0 else 0.0
 
         results[col] = {

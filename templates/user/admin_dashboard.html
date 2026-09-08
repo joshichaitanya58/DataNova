@@ -33,29 +33,20 @@
             <nav class="dn-sidebar-scroll">
                 <div class="dn-nav-section-label">Platform</div>
                 <a href="#" class="dn-nav-link active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
-                <a href="#" class="dn-nav-link" data-section="Recent Users"><i class="bi bi-people"></i> User
-                    Management</a>
-                <a href="#" class="dn-nav-link" data-section="Recent Users"><i class="bi bi-person-badge"></i> Role
-                    Management</a>
-                <a href="#" class="dn-nav-link" data-section="Dataset Monitoring"><i class="bi bi-database"></i> Dataset
-                    Management</a>
-                <a href="{{ url_for('dashboards.admin_reports_dashboard') }}" class="dn-nav-link"><i
-                        class="bi bi-file-earmark-bar-graph"></i> Reports
-                    Management</a>
-                <a href="#" class="dn-nav-link" data-page="shared-dashboards"><i class="bi bi-share"></i> Shared
-                    Dashboards</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-people"></i> User Management</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-person-badge"></i> Role Management</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-database"></i> Dataset Management</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-file-earmark-bar-graph"></i> Reports Management</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-share"></i> Shared Dashboards</a>
 
                 <div class="dn-nav-section-label">Monitoring</div>
-                <a href="#" class="dn-nav-link" data-section="System Activity"><i class="bi bi-activity"></i> System
-                    Activity</a>
-                <a href="#" class="dn-nav-link" data-section="API"><i class="bi bi-cpu"></i> AI / API Usage</a>
-                <a href="#" class="dn-nav-link" data-section="Security Status"><i class="bi bi-shield-lock"></i>
-                    Security</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-activity"></i> System Activity</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-cpu"></i> AI / API Usage</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-shield-lock"></i> Security</a>
 
                 <div class="dn-nav-section-label">Account</div>
-                <a href="#" class="dn-nav-link" data-page="settings"><i class="bi bi-gear"></i> Settings</a>
-                <a href="{{ url_for('auth.logout') }}" class="dn-nav-link"><i class="bi bi-box-arrow-right"></i>
-                    Logout</a>
+                <a href="#" class="dn-nav-link"><i class="bi bi-gear"></i> Settings</a>
+                <a href="{{ url_for('auth.logout') }}" class="dn-nav-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
             </nav>
 
             <div class="dn-sidebar-footer">
@@ -72,21 +63,12 @@
 
                 <div class="dn-topbar-search">
                     <i class="bi bi-search"></i>
-                    <input type="text" id="adminTopbarSearchInput" placeholder="Search users, datasets, logs..." autocomplete="off">
-                    <button type="button" class="dn-search-clear-btn d-none" id="adminSearchClearBtn" title="Clear search"><i class="bi bi-x-circle-fill"></i></button>
-                    <div class="dn-search-dropdown d-none" id="adminSearchDropdown">
-                        <div class="p-2 border-bottom d-flex justify-content-between align-items-center bg-body-tertiary">
-                            <small class="fw-bold text-secondary text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.05em;"><i class="bi bi-funnel-fill text-primary me-1"></i> Live Search Results</small>
-                            <span class="badge bg-primary" id="adminSearchMatchCount" style="font-size: 0.68rem;">0 matches</span>
-                        </div>
-                        <div class="p-2" style="max-height: 360px; overflow-y: auto;" id="adminSearchDropdownContent">
-                        </div>
-                    </div>
+                    <input type="text" placeholder="Search users, datasets, logs...">
                 </div>
 
                 <div class="dn-topbar-spacer"></div>
 
-                <button class="dn-icon-btn d-none d-sm-inline-flex" aria-label="Help" data-action="help"><i
+                <button class="dn-icon-btn d-none d-sm-inline-flex" aria-label="Help"><i
                         class="bi bi-question-circle"></i></button>
                 <button class="dn-icon-btn dn-theme-toggle" aria-label="Toggle dark mode"><i
                         class="bi bi-moon-stars"></i></button>
@@ -99,43 +81,44 @@
                     </button>
                     <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
                         <div class="dn-dropdown-header-custom"><strong>Notifications</strong></div>
-                        {% for notif in kpi.notifications %}
                         <div class="dn-notif-item">
-                            <div class="dn-notif-icon"><i class="bi {{ notif.icon }}"></i></div>
+                            <div class="dn-notif-icon"><i class="bi bi-person-plus"></i></div>
                             <div>
-                                <div class="dn-notif-text">{{ notif.text }}</div>
-                                <div class="dn-notif-time">{{ notif.time }}</div>
+                                <div class="dn-notif-text">3 new users signed up today.</div>
+                                <div class="dn-notif-time">12 min ago</div>
                             </div>
                         </div>
-                        {% else %}
                         <div class="dn-notif-item">
-                            <div class="dn-notif-icon"><i class="bi bi-bell"></i></div>
+                            <div class="dn-notif-icon"><i class="bi bi-exclamation-triangle"></i></div>
                             <div>
-                                <div class="dn-notif-text">No active system alerts.</div>
-                                <div class="dn-notif-time">Just now</div>
+                                <div class="dn-notif-text">Unusual login attempt blocked.</div>
+                                <div class="dn-notif-time">1 hr ago</div>
                             </div>
                         </div>
-                        {% endfor %}
+                        <div class="dn-notif-item">
+                            <div class="dn-notif-icon"><i class="bi bi-hdd-stack"></i></div>
+                            <div>
+                                <div class="dn-notif-text">Storage usage crossed 70%.</div>
+                                <div class="dn-notif-time">3 hrs ago</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="dropdown">
                     <div class="dn-user-trigger" data-bs-toggle="dropdown">
-                        <span class="dn-avatar">{{ (user.first_name|default('U'))[0] }}{{
-                            (user.last_name|default(''))[0] if user and user.last_name else '' }}</span>
+                        <span class="dn-avatar">{{ (user.first_name|default('U'))[0] }}{{ (user.last_name|default(''))[0] if user and user.last_name else '' }}</span>
                         <div>
-                            <div class="dn-user-trigger-name">{{ user.first_name|default('User') }} {{
-                                user.last_name|default('') }}</div>
+                            <div class="dn-user-trigger-name">{{ user.first_name|default('User') }} {{ user.last_name|default('') }}</div>
                             <div class="dn-user-trigger-role">{{ (user.role|default('Admin'))|capitalize }}</div>
                         </div>
                         <i class="bi bi-chevron-down small text-secondary"></i>
                     </div>
                     <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
-                        <a class="dropdown-item" href="#" data-page="profile"><i class="bi bi-person"></i> Profile</a>
-                        <a class="dropdown-item" href="#" data-page="settings"><i class="bi bi-gear"></i> Settings</a>
+                        <a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a>
+                        <a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a>
                         <div class="dropdown-divider"></div>
-                        <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i
-                                class="bi bi-box-arrow-right"></i>
+                        <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i>
                             Logout</a>
                     </div>
                 </div>
@@ -151,10 +134,8 @@
                         <p class="dn-page-sub">Monitor and manage the DataNova platform.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <a href="#" class="btn dn-btn-outline-dn" data-action="export-log"><i
-                                class="bi bi-download"></i> Export Log</a>
-                        <button type="button" class="btn dn-btn-primary" data-action="add-user"><i
-                                class="bi bi-person-plus"></i> Add User</button>
+                        <a href="#" class="btn dn-btn-outline-dn"><i class="bi bi-download"></i> Export Log</a>
+                        <a href="#" class="btn dn-btn-primary"><i class="bi bi-person-plus"></i> Add User</a>
                     </div>
                 </div>
 
@@ -165,8 +146,7 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-primary)"><i
                                         class="bi bi-people"></i></span></div>
                             <div class="dn-kpi-label">Total Users</div>
-                            <div class="dn-kpi-value" id="kpiTotalUsers">{{ "{:,.0f}".format(kpi.total_users|default(0))
-                                }}</div>
+                            <div class="dn-kpi-value" id="kpiTotalUsers">{{ "{:,.0f}".format(kpi.total_users|default(0)) }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
@@ -174,17 +154,7 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-green)"><i
                                         class="bi bi-person-check"></i></span></div>
                             <div class="dn-kpi-label">Active Users</div>
-                            <div class="dn-kpi-value" id="kpiActiveUsers">{{
-                                "{:,.0f}".format(kpi.active_users|default(0)) }}</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-lg-2">
-                        <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:#ef4444"><i
-                                        class="bi bi-person-x"></i></span></div>
-                            <div class="dn-kpi-label">Inactive Users</div>
-                            <div class="dn-kpi-value" id="kpiInactiveUsers">{{
-                                "{:,.0f}".format(kpi.inactive_users|default(0)) }}</div>
+                            <div class="dn-kpi-value" id="kpiActiveUsers">{{ "{:,.0f}".format(kpi.active_users|default(0)) }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
@@ -192,8 +162,7 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-violet)"><i
                                         class="bi bi-database"></i></span></div>
                             <div class="dn-kpi-label">Total Datasets</div>
-                            <div class="dn-kpi-value" id="kpiTotalDatasets">{{
-                                "{:,.0f}".format(kpi.total_datasets|default(0)) }}</div>
+                            <div class="dn-kpi-value" id="kpiTotalDatasets">{{ "{:,.0f}".format(kpi.total_datasets|default(0)) }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
@@ -201,8 +170,7 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-cyan)"><i
                                         class="bi bi-file-earmark-text"></i></span></div>
                             <div class="dn-kpi-label">Total Reports</div>
-                            <div class="dn-kpi-value" id="kpiTotalReports">{{
-                                "{:,.0f}".format(kpi.total_reports|default(0)) }}</div>
+                            <div class="dn-kpi-value" id="kpiTotalReports">{{ "{:,.0f}".format(kpi.total_reports|default(0)) }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
@@ -210,8 +178,7 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-amber)"><i
                                         class="bi bi-grid-1x2"></i></span></div>
                             <div class="dn-kpi-label">Dashboards</div>
-                            <div class="dn-kpi-value" id="kpiDashboardsCount">{{
-                                "{:,.0f}".format(kpi.dashboards_count|default(0)) }}</div>
+                            <div class="dn-kpi-value" id="kpiDashboardsCount">{{ "{:,.0f}".format(kpi.dashboards_count|default(0)) }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
@@ -219,10 +186,8 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-red)"><i
                                         class="bi bi-hdd-stack"></i></span></div>
                             <div class="dn-kpi-label">Storage Used</div>
-                            <div class="dn-kpi-value" id="kpiStoragePct">{{ kpi.storage_percentage|default(0)|int }}%
-                            </div>
-                            <span class="dn-kpi-trend dn-down" id="kpiStorageGb"><i class="bi bi-arrow-up-short"></i>{{
-                                kpi.storage_used_gb|default(0) }} GB</span>
+                            <div class="dn-kpi-value" id="kpiStoragePct">{{ kpi.storage_percentage|default(0)|int }}%</div>
+                            <span class="dn-kpi-trend dn-down" id="kpiStorageGb"><i class="bi bi-arrow-up-short"></i>{{ kpi.storage_used_gb|default(0) }} GB</span>
                         </div>
                     </div>
                 </div>
@@ -233,9 +198,6 @@
                         <div class="dn-panel">
                             <div class="dn-panel-head">
                                 <h3 class="dn-panel-title"><i class="bi bi-pie-chart"></i> Users by Role</h3>
-                                <button class="btn btn-sm dn-btn-outline-dn py-0 px-2 small"
-                                    onclick="resetRoleChartZoom(); return false;" title="Reset Zoom"><i
-                                        class="bi bi-arrows-angle-contract"></i> Reset Zoom</button>
                             </div>
                             <div id="adminRoleDonutChart" style="height:180px;width:100%;"></div>
                         </div>
@@ -243,11 +205,7 @@
                     <div class="col-lg-7">
                         <div class="dn-panel">
                             <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-bar-chart"></i> Platform Activity &amp;
-                                    Registrations</h3>
-                                <button class="btn btn-sm dn-btn-outline-dn py-0 px-2 small"
-                                    onclick="resetActivityChartZoom(); return false;" title="Reset Zoom"><i
-                                        class="bi bi-arrows-angle-contract"></i> Reset Zoom</button>
+                                <h3 class="dn-panel-title"><i class="bi bi-bar-chart"></i> Platform Activity &amp; Registrations</h3>
                             </div>
                             <div id="adminUserActivityChart" style="height:180px;width:100%;"></div>
                         </div>
@@ -258,12 +216,7 @@
                 <div class="dn-panel mb-4">
                     <div class="dn-panel-head">
                         <h3 class="dn-panel-title"><i class="bi bi-people"></i> Recent Users</h3>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-sm dn-btn-outline-dn" onclick="showAllUsersModal(); return false;"><i
-                                    class="bi bi-people-fill"></i> See All Users</button>
-                            <button class="btn btn-sm dn-btn-primary" data-action="add-user"><i
-                                    class="bi bi-person-plus"></i> Add User</button>
-                        </div>
+                        <a href="#" class="dn-panel-link" onclick="showAddUserModal(); return false;"><i class="bi bi-person-plus"></i> Add User</a>
                     </div>
                     <div class="table-responsive">
                         <table class="dn-table" id="adminRecentUsersTable">
@@ -281,44 +234,20 @@
                                 {% for r_user in kpi.recent_users %}
                                 <tr>
                                     <td>
-                                        <div class="dn-cell-user"><span class="dn-avatar-sm">{{ r_user.first_name[0] if
-                                                r_user.first_name else 'U' }}{{ r_user.last_name[0] if r_user.last_name
-                                                else '' }}</span> {{ r_user.first_name }} {{ r_user.last_name }}
+                                        <div class="dn-cell-user"><span class="dn-avatar-sm">{{ r_user.first_name[0] if r_user.first_name else 'U' }}{{ r_user.last_name[0] if r_user.last_name else '' }}</span> {{ r_user.first_name }} {{ r_user.last_name }}
                                         </div>
                                     </td>
                                     <td>{{ r_user.email }}</td>
                                     <td><span class="dn-badge-role">{{ r_user.role|capitalize }}</span></td>
-                                    <td><span
-                                            class="dn-badge-status {{ 'ok' if (r_user.status|default('active')|lower == 'active') else 'danger' }}"><i
-                                                class="bi bi-circle-fill" style="font-size:6px"></i> {{
-                                            r_user.status|default('active')|capitalize }}</span></td>
-                                    <td>{{ r_user.created_at.strftime('%d %b %Y') if r_user.created_at else 'N/A' }}
-                                    </td>
+                                    <td><span class="dn-badge-status ok"><i class="bi bi-circle-fill" style="font-size:6px"></i> Active</span></td>
+                                    <td>{{ r_user.created_at.strftime('%d %b %Y') if r_user.created_at else 'N/A' }}</td>
                                     <td>
-                                        <div class="d-flex gap-1 align-items-center">
-                                            {% if (r_user.status|default('active')|lower == 'active') %}
-                                            <button
-                                                class="btn btn-sm btn-outline-danger py-0 px-2 small dn-btn-toggle-status"
-                                                data-user-id="{{ r_user.id }}" data-status="inactive"
-                                                title="Deactivate User Account"><i class="bi bi-person-x"></i> Make
-                                                Inactive</button>
-                                            {% else %}
-                                            <button
-                                                class="btn btn-sm btn-outline-success py-0 px-2 small dn-btn-toggle-status"
-                                                data-user-id="{{ r_user.id }}" data-status="active"
-                                                title="Activate User Account"><i class="bi bi-person-check"></i> Make
-                                                Active</button>
-                                            {% endif %}
-                                            <button class="dn-table-action dn-btn-edit-role"
-                                                data-user-id="{{ r_user.id }}" data-role="{{ r_user.role }}"
-                                                title="Edit Role"><i class="bi bi-pencil"></i></button>
-                                        </div>
+                                        <button class="dn-table-action" title="View"><i class="bi bi-eye"></i></button>
+                                        <button class="dn-table-action" title="Edit"><i class="bi bi-pencil"></i></button>
                                     </td>
                                 </tr>
                                 {% else %}
-                                <tr>
-                                    <td colspan="6" class="text-center p-4">No recent users found.</td>
-                                </tr>
+                                <tr><td colspan="6" class="text-center p-4">No recent users found.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -329,12 +258,8 @@
                 <div class="row g-3 mb-4">
                     <div class="col-lg-7">
                         <div class="dn-panel">
-                            <div
-                                class="dn-panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="dn-panel-head">
                                 <h3 class="dn-panel-title"><i class="bi bi-database"></i> Dataset Monitoring</h3>
-                                <button class="btn btn-sm dn-btn-outline-dn py-0 px-2 small"
-                                    onclick="showAllDatasetsModal(); return false;"><i
-                                        class="bi bi-database-fill-gear me-1"></i> Show All Datasets</button>
                             </div>
                             <div class="table-responsive">
                                 <table class="dn-table" id="adminRecentDatasetsTable">
@@ -352,20 +277,14 @@
                                         {% for dset in kpi.recent_datasets %}
                                         <tr>
                                             <td>{{ dset.file_name }}</td>
-                                            <td>{{ dset.first_name }} {{ dset.last_name[0] if dset.last_name else '' }}.
-                                            </td>
+                                            <td>{{ dset.first_name }} {{ dset.last_name[0] if dset.last_name else '' }}.</td>
                                             <td>{{ dset.file_type|upper }}</td>
-                                            <td>{{ dset.uploaded_at.strftime('%d %b %Y') if dset.uploaded_at else 'N/A'
-                                                }}</td>
+                                            <td>{{ dset.uploaded_at.strftime('%d %b %Y') if dset.uploaded_at else 'N/A' }}</td>
                                             <td>{{ "%.2f"|format((dset.file_size|default(0)) / (1024*1024)) }} MB</td>
-                                            <td><span
-                                                    class="dn-badge-status {{ 'ok' if (dset.status|default('ready')|lower in ['ready', 'processed', 'uploaded']) else 'danger' }}">{{
-                                                    dset.status|default('ready')|capitalize }}</span></td>
+                                            <td><span class="dn-badge-status ok">Processed</span></td>
                                         </tr>
                                         {% else %}
-                                        <tr>
-                                            <td colspan="6" class="text-center p-4">No recent datasets found.</td>
-                                        </tr>
+                                        <tr><td colspan="6" class="text-center p-4">No recent datasets found.</td></tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -374,25 +293,16 @@
                     </div>
                     <div class="col-lg-5">
                         <div class="dn-panel">
-                            <div
-                                class="dn-panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="dn-panel-head">
                                 <h3 class="dn-panel-title"><i class="bi bi-activity"></i> System Activity</h3>
-                                <button class="btn btn-sm dn-btn-outline-dn py-0 px-2 small"
-                                    onclick="showAllSystemActivityModal(); return false;"><i
-                                        class="bi bi-clock-history me-1"></i> Show All Activity</button>
                             </div>
                             <ul class="dn-insight-list" id="adminSystemActivityList">
                                 {% if kpi.system_activity %}
-                                {% for act in kpi.system_activity %}
-                                <li><span class="dn-insight-dot"
-                                        style="--dot-color: {{ act.color }}; background: var(--dot-color, var(--dn-primary));"></span><strong>{{
-                                        act.user_name }}</strong> {{ act.action }} <span
-                                        class="text-secondary ms-auto small">{{ act.time_ago }}</span></li>
-                                {% endfor %}
+                                    {% for act in kpi.system_activity %}
+                                    <li><span class="dn-insight-dot" style="background:{{ act.color }}"></span><strong>{{ act.user_name }}</strong> {{ act.action }} <span class="text-secondary ms-auto small">{{ act.time_ago }}</span></li>
+                                    {% endfor %}
                                 {% else %}
-                                <li><span class="dn-insight-dot" style="background: var(--dn-green);"></span>System
-                                    operational and connected. <span class="text-secondary ms-auto small">Active</span>
-                                </li>
+                                    <li><span class="dn-insight-dot" style="background:var(--dn-green)"></span>System operational and connected. <span class="text-secondary ms-auto small">Active</span></li>
                                 {% endif %}
                             </ul>
                         </div>
@@ -404,105 +314,42 @@
                     <div class="col-lg-6">
                         <div class="dn-panel">
                             <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-cpu"></i> API &amp; AI Usage (Last 30 Days)
-                                </h3>
+                                <h3 class="dn-panel-title"><i class="bi bi-cpu"></i> API &amp; AI Usage (Last 30 Days)</h3>
                             </div>
                             <div class="dn-quality-row">
                                 <div class="dn-quality-label">AI API Calls (30d)</div>
-                                <div class="dn-quality-track"
-                                    title="Success Rate: {{ kpi.ai_success_pct|default(0)|round(1) }}%">
-                                    <div class="dn-quality-fill"
-                                        style="--fill-pct: {{ kpi.ai_success_pct|default(0) }}%; width: var(--fill-pct); background: var(--dn-violet);">
-                                    </div>
+                                <div class="dn-quality-track" title="Success Rate: {{ kpi.ai_success_pct|default(0)|round(1) }}%">
+                                    <div class="dn-quality-fill" style="width: {{ kpi.ai_success_pct|default(0)|round(1) }}%; background: var(--dn-violet);"></div>
                                 </div>
                                 <div class="dn-quality-value">{{ kpi.ai_requests_30d|default(0)|int }}</div>
                             </div>
                             <div class="dn-quality-row">
                                 <div class="dn-quality-label">Total API Calls (30d)</div>
-                                <div class="dn-quality-track"
-                                    title="Success Rate: {{ kpi.successful_requests_pct|default(0)|round(1) }}%">
-                                    <div class="dn-quality-fill"
-                                        style="--fill-pct: {{ kpi.successful_requests_pct|default(0) }}%; width: var(--fill-pct); background: var(--dn-cyan);">
-                                    </div>
+                                <div class="dn-quality-track" title="Success Rate: {{ kpi.successful_requests_pct|default(0)|round(1) }}%">
+                                    <div class="dn-quality-fill" style="width: {{ kpi.successful_requests_pct|default(0)|round(1) }}%; background: var(--dn-cyan);"></div>
                                 </div>
                                 <div class="dn-quality-value">{{ kpi.total_api_calls|default(0)|int }}</div>
                             </div>
                             <div class="dn-legend mt-3">
-                                <div class="dn-legend-item"><span class="dn-legend-dot"
-                                        style="background: var(--dn-violet);"></span> AI Success ({{
-                                    kpi.ai_success_pct|default(0)|round(1) }}%)</div>
-                                <div class="dn-legend-item"><span class="dn-legend-dot"
-                                        style="background: rgba(124, 58, 237, 0.3);"></span> AI Failures ({{
-                                    kpi.ai_failure_pct|default(0)|round(1) }}%)</div>
-                                <div class="dn-legend-item"><span class="dn-legend-dot"
-                                        style="background: var(--dn-cyan);"></span> Other API Calls</div>
+                                <div class="dn-legend-item"><span class="dn-legend-dot" style="background:var(--dn-violet)"></span> AI Success ({{ kpi.ai_success_pct|default(0)|round(1) }}%)</div>
+                                <div class="dn-legend-item"><span class="dn-legend-dot" style="background:rgba(124, 58, 237, 0.3)"></span> AI Failures ({{ kpi.ai_failure_pct|default(0)|round(1) }}%)</div>
+                                <div class="dn-legend-item"><span class="dn-legend-dot" style="background:var(--dn-cyan)"></span> Other API Calls</div>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-6">
                         <div class="dn-panel">
-                            <div class="dn-panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <div>
-                                    <h3 class="dn-panel-title"><i class="bi bi-shield-lock-fill text-success me-1"></i> Security Status &amp; Policy</h3>
-                                    <small class="text-secondary" style="font-size: 0.76rem;">Platform defense, encryption &amp; real-time threat monitor</small>
-                                </div>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <button type="button" class="btn btn-sm dn-btn-outline-dn py-1 px-2 small" id="btnRunSecurityScan" title="Run Instant Security Scan">
-                                        <i class="bi bi-arrow-repeat me-1" id="iconSecurityScan"></i>Audit Scan
-                                    </button>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="badgeSecurityStatus">
-                                        <i class="bi bi-shield-check me-1"></i> OPTIMAL (98%)
-                                    </span>
-                                </div>
+                            <div class="dn-panel-head">
+                                <h3 class="dn-panel-title"><i class="bi bi-shield-lock"></i> Security Status</h3>
                             </div>
-                            <div id="adminSecurityAlertsContainer" class="mb-3">
+                            <div id="adminSecurityAlertsContainer">
                                 {% if kpi.security_alerts %}
-                                {% for alert in kpi.security_alerts %}
-                                <div class="dn-alert dn-alert-{{ alert.type }}"><i class="bi {{ alert.icon }}"></i> {{
-                                    alert.text }}</div>
-                                {% endfor %}
+                                    {% for alert in kpi.security_alerts %}
+                                    <div class="dn-alert dn-alert-{{ alert.type }}"><i class="bi {{ alert.icon }}"></i> {{ alert.text }}</div>
+                                    {% endfor %}
                                 {% else %}
-                                <div class="dn-alert dn-alert-info"><i class="bi bi-shield-check"></i> System security
-                                    optimal. 0 high risk threats reported.</div>
+                                    <div class="dn-alert dn-alert-info"><i class="bi bi-shield-check"></i> System security optimal. 0 high risk threats reported.</div>
                                 {% endif %}
-                            </div>
-                            <div class="row g-2 pt-2 border-top border-secondary border-opacity-25" id="adminSecurityPolicyGrid">
-                                <div class="col-6 col-md-4">
-                                    <div class="p-2 rounded bg-body-tertiary border h-100">
-                                        <div class="small text-secondary fw-semibold">Encryption</div>
-                                        <div class="small fw-bold text-success"><i class="bi bi-lock-fill me-1"></i>Bcrypt (12 Rounds)</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                    <div class="p-2 rounded bg-body-tertiary border h-100">
-                                        <div class="small text-secondary fw-semibold">SQLi Defense</div>
-                                        <div class="small fw-bold text-success"><i class="bi bi-check-circle-fill me-1"></i>Prepared Statements</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                    <div class="p-2 rounded bg-body-tertiary border h-100">
-                                        <div class="small text-secondary fw-semibold">Session Guard</div>
-                                        <div class="small fw-bold text-info"><i class="bi bi-key-fill me-1"></i>HttpOnly &amp; SameSite</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                    <div class="p-2 rounded bg-body-tertiary border h-100">
-                                        <div class="small text-secondary fw-semibold">API Rate Limits</div>
-                                        <div class="small fw-bold text-primary"><i class="bi bi-speedometer2 me-1"></i>100 req / min</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                    <div class="p-2 rounded bg-body-tertiary border h-100">
-                                        <div class="small text-secondary fw-semibold">Lockout Guard</div>
-                                        <div class="small fw-bold text-success"><i class="bi bi-shield-slash me-1"></i>5 Failed Limit</div>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                    <div class="p-2 rounded bg-body-tertiary border h-100">
-                                        <div class="small text-secondary fw-semibold">XSS / Sanitizer</div>
-                                        <div class="small fw-bold text-success"><i class="bi bi-shield-fill-check me-1"></i>Active Clean Filter</div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -514,15 +361,15 @@
                         <h3 class="dn-panel-title"><i class="bi bi-lightning-charge"></i> Quick Actions</h3>
                     </div>
                     <div class="row g-3">
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="add-user"><i
+                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
                                     class="bi bi-person-plus"></i><span>Add User</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="manage-roles"><i
+                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
                                     class="bi bi-person-badge"></i><span>Manage Roles</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="view-datasets"><i
+                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
                                     class="bi bi-database"></i><span>View Datasets</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="view-reports"><i
+                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
                                     class="bi bi-file-earmark-bar-graph"></i><span>View Reports</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="system-settings"><i
+                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
                                     class="bi bi-gear"></i><span>System Settings</span></button></div>
                     </div>
                 </div>
@@ -531,534 +378,7 @@
         </div>
     </div>
 
-    <!-- ===================== ALL USERS MODAL ===================== -->
-    <div class="modal fade" id="allUsersModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content dn-modal">
-                <div class="modal-header dn-modal-header border-bottom border-secondary border-opacity-25 pb-3">
-                    <div>
-                        <h5 class="modal-title dn-modal-title fw-bold"><i
-                                class="bi bi-people-fill text-primary me-2"></i> All Platform Users</h5>
-                        <p class="small text-secondary mb-0">View, search, edit roles, and toggle Active / Inactive
-                            status for all accounts.</p>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body dn-modal-body p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <div class="dn-topbar-search style-modal-search" style="width: 320px; max-width: 100%;">
-                            <i class="bi bi-search"></i>
-                            <input type="text" id="allUsersModalSearchInput"
-                                placeholder="Search by name, email, or role..." onkeyup="filterAllUsersModalTable()">
-                        </div>
-                        <div class="d-flex gap-2 align-items-center flex-wrap">
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"
-                                id="modalActiveUsersCount">Active: --</span>
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2"
-                                id="modalInactiveUsersCount">Inactive: --</span>
-                            <button class="btn btn-sm dn-btn-primary ms-2" data-action="add-user"><i
-                                    class="bi bi-person-plus"></i> Add New User</button>
-                        </div>
-                    </div>
-                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                        <table class="dn-table align-middle" id="allUsersFullTable">
-                            <thead
-                                style="position: sticky; top: 0; background: var(--dn-bg-card, #1e293b); z-index: 2;">
-                                <tr>
-                                    <th>User</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Joined Date</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="allUsersModalTableBody">
-                                <tr>
-                                    <td colspan="6" class="text-center p-4">
-                                        <div class="spinner-border text-primary" role="status"></div>
-                                        <div class="mt-2 text-secondary">Loading all users...</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== ADD USER MODAL ===================== -->
-    <div class="modal fade" id="dnAddUserModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content dn-panel p-3">
-                <div class="modal-header border-0 pb-2">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-person-plus text-primary me-2"></i>Add
-                        New User</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="dnAddUserForm" novalidate>
-                        <div class="row g-3">
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold text-black">First Name</label>
-                                <input type="text" id="addUserFirstName" class="form-control" placeholder="Chaitanya"
-                                    required>
-                                <div class="invalid-feedback">First name is required.</div>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold text-black">Last Name</label>
-                                <input type="text" id="addUserLastName" class="form-control" placeholder="Joshi"
-                                    required>
-                                <div class="invalid-feedback">Last name is required.</div>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label small fw-semibold text-black">Email Address</label>
-                                <input type="email" id="addUserEmail" class="form-control" placeholder="[EMAIL_ADDRESS]"
-                                    required>
-                                <div class="invalid-feedback">Enter a valid email address.</div>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold text-black">Password</label>
-                                <input type="password" id="addUserPassword" class="form-control" placeholder="••••••••"
-                                    required minlength="6">
-                                <div class="invalid-feedback">Min 6 characters required.</div>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-semibold text-black">Platform Role</label>
-                                <select id="addUserRole" class="form-select">
-                                    <option value="analyst">Analyst</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="viewer">Viewer</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="addUserErrorAlert" class="alert alert-danger mt-3 d-none p-2 small"></div>
-                        <div class="mt-4 text-end">
-                            <button type="button" class="btn btn-sm btn-secondary me-2"
-                                data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary" id="btnSubmitAddUser">
-                                <span class="spinner-border spinner-border-sm me-1 d-none" id="addUserSpinner"
-                                    role="status"></span>
-                                <i class="bi bi-check-circle me-1" id="addUserCheckIcon"></i>Create User
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== ALL DATASETS MODAL ===================== -->
-    <div class="modal fade" id="allDatasetsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content dn-modal">
-                <div class="modal-header dn-modal-header border-bottom border-secondary border-opacity-25 pb-3">
-                    <div>
-                        <h5 class="modal-title dn-modal-title fw-bold"><i
-                                class="bi bi-database-fill text-primary me-2"></i> Dataset Monitoring &amp; Repository
-                        </h5>
-                        <p class="small text-secondary mb-0">View all uploaded datasets across all organization users.
-                        </p>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body dn-modal-body p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <div class="dn-topbar-search style-modal-search" style="width: 320px; max-width: 100%;">
-                            <i class="bi bi-search"></i>
-                            <input type="text" id="allDatasetsModalSearchInput"
-                                placeholder="Search by dataset, owner, or type..."
-                                onkeyup="filterAllDatasetsModalTable()">
-                        </div>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2"
-                            id="modalDatasetsCount">Total Datasets: --</span>
-                    </div>
-                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                        <table class="dn-table align-middle" id="allDatasetsFullTable">
-                            <thead
-                                style="position: sticky; top: 0; background: var(--dn-bg-card, #1e293b); z-index: 2;">
-                                <tr>
-                                    <th>Dataset Name</th>
-                                    <th>Owner</th>
-                                    <th>Format</th>
-                                    <th>Uploaded</th>
-                                    <th>Size</th>
-                                    <th>Rows x Cols</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="allDatasetsModalTableBody">
-                                <tr>
-                                    <td colspan="7" class="text-center p-4">
-                                        <div class="spinner-border text-primary" role="status"></div>
-                                        <div class="mt-2 text-secondary">Loading datasets...</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== ALL SYSTEM ACTIVITY MODAL ===================== -->
-    <div class="modal fade" id="allSystemActivityModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content dn-modal">
-                <div class="modal-header dn-modal-header border-bottom border-secondary border-opacity-25 pb-3">
-                    <div>
-                        <h5 class="modal-title dn-modal-title fw-bold"><i
-                                class="bi bi-clock-history text-info me-2"></i> System Activity Audit Logs</h5>
-                        <p class="small text-secondary mb-0">Full audit log of user actions, API calls, and background
-                            tasks.</p>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body dn-modal-body p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <div class="dn-topbar-search style-modal-search" style="width: 320px; max-width: 100%;">
-                            <i class="bi bi-search"></i>
-                            <input type="text" id="allActivityModalSearchInput"
-                                placeholder="Search logs by user, action, or endpoint..."
-                                onkeyup="filterAllActivityModalTable()">
-                        </div>
-                        <a href="#" class="btn btn-sm dn-btn-outline-dn" data-action="export-log"><i
-                                class="bi bi-download me-1"></i> Export CSV</a>
-                    </div>
-                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                        <table class="dn-table align-middle" id="allActivityFullTable">
-                            <thead
-                                style="position: sticky; top: 0; background: var(--dn-bg-card, #1e293b); z-index: 2;">
-                                <tr>
-                                    <th>User</th>
-                                    <th>Role</th>
-                                    <th>Action / Endpoint</th>
-                                    <th>Status</th>
-                                    <th>Time</th>
-                                </tr>
-                            </thead>
-                            <tbody id="allActivityModalTableBody">
-                                <tr>
-                                    <td colspan="5" class="text-center p-4">
-                                        <div class="spinner-border text-info" role="status"></div>
-                                        <div class="mt-2 text-secondary">Loading system audit logs...</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== SYSTEM SETTINGS MODAL ===================== -->
-    <div class="modal fade" id="dnSystemSettingsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content dn-panel p-4">
-                <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-gear-fill text-primary me-2"></i> System
-                        Settings &amp; Configuration</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body pt-3">
-                    <form id="dnSystemSettingsForm">
-                        <ul class="nav nav-pills mb-3 border-bottom border-secondary border-opacity-25 pb-2"
-                            id="settingsTab" role="tablist">
-                            <li class="nav-item"><button class="nav-link active py-1 px-3 small" data-bs-toggle="tab"
-                                    data-bs-target="#tabGeneral" type="button"><i class="bi bi-sliders me-1"></i>
-                                    General</button></li>
-                            <li class="nav-item"><button class="nav-link py-1 px-3 small" data-bs-toggle="tab"
-                                    data-bs-target="#tabSecurity" type="button"><i class="bi bi-shield-lock me-1"></i>
-                                    Security</button></li>
-                            <li class="nav-item"><button class="nav-link py-1 px-3 small" data-bs-toggle="tab"
-                                    data-bs-target="#tabEmail" type="button"><i class="bi bi-envelope me-1"></i> Email
-                                    &amp; SMTP</button></li>
-                            <li class="nav-item"><button class="nav-link py-1 px-3 small" data-bs-toggle="tab"
-                                    data-bs-target="#tabAI" type="button"><i class="bi bi-cpu me-1"></i> AI &amp;
-                                    Limits</button></li>
-                        </ul>
-
-                        <div class="tab-content">
-                            <!-- General -->
-                            <div class="tab-pane fade show active" id="tabGeneral">
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <label class="form-label small">Default User Role on Signup</label>
-                                        <select class="form-select form-select-sm" id="settingDefaultRole">
-                                            <option value="viewer">Viewer</option>
-                                            <option value="analyst">Analyst</option>
-                                            <option value="manager">Manager</option>
-                                            <option value="admin">Admin</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small">Max Upload Size (MB)</label>
-                                        <input type="number" class="form-control form-control-sm"
-                                            id="settingMaxFileSize" value="50">
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check form-switch mt-2">
-                                            <input class="form-check-input" type="checkbox" id="settingMaintenanceMode">
-                                            <label class="form-check-input-label small"
-                                                for="settingMaintenanceMode">Maintenance Mode (restrict platform access
-                                                to Admins only)</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Security -->
-                            <div class="tab-pane fade" id="tabSecurity">
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <label class="form-label small">Session Timeout (Minutes)</label>
-                                        <input type="number" class="form-control form-control-sm"
-                                            id="settingSessionTimeout" value="60">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small">Password Hashing Standard</label>
-                                        <input type="text" class="form-control form-control-sm"
-                                            value="Bcrypt (Salt factor 12)" readonly>
-                                    </div>
-                                    <div class="col-12">
-                                        <div
-                                            class="p-3 rounded border border-info border-opacity-25 bg-info-subtle text-info small">
-                                            <i class="bi bi-info-circle-fill me-1"></i> Account lockout protection
-                                            triggers automatically after 5 consecutive failed logins within 15 minutes.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Email -->
-                            <div class="tab-pane fade" id="tabEmail">
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <label class="form-label small">SMTP Server Host</label>
-                                        <input type="text" class="form-control form-control-sm" id="settingSmtpHost"
-                                            value="smtp.gmail.com">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small">SMTP Port</label>
-                                        <input type="text" class="form-control form-control-sm" id="settingSmtpPort"
-                                            value="587">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label small">Sender Email Address</label>
-                                        <input type="email" class="form-control form-control-sm" id="settingSenderEmail"
-                                            value="noreply@datanova.com">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- AI -->
-                            <div class="tab-pane fade" id="tabAI">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="settingAiEnabled"
-                                                checked>
-                                            <label class="form-check-input-label small"
-                                                for="settingAiEnabled">Enable Automatic AI Insights &amp; Natural
-                                                Language Summaries</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label small">AI Model Engine</label>
-                                        <input type="text" class="form-control form-control-sm"
-                                            value="Google Gemini / Local Analytics Fallback Engine" readonly>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="settingsAlert" class="alert alert-success mt-3 d-none p-2 small"></div>
-
-                        <div class="mt-4 text-end">
-                            <button type="button" class="btn btn-sm btn-secondary me-2"
-                                data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary" id="btnSaveSettings">
-                                <i class="bi bi-check-circle me-1"></i>Save System Settings
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== VIEW REPORTS MODAL ===================== -->
-    <div class="modal fade" id="adminViewReportsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content dn-modal">
-                <div class="modal-header dn-modal-header border-bottom border-secondary border-opacity-25 pb-3">
-                    <div>
-                        <h5 class="modal-title dn-modal-title fw-bold"><i
-                                class="bi bi-file-earmark-bar-graph-fill text-warning me-2"></i> Generated Platform
-                            Reports</h5>
-                        <p class="small text-secondary mb-0">Browse, view, export, and manage reports created across all
-                            roles.</p>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body dn-modal-body p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <div class="dn-topbar-search style-modal-search" style="width: 320px; max-width: 100%;">
-                            <i class="bi bi-search"></i>
-                            <input type="text" id="reportsModalSearchInput"
-                                placeholder="Search reports by title or dataset..." onkeyup="filterReportsModalTable()">
-                        </div>
-                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2"
-                            id="modalReportsCount">Total Reports: --</span>
-                    </div>
-                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                        <table class="dn-table align-middle" id="allReportsFullTable">
-                            <thead
-                                style="position: sticky; top: 0; background: var(--dn-bg-card, #1e293b); z-index: 2;">
-                                <tr>
-                                    <th>Report Name</th>
-                                    <th>Generated By</th>
-                                    <th>Dataset</th>
-                                    <th>Type</th>
-                                    <th>Created Date</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminReportsModalTableBody">
-                                <tr>
-                                    <td colspan="6" class="text-center p-4">
-                                        <div class="spinner-border text-warning" role="status"></div>
-                                        <div class="mt-2 text-secondary">Loading reports...</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== SHARED DASHBOARDS MODAL ===================== -->
-    <div class="modal fade" id="adminSharedDashboardsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content dn-modal">
-                <div class="modal-header dn-modal-header border-bottom border-secondary border-opacity-25 pb-3">
-                    <div>
-                        <h5 class="modal-title dn-modal-title fw-bold"><i
-                                class="bi bi-share-fill text-primary me-2"></i> Shared Dashboards Center</h5>
-                        <p class="small text-secondary mb-0">Dashboards created by Analysts &amp; Managers and shared
-                            across roles.</p>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body dn-modal-body p-4">
-                    <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
-                        <table class="dn-table align-middle">
-                            <thead
-                                style="position: sticky; top: 0; background: var(--dn-bg-card, #1e293b); z-index: 2;">
-                                <tr>
-                                    <th>Dashboard Title</th>
-                                    <th>Created By</th>
-                                    <th>Shared Audience</th>
-                                    <th>Dataset</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminSharedDashboardsTableBody">
-                                <tr>
-                                    <td colspan="5" class="text-center p-4">
-                                        <div class="spinner-border text-primary" role="status"></div>
-                                        <div class="mt-2 text-secondary">Loading shared dashboards...</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== HELP MODAL ===================== -->
-    <div class="modal fade" id="adminHelpModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content dn-panel p-4">
-                <div class="modal-header border-0 pb-2">
-                    <h5 class="modal-title fw-bold"><i
-                            class="bi bi-question-circle-fill text-primary me-2"></i> DataNova Help &amp; Quick Guide
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body small text-secondary">
-                    <p>Welcome to the Admin Control Panel! Here are quick shortcuts:</p>
-                    <ul class="mb-3">
-                        <li><strong>User Management:</strong> Click "See All Users" or "Add User" to manage accounts,
-                            change roles, or toggle Active/Inactive status.</li>
-                        <li><strong>Dataset Monitoring:</strong> Click "Show All Datasets" to inspect uploaded CSV/Excel
-                            files across all users.</li>
-                        <li><strong>System Activity:</strong> View live API invocation logs and export complete audit
-                            trails.</li>
-                        <li><strong>System Settings:</strong> Configure platform SMTP host, session timeouts, role
-                            defaults, and maintenance mode.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================== PROFILE MODAL ===================== -->
-    <div class="modal fade" id="adminUserProfileModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content dn-panel p-4">
-                <div class="modal-header border-0 pb-2">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-person-badge-fill text-primary me-2"></i>
-                        User Profile</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <div class="dn-avatar mx-auto mb-3"
-                        style="width:64px;height:64px;font-size:1.5rem;display:flex;align-items:center;justify-content:center;">
-                        {{ (user.first_name|default('U'))[0] }}{{ (user.last_name|default(''))[0] if user and
-                        user.last_name else '' }}
-                    </div>
-                    <h5 class="mb-1">{{ user.first_name|default('User') }} {{ user.last_name|default('') }}
-                    </h5>
-                    <span class="badge bg-primary text-white mb-3">{{ (user.role|default('Admin'))|capitalize }}
-                        Role</span>
-                    <div class="p-3 bg-body-tertiary rounded text-start small border">
-                        <div class="mb-1"><strong>Email:</strong> {{ user.email|default('N/A') }}</div>
-                        <div class="mb-1"><strong>Account Status:</strong> <span
-                                class="text-success fw-bold">Active</span></div>
-                        <div><strong>Permissions:</strong> Full Administrator Access</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script id="initial-admin-kpi-data" type="application/json">{{ kpi|tojson|safe }}</script>
-    <script>
-        try {
-            window.INITIAL_ADMIN_KPI = JSON.parse(document.getElementById('initial-admin-kpi-data').textContent);
-        } catch (e) {
-            window.INITIAL_ADMIN_KPI = null;
-        }
-    </script>
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>

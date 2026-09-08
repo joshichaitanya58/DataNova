@@ -603,13 +603,3 @@ form {
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
 }
 
-/* Suppress browser native password reveal icons to prevent double eye buttons */
-input[type="password"]::-ms-reveal,
-input[type="password"]::-ms-clear,
-input[type="password"]::-webkit-contacts-auto-fill-button,
-input[type="password"]::-webkit-credentials-auto-fill-button {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-

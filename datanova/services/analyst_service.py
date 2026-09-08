@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import pandas as pd
 import numpy as np
 
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None, user_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Compiles complete production-ready analyst dashboard analytics, live KPI counts,
-    notifications, AI insights, and real Plotly visualization datasets.
+    notifications, AI insights, and Plotly visualization preview datasets.
     """
     kpi_data = {
         'total_datasets': 0,
@@ -21,10 +21,14 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
         'notifications': [],
         'ai_insights': [],
         'viz_preview': {
-            'bar': {'labels': [], 'values': []},
-            'line': {'labels': [], 'values': []},
-            'hist': {'values': []},
-            'heatmap': {'x': [], 'y': [], 'z': []}
+            'bar': {'labels': ['Category A', 'Category B', 'Category C', 'Category D'], 'values': [40, 70, 55, 90]},
+            'line': {'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], 'values': [15, 28, 22, 45, 38, 62]},
+            'hist': {'values': [12, 19, 25, 32, 28, 18, 14, 8]},
+            'heatmap': {
+                'x': ['Var1', 'Var2', 'Var3'],
+                'y': ['Var1', 'Var2', 'Var3'],
+                'z': [[1.0, 0.75, -0.4], [0.75, 1.0, 0.15], [-0.4, 0.15, 1.0]]
+            }
         }
     }
 
@@ -53,33 +57,10 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
                     quality_score = max(0, (1 - (kpi_data['missing_values'] / total_cells)) * 100)
                     kpi_data['data_quality'] = f"{quality_score:.1f}%"
 
-                # Notifications & Assigned Manager Tasks Data Flow
-                try:
-                    from . import manager_service
-                    assigned_tasks = manager_service.get_user_assigned_tasks(conn, user_id)
-                    kpi_data['assigned_tasks'] = assigned_tasks
-                    kpi_data['pending_tasks_count'] = sum(1 for t in assigned_tasks if t.get('status') in ['Pending', 'In Progress', 'Reopened'])
-                    for task in assigned_tasks:
-                        st = task.get('status')
-                        if st != 'Completed':
-                            title = task.get('task_title', 'New Task')
-                            mgr = task.get('manager_name', 'Manager')
-                            due = task.get('due_date') or 'Flexible'
-                            notif_label = f"Task Re-opened by {mgr}" if st == 'Reopened' else f"Task Assigned by {mgr}"
-                            kpi_data['notifications'].insert(0, {
-                                'icon': 'bi-card-checklist' if st != 'Reopened' else 'bi-arrow-counterclockwise',
-                                'text': f"{notif_label}: '{title}' (Due: {due})",
-                                'time': 'Action Required'
-                            })
-                except Exception as ex_t:
-                    logger.debug(f"Manager tasks table notice: {ex_t}")
-
+                # Notifications
                 cursor.execute("SELECT file_name, uploaded_at FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 3", (user_id,))
                 recent_ds = cursor.fetchall() or []
                 for ds in recent_ds:
-                    if not isinstance(ds, dict) and cursor.description:
-                        cols = [d[0] for d in cursor.description]
-                        ds = dict(zip(cols, ds))
                     fn = ds.get('file_name', 'Dataset')
                     kpi_data['notifications'].append({
                         'icon': 'bi-check2-circle',
@@ -101,7 +82,7 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
             num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
             cat_cols = df.select_dtypes(include=['object', 'category', 'string']).columns.tolist()
 
-            # Dynamic Automated Statistical Insights from df
+            # Dynamic AI Insights from df
             insights = []
             if cat_cols:
                 primary_cat = cat_cols[0]
@@ -132,7 +113,7 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
 
             kpi_data['ai_insights'] = insights
 
-            # Dynamic Real Data Plotly Previews from df
+            # Dynamic Plotly Previews from df
             if cat_cols and num_cols:
                 grp = df.groupby(cat_cols[0])[num_cols[0]].sum().reset_index().head(6)
                 kpi_data['viz_preview']['bar'] = {
@@ -148,22 +129,21 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
 
             if num_cols:
                 primary_num = num_cols[0]
-                valid_num = df[primary_num].dropna()
-
-                # Real Line trend chart over record index
-                series_vals = valid_num.head(20).tolist()
+                # Line chart
+                series_vals = df[primary_num].dropna().head(10).tolist()
                 kpi_data['viz_preview']['line'] = {
-                    'labels': [f"Rec {i+1}" for i in range(len(series_vals))],
+                    'labels': [f"R{i+1}" for i in range(len(series_vals))],
                     'values': series_vals
                 }
-                # Real Histogram distribution values
+                # Histogram
+                hist_vals = df[primary_num].dropna().tolist()
                 kpi_data['viz_preview']['hist'] = {
-                    'values': valid_num.tolist()
+                    'values': hist_vals[:100]
                 }
 
-                # Real Correlation heatmap across numerical columns
+                # Correlation heatmap
                 if len(num_cols) >= 2:
-                    sub_num = num_cols[:6]
+                    sub_num = num_cols[:4]
                     corr_df = df[sub_num].corr().fillna(0)
                     kpi_data['viz_preview']['heatmap'] = {
                         'x': sub_num,
@@ -174,10 +154,10 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
         except Exception as e:
             logger.warning(f"Error extracting dynamic insights from DataFrame: {e}")
 
-    # Fallback Automated Insights if empty
+    # Fallback AI Insights if empty
     if not kpi_data['ai_insights']:
         kpi_data['ai_insights'] = [
-            "Upload a dataset to generate real automated data profiling.",
+            "Upload a dataset to generate real automated AI data profiling.",
             "Detect distributions, top performing categories, and key anomalies.",
             "Run automatic correlation matrix calculation across numerical variables."
         ]

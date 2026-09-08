@@ -14,11 +14,6 @@ from .timeseries_service import time_series_analysis
 from .kpi_service import generate_numeric_kpis, detect_business_metrics, top_bottom_categories
 from .chart_service import generate_automatic_charts
 from .insight_service import generate_ai_explanation
-from .feature_service import (
-    perform_kmeans_clustering,
-    run_random_forest_analysis,
-    run_linear_regression_analysis
-)
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +22,7 @@ def analyze_dataset(df, generate_ai=False):
     """
     Unified end-to-end automatic analytics pipeline runner:
     Upload → Validation → Profiling → Semantic Classification → Data Quality →
-    Intelligent Cleaning → Descriptive EDA → Correlation → Outliers (IQR & Isolation Forest) →
-    Time-Series (ARIMA) → ML Suite (K-Means, Random Forest, Linear Regression) →
+    Intelligent Cleaning → Descriptive EDA → Correlation → Outliers → Time-Series →
     KPI Engine → Top/Bottom Analysis → Automatic Charts → AI Business Explanation
 
     Args:
@@ -72,7 +66,16 @@ def analyze_dataset(df, generate_ai=False):
     except Exception as e:
         logger.error(f"Error during category normalization: {e}")
 
-    # 5. Intelligent Cleaning (skewness-aware, preserving IDs)
+    # 5. Data Quality Analysis
+    quality_report = None
+    try:
+        quality_report = calculate_quality_score(converted_df, semantics)
+        logger.info(f"Data quality score: {quality_report.get('score', 0)}/100 (Grade {quality_report.get('grade', 'F')})")
+    except Exception as e:
+        logger.error(f"Error during quality scoring: {e}")
+        quality_report = {"score": 0, "grade": "F", "recommendations": ["Quality scoring failed."]}
+
+    # 6. Intelligent Cleaning (skewness-aware, preserving IDs)
     cleaned_df = None
     try:
         cleaned_df = smart_clean_dataframe(converted_df, semantics)
@@ -81,7 +84,7 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error during smart cleaning: {e}")
         cleaned_df = converted_df
 
-    # 6. Re-evaluate semantics post-cleaning & detect business domain
+    # Re-evaluate semantics post-cleaning
     try:
         final_semantics = classify_dataframe(cleaned_df)
         logger.info("Post-cleaning semantic classification completed.")
@@ -89,15 +92,16 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error during post-cleaning semantic classification: {e}")
         final_semantics = semantics
 
+    # 7. Descriptive Statistics
+    descriptive_stats = None
     try:
-        from .semantic_service import detect_business_domain
-        business_domain = detect_business_domain(cleaned_df, final_semantics)
-        logger.info(f"Detected business domain: {business_domain}")
+        descriptive_stats = dataset_numeric_summary(cleaned_df, final_semantics)
+        logger.info(f"Descriptive statistics generated for {len(descriptive_stats)} numeric columns.")
     except Exception as e:
-        logger.error(f"Error detecting business domain: {e}")
-        business_domain = "General Analytics"
+        logger.error(f"Error generating descriptive statistics: {e}")
+        descriptive_stats = {}
 
-    # 7. Outlier Engine (IQR & Isolation Forest)
+    # 8. Outlier Engine
     outliers_report = None
     try:
         outliers_report = detect_dataset_outliers(cleaned_df, final_semantics)
@@ -107,26 +111,7 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error during outlier detection: {e}")
         outliers_report = {"by_column": {}, "total_outlier_count": 0}
 
-    # 8. Data Quality Analysis (Run AFTER cleaning & outlier detection with actual outlier_count)
-    quality_report = None
-    try:
-        actual_outliers = outliers_report.get("total_outlier_count", 0)
-        quality_report = calculate_quality_score(cleaned_df, final_semantics, outlier_count=actual_outliers)
-        logger.info(f"Data quality score: {quality_report.get('score', 0)}/100 (Grade {quality_report.get('grade', 'F')})")
-    except Exception as e:
-        logger.error(f"Error during quality scoring: {e}")
-        quality_report = {"score": 0, "grade": "F", "recommendations": ["Quality scoring failed."]}
-
-    # 9. Descriptive Statistics
-    descriptive_stats = None
-    try:
-        descriptive_stats = dataset_numeric_summary(cleaned_df, final_semantics)
-        logger.info(f"Descriptive statistics generated for {len(descriptive_stats)} numeric columns.")
-    except Exception as e:
-        logger.error(f"Error generating descriptive statistics: {e}")
-        descriptive_stats = {}
-
-    # 10. Correlation Analysis
+    # 9. Correlation Analysis
     corr_dict = None
     try:
         corr_matrix = calculate_correlation(cleaned_df, final_semantics)
@@ -139,7 +124,7 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error during correlation analysis: {e}")
         corr_dict = {}
 
-    # 11. KPI Engine
+    # 10. KPI Engine
     generic_kpis = None
     business_kpis = None
     try:
@@ -156,67 +141,28 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error detecting business KPIs: {e}")
         business_kpis = {}
 
-    # 12. Time Series Engine (ARIMA)
+    # 11. Time Series Engine
     time_series_report = None
     try:
         date_cols = [c for c, t in final_semantics.items() if t == "datetime" and c in cleaned_df.columns]
         measure_cols = [c for c, t in final_semantics.items() if t == "measure" and c in cleaned_df.columns]
 
-        if date_cols and measure_cols and len(cleaned_df) >= 10:
+        if date_cols and measure_cols:
             target_val = next((c for c in measure_cols if c.lower() in ['sales', 'revenue', 'profit', 'quantity']), measure_cols[0])
             time_series_report = time_series_analysis(cleaned_df, date_cols[0], target_val)
             if time_series_report:
-                logger.info(f"Time-series analysis (ARIMA) completed for '{target_val}' over '{date_cols[0]}'.")
+                logger.info(f"Time-series analysis completed for '{target_val}' over '{date_cols[0]}'.")
             else:
                 logger.warning("Time-series analysis returned no results.")
     except Exception as e:
         logger.error(f"Error during time-series analysis: {e}")
         time_series_report = None
 
-    # 13. Advanced Machine Learning Suite (Run conditionally based on feature prerequisites)
-    measure_cols_count = len([c for c, t in final_semantics.items() if t in ["measure", "currency", "percentage"] and c in cleaned_df.columns])
-
-    kmeans_report = None
-    if measure_cols_count >= 2 and len(cleaned_df) >= 10:
-        try:
-            kmeans_report = perform_kmeans_clustering(cleaned_df, final_semantics, n_clusters=3)
-            if kmeans_report.get("success"):
-                logger.info(f"K-Means Clustering completed with {kmeans_report.get('n_clusters')} clusters.")
-        except Exception as e:
-            logger.error(f"Error during K-Means Clustering: {e}")
-            kmeans_report = {"success": False, "message": "K-Means execution failed."}
-    else:
-        kmeans_report = {"success": False, "message": "Requires at least 2 numeric columns and 10 rows."}
-
-    rf_report = None
-    if measure_cols_count >= 2 and len(cleaned_df) >= 15:
-        try:
-            rf_report = run_random_forest_analysis(cleaned_df, final_semantics)
-            if rf_report.get("success"):
-                logger.info(f"Random Forest analysis completed for target '{rf_report.get('target_column')}'. Top predictor: '{rf_report.get('top_predictor')}'.")
-        except Exception as e:
-            logger.error(f"Error during Random Forest analysis: {e}")
-            rf_report = {"success": False, "message": "Random Forest execution failed."}
-    else:
-        rf_report = {"success": False, "message": "Requires at least 2 numeric columns and 15 rows."}
-
-    lr_report = None
-    if measure_cols_count >= 2 and len(cleaned_df) >= 10:
-        try:
-            lr_report = run_linear_regression_analysis(cleaned_df, final_semantics)
-            if lr_report.get("success"):
-                logger.info(f"Linear Regression analysis completed for target '{lr_report.get('target_column')}' (R2: {lr_report.get('r2_score')}).")
-        except Exception as e:
-            logger.error(f"Error during Linear Regression analysis: {e}")
-            lr_report = {"success": False, "message": "Linear Regression execution failed."}
-    else:
-        lr_report = {"success": False, "message": "Requires at least 2 numeric columns and 10 rows."}
-
-    # 14. Top/Bottom Category Analysis
+    # 12. Top/Bottom Category Analysis
     top_bottom_report = None
     try:
         cat_cols = [c for c, t in final_semantics.items() if t == "categorical" and c in cleaned_df.columns]
-        measure_cols = [c for c, t in final_semantics.items() if t in ["measure", "currency", "percentage"] and c in cleaned_df.columns]
+        measure_cols = [c for c, t in final_semantics.items() if t == "measure" and c in cleaned_df.columns]
 
         if cat_cols and measure_cols:
             target_cat = cat_cols[0]
@@ -232,7 +178,7 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error during top/bottom analysis: {e}")
         top_bottom_report = None
 
-    # 15. Automatic Recommended Charts
+    # 13. Automatic Recommended Charts
     recommended_charts = None
     try:
         recommended_charts = generate_automatic_charts(cleaned_df, final_semantics)
@@ -241,7 +187,7 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error generating automatic charts: {e}")
         recommended_charts = []
 
-    # 16. Memory Summary
+    # 14. Memory Summary
     memory_sum = None
     try:
         memory_sum = dataset_memory_summary(cleaned_df)
@@ -250,7 +196,7 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error generating memory summary: {e}")
         memory_sum = {"formatted_memory": "N/A", "total_cells": 0}
 
-    # 17. Column Usefulness
+    # 15. Column Usefulness
     col_usefulness = None
     try:
         col_usefulness = evaluate_column_usefulness(cleaned_df, final_semantics)
@@ -259,14 +205,13 @@ def analyze_dataset(df, generate_ai=False):
         logger.error(f"Error evaluating column usefulness: {e}")
         col_usefulness = []
 
-    # 18. Consolidated Analytics Pipeline Summary
+    # 16. Consolidated Analytics Pipeline Summary
     pipeline_result = {
         "dataset_overview": {
             "row_count": len(cleaned_df),
             "column_count": len(cleaned_df.columns),
             "columns": list(cleaned_df.columns)
         },
-        "business_domain": business_domain,
         "semantic_types": final_semantics,
         "quality": quality_report,
         "descriptive_statistics": descriptive_stats,
@@ -275,9 +220,6 @@ def analyze_dataset(df, generate_ai=False):
         "generic_kpis": generic_kpis,
         "business_kpis": business_kpis,
         "time_series": time_series_report,
-        "kmeans_clustering": kmeans_report,
-        "random_forest_analysis": rf_report,
-        "linear_regression_analysis": lr_report,
         "top_bottom_analysis": top_bottom_report,
         "recommended_charts": recommended_charts,
         "memory_summary": memory_sum,
@@ -285,14 +227,13 @@ def analyze_dataset(df, generate_ai=False):
         "cleaned_df": cleaned_df
     }
 
-    # 19. Optional AI Business Explanation Synthesis
+    # 17. Optional AI Business Explanation Synthesis
     if generate_ai:
         try:
             summary_for_ai = {
                 "row_count": len(cleaned_df),
                 "quality_score": quality_report.get("score", 0) if quality_report else 0,
                 "completeness": quality_report.get("completeness", 0) if quality_report else 0,
-                "business_domain": business_domain,
                 "business_kpis": business_kpis,
                 "outliers_detected": {col: res.get("count", 0) for col, res in outliers_report.get("by_column", {}).items()} if outliers_report else {},
                 "top_bottom_analysis": top_bottom_report
@@ -302,7 +243,7 @@ def analyze_dataset(df, generate_ai=False):
             logger.info("AI explanation generated successfully.")
         except Exception as e:
             logger.error(f"Error generating AI explanation: {e}")
-            pipeline_result["ai_explanation"] = {"fallback": "AI explanation is temporarily unavailable."}
+            pipeline_result["ai_explanation"] = {"error": str(e), "fallback": "AI explanation failed."}
 
     logger.info("Pipeline analysis completed successfully.")
     return pipeline_result

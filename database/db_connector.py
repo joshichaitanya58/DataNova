@@ -45,7 +45,7 @@ def get_db_connection(raise_on_error: bool = False) -> Optional[pymysql.connecti
 
     if missing:
         msg = f"Missing database configuration: {', '.join(missing)}"
-        logger.error(msg)
+        logger.warning(msg)
         if raise_on_error:
             raise DatabaseConnectionError(msg)
         return None
@@ -56,34 +56,42 @@ def get_db_connection(raise_on_error: bool = False) -> Optional[pymysql.connecti
             raise ValueError
     except ValueError:
         msg = f"Invalid DB_PORT configuration: '{db_port_str}' must be an integer between 1 and 65535."
-        logger.error(msg)
+        logger.warning(msg)
         if raise_on_error:
             raise DatabaseConnectionError(msg)
         return None
 
+    # SSL configuration for cloud-hosted databases (e.g. TiDB, Aiven, PlanetScale, Railway)
+    db_ssl = os.getenv("DB_SSL", "false").lower() in ("true", "1", "t", "yes")
+    ssl_config = None
+    if db_ssl:
+        ssl_config = {"ssl": {}}
+        db_ssl_ca = os.getenv("DB_SSL_CA")
+        if db_ssl_ca:
+            ssl_config = {"ca": db_ssl_ca}
+
     try:
-        connection = pymysql.connect(
-            host=db_host,
-            port=port,
-            user=db_user,
-            password=db_password,
-            database=db_name,
-            charset="utf8mb4",
-            cursorclass=DictCursor,
-            connect_timeout=10,
-            read_timeout=30,
-            write_timeout=30,
-            autocommit=False,
-        )
+        connect_kwargs = {
+            "host": db_host,
+            "port": port,
+            "user": db_user,
+            "password": db_password,
+            "database": db_name,
+            "charset": "utf8mb4",
+            "cursorclass": DictCursor,
+            "connect_timeout": 10,
+            "read_timeout": 30,
+            "write_timeout": 30,
+            "autocommit": False,
+        }
+        if ssl_config:
+            connect_kwargs["ssl"] = ssl_config
+
+        connection = pymysql.connect(**connect_kwargs)
         return connection
 
-    except pymysql.MySQLError as e:
-        logger.error(f"Database connection failed: {e}", exc_info=True)
+    except Exception as e:
+        logger.warning(f"Database connection failed: {e}")
         if raise_on_error:
             raise DatabaseConnectionError(f"Unable to connect to database: {str(e)}") from e
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error during database connection: {e}", exc_info=True)
-        if raise_on_error:
-            raise DatabaseConnectionError(f"Unexpected connection error: {str(e)}") from e
         return None

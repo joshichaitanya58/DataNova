@@ -1,12 +1,7 @@
-try:
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-except ImportError:
-    matplotlib = None
-    plt = None
-    sns = None
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
 import base64
 from io import BytesIO
 import pandas as pd
@@ -28,18 +23,16 @@ def fig_to_base64(fig):
     Converts a Matplotlib figure into a base64 encoded PNG string.
     Optimized for high rendering speed and low latency.
     """
-    if fig is None or plt is None:
+    if fig is None:
         return None
     buf = BytesIO()
     try:
         fig.tight_layout()
     except Exception as e:
+        # If tight_layout fails (e.g., empty axes), just continue
         logger.warning(f"tight_layout failed: {e}")
     fig.savefig(buf, format="png", bbox_inches='tight', transparent=True, dpi=95)
-    try:
-        plt.close(fig)
-    except Exception:
-        pass
+    plt.close(fig)
     return base64.b64encode(buf.getbuffer()).decode("ascii")
 
 
@@ -80,8 +73,6 @@ def generate_missingness_heatmap(df):
     """
     Generates a missing value pattern heatmap visualization.
     """
-    if plt is None or sns is None:
-        return None
     if df.isna().sum().sum() == 0:
         return None
 
@@ -95,8 +86,6 @@ def generate_correlation_heatmap(df, semantic_types):
     """
     Generates correlation heatmap visualization strictly for measure, currency, and percentage columns.
     """
-    if plt is None or sns is None:
-        return None
     valid_types = ["measure", "currency", "percentage"]
     measure_cols = [c for c, t in semantic_types.items() if t in valid_types and c in df.columns]
 

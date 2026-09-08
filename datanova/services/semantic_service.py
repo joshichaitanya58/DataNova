@@ -1,4 +1,3 @@
-import re
 import pandas as pd
 import logging
 
@@ -16,7 +15,7 @@ def detect_semantic_type(series, column_name):
     - 'datetime': Date, time, or timestamp column
     - 'currency': Monetary metric (Sales, Revenue, Profit, Cost, Price)
     - 'percentage': Percentage metric (Discount, Rate, Margin, Growth %)
-    - 'measure': Continuous numerical metric (Age, Quantity, Score, Weight, Lat/Lon)
+    - 'measure': Continuous numerical metric (Age, Quantity, Score, Weight)
     - 'possible_identifier': Numeric high-uniqueness integer columns that act like keys
     - 'categorical': Distinct category column (Region, Segment, Status)
     - 'text': High-cardinality descriptive text (Comments, Descriptions)
@@ -39,30 +38,24 @@ def detect_semantic_type(series, column_name):
     unique_count = series.nunique(dropna=True)
     unique_ratio = unique_count / max(total_count, 1)
 
-    # 1. Coordinates (Latitude / Longitude are continuous measures)
-    if name in ["latitude", "lat", "longitude", "lon", "long"]:
-        return "measure"
-
-    # 2. Geographic Codes / Locations
-    geo_words = ["postal", "zipcode", "zip_code", "pincode", "zip", "country", "state", "city", "region", "province", "territory"]
+    # 1. Geographic Codes / Locations
+    geo_words = ["postal", "zipcode", "zip_code", "pincode", "zip", "country", "state", "city", "latitude", "lat", "longitude", "lon"]
     if any(word in name for word in geo_words):
         return "geographic_code"
 
-    # 3. Identifiers (precise token / regex matching)
-    id_pattern = re.compile(r'(^|_)(id|uuid|guid|key|num|no|code)($|_)', re.IGNORECASE)
-    id_explicit = ["customer_id", "order_id", "transaction_id", "invoice", "sku", "patient_id", "employee_id"]
-    if name in id_explicit or id_pattern.search(name):
-        if not any(kw in name for kw in ["type", "name", "category", "desc", "title", "keyboard"]):
-            return "identifier"
+    # 2. Identifiers (explicit keywords)
+    id_words = ["_id", " id", "id_", "uuid", "key", "account_num", "customer_num", "order_num", "invoice", "sku", "transaction_id"]
+    if any(word in name for word in id_words) or name == "id" or name.endswith("_id"):
+        return "identifier"
 
-    # 4. Boolean check
+    # 3. Boolean check
     if pd.api.types.is_bool_dtype(series):
         return "boolean"
 
     if unique_count <= 2 and set(non_null.unique()).issubset({0, 1, '0', '1', True, False, 'true', 'false', 'True', 'False', 'Y', 'N'}):
         return "boolean"
 
-    # 5. Datetime check
+    # 4. Datetime check
     if pd.api.types.is_datetime64_any_dtype(series):
         return "datetime"
 
@@ -89,7 +82,7 @@ def detect_semantic_type(series, column_name):
             except Exception:
                 pass
 
-    # 6. Numeric columns (Currency vs Percentage vs Measures vs Identifiers)
+    # 5. Numeric columns (Currency vs Percentage vs Measures vs Identifiers)
     if pd.api.types.is_numeric_dtype(series):
         currency_words = ["sales", "profit", "revenue", "amount", "price", "cost", "income", "salary", "expense", "budget", "total_sales", "net_profit"]
         if any(w in name for w in currency_words):
@@ -107,7 +100,7 @@ def detect_semantic_type(series, column_name):
 
         return "measure"
 
-    # 7. Categorical vs Text
+    # 6. Categorical vs Text
     if unique_count <= 60 or unique_ratio <= 0.05:
         return "categorical"
 
@@ -131,7 +124,7 @@ def classify_dataframe(df):
     return result
 
 
-def detect_business_domain(df, semantic_types=None):
+def detect_business_domain(df, semantic_types):
     """
     Infers business domain context based on column names and semantic types.
 
@@ -146,14 +139,11 @@ def detect_business_domain(df, semantic_types=None):
 
     Args:
         df (pd.DataFrame): Input dataset
-        semantic_types (dict, optional): Mapping of column name to semantic type
+        semantic_types (dict): Mapping of column name to semantic type (currently not used, but kept for signature)
 
     Returns:
         str: Inferred business domain
     """
-    if semantic_types is None:
-        semantic_types = classify_dataframe(df)
-
     col_names = [str(c).lower() for c in df.columns]
 
     retail_keywords = ["sales", "order", "product", "category", "sku", "ship", "customer", "quantity", "segment", "store"]
@@ -171,13 +161,6 @@ def detect_business_domain(df, semantic_types=None):
         "SaaS / Subscriptions": sum(1 for k in saas_keywords if any(k in c for c in col_names)),
         "Hospitality / Travel": sum(1 for k in hospitality_keywords if any(k in c for c in col_names))
     }
-
-    # Boost scores based on semantic types
-    currency_cols = [c for c, t in semantic_types.items() if t == "currency"]
-    if currency_cols and match_counts["Retail / E-Commerce"] > 0:
-        match_counts["Retail / E-Commerce"] += len(currency_cols)
-    if currency_cols and match_counts["Finance & Banking"] > 0:
-        match_counts["Finance & Banking"] += len(currency_cols)
 
     best_domain = max(match_counts, key=match_counts.get)
     if match_counts[best_domain] == 0:
