@@ -221,43 +221,51 @@ def login():
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
+        is_ajax = request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
+
         # Maintenance Mode & Public Registration Check for signup
         if is_maintenance_active():
-            return jsonify({
-                'success': False,
-                'message': 'System is currently under maintenance. New account registration is temporarily paused.'
-            }), 503
+            msg = 'System is currently under maintenance. New account registration is temporarily paused.'
+            if is_ajax:
+                return jsonify({'success': False, 'message': msg}), 503
+            flash(msg, 'warning')
+            return render_template('signup.html'), 503
 
         settings = current_app.config.get('SYSTEM_SETTINGS', {})
         if not settings.get('allow_user_registration', True):
-            return jsonify({
-                'success': False,
-                'message': 'New user self-registration is currently disabled by administrator. Please contact your system administrator.'
-            }), 403
+            msg = 'New user self-registration is currently disabled by administrator. Please contact your system administrator.'
+            if is_ajax:
+                return jsonify({'success': False, 'message': msg}), 403
+            flash(msg, 'danger')
+            return render_template('signup.html'), 403
 
-        data = request.get_json()
+        if request.is_json:
+            data = request.get_json(silent=True) or {}
+        else:
+            data = request.form.to_dict() if request.form else {}
+
         if not data:
-            return jsonify({'success': False, 'message': 'Invalid request format.'}), 400
+            msg = 'Invalid request format or empty submission.'
+            if is_ajax:
+                return jsonify({'success': False, 'message': msg}), 400
+            flash(msg, 'danger')
+            return render_template('signup.html'), 400
 
-        first_name = data.get('first_name')
-        last_name = data.get('last_name')
-        email = data.get('email')
-        password = data.get('password')
-        organization = data.get('organization')
-        phone = data.get('phone')
-        
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
+        email = data.get('email', '')
+        password = data.get('password', '')
+        organization = data.get('organization', '')
+        phone = data.get('phone', '')
+
         # Respect configured Default Role on Signup from SYSTEM_SETTINGS if default is requested
-        settings = current_app.config.get('SYSTEM_SETTINGS', {})
         default_signup_role = settings.get('default_role', 'viewer').lower().strip()
         requested_role = data.get('role', '').lower().strip()
         role = requested_role if requested_role else default_signup_role
 
-        # Public signup is restricted to PUBLIC_ROLES (analyst, viewer, manager, admin if allowed)
-        if role not in PUBLIC_ROLES and role != default_signup_role:
-            return jsonify({
-                'success': False,
-                'message': 'Public registration is restricted to Analyst and Viewer roles only.'
-            }), 400
+        # Public signup is restricted to ALLOWED_ROLES
+        if role not in ALLOWED_ROLES:
+            role = default_signup_role
 
         success, msg, status_code = create_user_account(
             first_name=first_name,
@@ -271,13 +279,19 @@ def signup():
         )
 
         if success:
-            return jsonify({
-                'success': True,
-                'message': 'Account created! Redirecting to login...',
-                'redirect_url': url_for('auth.login')
-            })
+            if is_ajax:
+                return jsonify({
+                    'success': True,
+                    'message': 'Account created successfully! Redirecting to login...',
+                    'redirect_url': url_for('auth.login')
+                })
+            flash('Account created successfully! Please log in.', 'success')
+            return redirect(url_for('auth.login'))
         else:
-            return jsonify({'success': False, 'message': msg}), status_code
+            if is_ajax:
+                return jsonify({'success': False, 'message': msg}), status_code
+            flash(msg, 'danger')
+            return render_template('signup.html'), status_code
 
     return render_template('signup.html')
 
