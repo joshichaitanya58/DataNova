@@ -357,9 +357,13 @@
       if (passwordError) passwordError.textContent = 'Password is required.';
       return 'Password is required.';
     }
-    if (val.length < 6) {
-      if (passwordError) passwordError.textContent = 'Password must be at least 6 characters.';
-      return 'Password must be at least 6 characters.';
+    if (val.length < 8) {
+      if (passwordError) passwordError.textContent = 'Password must be at least 8 characters long.';
+      return 'Password must be at least 8 characters long.';
+    }
+    if (!/[A-Z]/.test(val) || !/[0-9]/.test(val)) {
+      if (passwordError) passwordError.textContent = 'Password must contain at least 1 uppercase letter and 1 number (e.g. Pass1234).';
+      return 'Password must contain at least 1 uppercase letter and 1 number.';
     }
     if (passwordError) passwordError.textContent = '';
     return '';
