@@ -1,7 +1,12 @@
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+except ImportError:
+    matplotlib = None
+    plt = None
+    sns = None
 import base64
 from io import BytesIO
 import pandas as pd
@@ -23,16 +28,18 @@ def fig_to_base64(fig):
     Converts a Matplotlib figure into a base64 encoded PNG string.
     Optimized for high rendering speed and low latency.
     """
-    if fig is None:
+    if fig is None or plt is None:
         return None
     buf = BytesIO()
     try:
         fig.tight_layout()
     except Exception as e:
-        # If tight_layout fails (e.g., empty axes), just continue
         logger.warning(f"tight_layout failed: {e}")
     fig.savefig(buf, format="png", bbox_inches='tight', transparent=True, dpi=95)
-    plt.close(fig)
+    try:
+        plt.close(fig)
+    except Exception:
+        pass
     return base64.b64encode(buf.getbuffer()).decode("ascii")
 
 
@@ -73,6 +80,8 @@ def generate_missingness_heatmap(df):
     """
     Generates a missing value pattern heatmap visualization.
     """
+    if plt is None or sns is None:
+        return None
     if df.isna().sum().sum() == 0:
         return None
 
@@ -86,6 +95,8 @@ def generate_correlation_heatmap(df, semantic_types):
     """
     Generates correlation heatmap visualization strictly for measure, currency, and percentage columns.
     """
+    if plt is None or sns is None:
+        return None
     valid_types = ["measure", "currency", "percentage"]
     measure_cols = [c for c, t in semantic_types.items() if t in valid_types and c in df.columns]
 
@@ -105,176 +116,6 @@ def generate_correlation_heatmap(df, semantic_types):
     sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", vmin=-1, vmax=1, ax=ax, cbar=True)
     ax.set_title('Correlation Matrix Heatmap', fontsize=12, fontweight='bold')
     return fig_to_base64(fig)
-
-
-def generate_automatic_charts(df, semantic_types, max_charts=10):
-    """
-    Generates high-quality automatic charts tailored by semantic types and analytical intent.
-    """
-    charts = []
-    plot_df = visualization_sample(df)
-
-    valid_types = ["measure", "currency", "percentage"]
-    date_cols = [c for c, t in semantic_types.items() if t == "datetime" and c in plot_df.columns]
-    measure_cols = [c for c, t in semantic_types.items() if t in valid_types and c in plot_df.columns]
-    cat_cols = [c for c, t in semantic_types.items() if t in ["categorical", "text"] and c in plot_df.columns]
-
-    for col in measure_cols:
-        plot_df[col] = pd.to_numeric(convert_percentage(convert_currency(plot_df[col])), errors="coerce")
-
-    # 1. Correlation Matrix Heatmap Chart
-    corr_plot = generate_correlation_heatmap(plot_df, semantic_types)
-    if corr_plot:
-        charts.append({
-            'title': 'Correlation Matrix Heatmap',
-            'description': 'Evaluates pairwise linear relationships across numerical measure columns.',
-            'plot': corr_plot,
-            'chart_type': 'heatmap'
-        })
-
-    # 2. Datetime + Measure (Line Chart)
-    if date_cols and measure_cols:
-        time_col = date_cols[0]
-        y_col = next((c for c in measure_cols if c.lower() in ['sales', 'revenue', 'profit', 'quantity', 'amount']), measure_cols[0])
-
-        temp = plot_df[[time_col, y_col]].copy()
-        temp[time_col] = pd.to_datetime(temp[time_col], errors="coerce", format="mixed")
-        temp[y_col] = pd.to_numeric(convert_currency(temp[y_col]), errors="coerce")
-        temp.dropna(inplace=True)
-
-        if not temp.empty:
-            temp.set_index(time_col, inplace=True)
-            resampled = temp[y_col].resample('ME').sum() if len(temp) > 30 else temp[y_col].resample('D').sum()
-
-            fig, ax = plt.subplots(figsize=(8, 4))
-            resampled.plot(ax=ax, marker='o', markersize=4, linestyle='-', color=PRIMARY_COLOR, linewidth=2)
-            ax.set_title(f'Time-Series Trend: {y_col} over {time_col}', fontsize=12, fontweight='bold')
-            ax.set_xlabel(time_col)
-            ax.set_ylabel(y_col)
-            ax.grid(True, linestyle='--', alpha=0.5)
-
-            charts.append({
-                'title': f'Trend Analysis: {y_col} vs. {time_col}',
-                'description': f'Shows temporal progression and seasonality for "{y_col}".',
-                'plot': fig_to_base64(fig),
-                'chart_type': 'line'
-            })
-
-    # 3. Categorical + Measure (Bar Chart)
-    good_cat_cols = [c for c in cat_cols if 1 < plot_df[c].nunique() <= 30]
-    if good_cat_cols and measure_cols:
-        cat_col = good_cat_cols[0]
-        num_col = next((c for c in measure_cols if c.lower() in ['sales', 'profit', 'revenue', 'quantity']), measure_cols[0])
-
-        is_financial = any(k in num_col.lower() for k in ['sales', 'profit', 'revenue', 'amount', 'qty', 'quantity'])
-        agg_type = "sum" if is_financial else "mean"
-
-        temp_df = plot_df[[cat_col, num_col]].copy()
-        temp_df[num_col] = pd.to_numeric(convert_currency(temp_df[num_col]), errors="coerce")
-        temp_df.dropna(subset=[num_col], inplace=True)
-
-        if not temp_df.empty:
-            grouped = temp_df.groupby(cat_col)[num_col].agg(agg_type).sort_values(ascending=False).head(10)
-
-            fig, ax = plt.subplots(figsize=(8, 4))
-            grouped.plot(kind='bar', ax=ax, color=VIOLET_COLOR, edgecolor='none', width=0.7)
-            ax.set_title(f'{agg_type.capitalize()} of {num_col} by {cat_col}', fontsize=12, fontweight='bold')
-            ax.set_xlabel(cat_col)
-            ax.set_ylabel(f'{agg_type.capitalize()} {num_col}')
-            ax.tick_params(axis='x', rotation=45)
-            ax.grid(axis='y', linestyle='--', alpha=0.5)
-
-            charts.append({
-                'title': f'Category Comparison: {num_col} by {cat_col}',
-                'description': f'Compares {agg_type} of "{num_col}" across top categories in "{cat_col}".',
-                'plot': fig_to_base64(fig),
-                'chart_type': 'bar'
-            })
-
-    # 4. Single Measure Distribution (Histogram + KDE + Boxplot)
-    if measure_cols:
-        num_col = measure_cols[0]
-        series = pd.to_numeric(plot_df[num_col], errors="coerce").dropna()
-        if not series.empty:
-            fig, axes = plt.subplots(1, 2, figsize=(8, 3.5))
-            sns.histplot(series, ax=axes[0], kde=True, color=PRIMARY_COLOR)
-            axes[0].set_title('Frequency & KDE Density', fontsize=10, fontweight='bold')
-            sns.boxplot(x=series, ax=axes[1], color=CYAN_COLOR)
-            axes[1].set_title('Outlier & Spread Boxplot', fontsize=10, fontweight='bold')
-
-            charts.append({
-                'title': f'Distribution & Outliers: {num_col}',
-                'description': f'Evaluates frequency spread, skewness, and numerical outliers for "{num_col}".',
-                'plot': fig_to_base64(fig),
-                'chart_type': 'distribution'
-            })
-
-    # 5. Categorical Composition (Pie / Donut Chart)
-    if good_cat_cols:
-        cat_col = good_cat_cols[0]
-        top_cats = plot_df[cat_col].value_counts().head(5)
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.pie(top_cats.values, labels=top_cats.index, autopct='%1.1f%%',
-               colors=[PRIMARY_COLOR, VIOLET_COLOR, CYAN_COLOR, GREEN_COLOR, '#F59E0B'], startangle=140)
-        ax.set_title(f'Category Share: {cat_col}', fontsize=12, fontweight='bold')
-        charts.append({
-            'title': f'Composition Share: {cat_col}',
-            'description': f'Percentage distribution of top categories in "{cat_col}".',
-            'plot': fig_to_base64(fig),
-            'chart_type': 'pie'
-        })
-
-    # 6. Measure vs Measure (Scatter Plot with Regression Trendline)
-    if len(measure_cols) >= 2:
-        x_col = measure_cols[0]
-        y_col = measure_cols[1]
-        scatter_df = plot_df[[x_col, y_col]].dropna()
-        if not scatter_df.empty and len(scatter_df) > 5:
-            fig, ax = plt.subplots(figsize=(8, 4))
-            sns.regplot(data=scatter_df, x=x_col, y=y_col, ax=ax,
-                        scatter_kws={'alpha': 0.5, 'color': PRIMARY_COLOR},
-                        line_kws={'color': 'red', 'linewidth': 2})
-            ax.set_title(f'Scatter & Regression: {y_col} vs. {x_col}', fontsize=12, fontweight='bold')
-            ax.set_xlabel(x_col)
-            ax.set_ylabel(y_col)
-            ax.grid(True, linestyle='--', alpha=0.5)
-
-            charts.append({
-                'title': f'Scatter & Trend: {y_col} vs {x_col}',
-                'description': f'Analyzes bivariate relationship and regression fit between "{x_col}" and "{y_col}".',
-                'plot': fig_to_base64(fig),
-                'chart_type': 'scatter'
-            })
-
-    # 7. Violin Plot (Categorical vs Measure)
-    if good_cat_cols and measure_cols:
-        cat_col = good_cat_cols[0]
-        num_col = measure_cols[0]
-        fig, ax = plt.subplots(figsize=(8, 4))
-        top_cats = plot_df[cat_col].value_counts().head(5).index
-        sub_plot = plot_df[plot_df[cat_col].isin(top_cats)]
-        if not sub_plot.empty:
-            sns.violinplot(data=sub_plot, x=cat_col, y=num_col, ax=ax, hue=cat_col, legend=False, palette="muted", inner="quartile")
-            ax.set_title(f'Violin Density: {num_col} by {cat_col}', fontsize=12, fontweight='bold')
-            ax.tick_params(axis='x', rotation=30)
-            charts.append({
-                'title': f'Violin Density: {num_col} by {cat_col}',
-                'description': f'Displays probability density spread of "{num_col}" across top categories.',
-                'plot': fig_to_base64(fig),
-                'chart_type': 'violin'
-            })
-
-    # 8. Missingness Heatmap (if missing values exist)
-    missing_map = generate_missingness_heatmap(plot_df)
-    if missing_map:
-        charts.append({
-            'title': 'Missing Data Pattern Heatmap',
-            'description': 'Visualizes pattern and distribution of missing cells across columns.',
-            'plot': missing_map,
-            'chart_type': 'missing_heatmap'
-        })
-
-    return charts[:max_charts]
 
 
 def build_plotly_payload(chart_type, title, x_data, y_data=None, z_data=None, categories=None, x_label="", y_label="", z_label=""):
@@ -299,20 +140,41 @@ def build_plotly_payload(chart_type, title, x_data, y_data=None, z_data=None, ca
             "y": y_data,
             "z": z_data,
             "marker": {
-                "size": 6,
+                "size": 5,
                 "color": z_data,
                 "colorscale": "Viridis",
-                "opacity": 0.85,
-                "colorbar": {"title": z_label}
+                "opacity": 0.88,
+                "showscale": True,
+                "colorbar": {"title": {"text": z_label or "Z", "side": "right"}, "len": 0.75, "thickness": 14}
             },
-            "hovertemplate": f"{x_label}: %{{x}}<br>{y_label}: %{{y}}<br>{z_label}: %{{z}}<extra></extra>"
+            "hovertemplate": f"<b>{x_label}</b>: %{{x}}<br><b>{y_label}</b>: %{{y}}<br><b>{z_label}</b>: %{{z}}<extra></extra>"
         })
         layout["scene"] = {
-            "xaxis": {"title": x_label, "gridcolor": "#334155"},
-            "yaxis": {"title": y_label, "gridcolor": "#334155"},
-            "zaxis": {"title": z_label, "gridcolor": "#334155"},
-            "bgcolor": "rgba(0,0,0,0)"
+            "xaxis": {"title": {"text": x_label}, "gridcolor": "rgba(148, 163, 184, 0.2)", "showbackground": True, "backgroundcolor": "rgba(30, 41, 59, 0.2)"},
+            "yaxis": {"title": {"text": y_label}, "gridcolor": "rgba(148, 163, 184, 0.2)", "showbackground": True, "backgroundcolor": "rgba(30, 41, 59, 0.2)"},
+            "zaxis": {"title": {"text": z_label}, "gridcolor": "rgba(148, 163, 184, 0.2)", "showbackground": True, "backgroundcolor": "rgba(30, 41, 59, 0.2)"},
+            "camera": {
+                "eye": {"x": 1.55, "y": 1.55, "z": 1.2}
+            },
+            "aspectratio": {"x": 1.1, "y": 1.1, "z": 0.85}
         }
+        layout["margin"] = {"l": 10, "r": 10, "t": 40, "b": 10}
+
+    elif chart_type == "heatmap" and x_data and y_data and z_data is not None:
+        plotly_data.append({
+            "type": "heatmap",
+            "z": z_data,
+            "x": x_data,
+            "y": y_data,
+            "colorscale": "RdBu",
+            "zmin": -1,
+            "zmax": 1,
+            "reversescale": True,
+            "hoverongaps": False,
+            "hovertemplate": "<b>%{x}</b> vs <b>%{y}</b><br>Correlation: %{z:.2f}<extra></extra>"
+        })
+        layout["xaxis"] = {"tickangle": -45, "gridcolor": "rgba(148, 163, 184, 0.15)"}
+        layout["yaxis"] = {"gridcolor": "rgba(148, 163, 184, 0.15)"}
 
     elif chart_type == "bar":
         plotly_data.append({
@@ -410,27 +272,55 @@ def generate_automatic_charts(df, semantic_types, max_charts=10):
     for col in measure_cols:
         plot_df[col] = pd.to_numeric(convert_percentage(convert_currency(plot_df[col])), errors="coerce")
 
-    # 1. 3D Scatter Plot (if 3+ measure columns exist)
+    # 1. Multi-Variable Interaction (2D Color-Mapped Scatter / 3D Spatial Plotly)
     if len(measure_cols) >= 3:
         x_m, y_m, z_m = measure_cols[0], measure_cols[1], measure_cols[2]
         sub_3d = plot_df[[x_m, y_m, z_m]].dropna()
         if len(sub_3d) > 5:
             plotly_3d = build_plotly_payload(
-                "scatter3d", f"3D Spatial Feature Interaction: {x_m}, {y_m}, {z_m}",
+                "scatter3d", f"3D Spatial Interaction: {x_m} vs {y_m} vs {z_m}",
                 sub_3d[x_m].tolist(), sub_3d[y_m].tolist(), sub_3d[z_m].tolist(),
                 x_label=x_m, y_label=y_m, z_label=z_m
             )
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.scatter(sub_3d[x_m], sub_3d[y_m], c=sub_3d[z_m], cmap='viridis', alpha=0.8)
-            ax.set_title(f'3D Scatter Projection: {x_m} vs {y_m} vs {z_m}', fontsize=12, fontweight='bold')
-            ax.set_xlabel(x_m)
-            ax.set_ylabel(y_m)
-            ax.grid(True, linestyle='--', alpha=0.5)
+            
+            # Clean 2D Representation: Bivariate scatter with color-coded 3rd variable
+            fig_2d, ax_2d = plt.subplots(figsize=(8, 4.5))
+            scatter_2d = ax_2d.scatter(
+                sub_3d[x_m], sub_3d[y_m], c=sub_3d[z_m],
+                cmap='viridis', s=45, alpha=0.75, edgecolors='none'
+            )
+            ax_2d.set_title(f'Multi-Variable Interaction: {y_m} vs {x_m} (Color: {z_m})', fontsize=11, fontweight='bold')
+            ax_2d.set_xlabel(x_m, fontsize=9)
+            ax_2d.set_ylabel(y_m, fontsize=9)
+            ax_2d.grid(True, linestyle='--', alpha=0.4)
+            cbar_2d = fig_2d.colorbar(scatter_2d, ax=ax_2d)
+            cbar_2d.set_label(z_m, fontsize=8)
+            plot_2d_base64 = fig_to_base64(fig_2d)
+
+            # 3D Matplotlib Fallback
+            fig_3d = plt.figure(figsize=(8, 4.8))
+            try:
+                ax_3d = fig_3d.add_subplot(111, projection='3d')
+                p3 = ax_3d.scatter(sub_3d[x_m], sub_3d[y_m], sub_3d[z_m], c=sub_3d[z_m], cmap='viridis', s=25, alpha=0.8)
+                ax_3d.set_title(f'3D Multi-Variable Space: {x_m} vs {y_m} vs {z_m}', fontsize=11, fontweight='bold')
+                ax_3d.set_xlabel(x_m, fontsize=8, labelpad=6)
+                ax_3d.set_ylabel(y_m, fontsize=8, labelpad=6)
+                ax_3d.set_zlabel(z_m, fontsize=8, labelpad=6)
+                fig_3d.colorbar(p3, ax=ax_3d, shrink=0.55, pad=0.1, label=z_m)
+            except Exception:
+                pass
+            plot_3d_base64 = fig_to_base64(fig_3d)
 
             charts.append({
-                'title': f'3D Spatial Projection: {x_m} vs {y_m} vs {z_m}',
-                'description': f'Interactive 3D scatter plot showcasing multi-variable interactions with hover depth.',
-                'plot': fig_to_base64(fig),
+                'title': f'Multi-Variable Interaction: {y_m} vs {x_m}',
+                'title_2d': f'Multi-Variable Scatter: {y_m} vs {x_m} (Color: {z_m})',
+                'title_3d': f'3D Spatial Projection: {x_m} vs {y_m} vs {z_m}',
+                'description': f'Evaluates interaction between "{x_m}" and "{y_m}" with gradient coloring by "{z_m}".',
+                'description_2d': f'2D bivariate scatter plot mapping "{z_m}" color gradient across "{x_m}" and "{y_m}".',
+                'description_3d': f'Interactive 3D scatter plot showcasing multi-variable interactions with 360° rotation and hover depth.',
+                'plot': plot_2d_base64,
+                'plot_2d': plot_2d_base64,
+                'plot_3d': plot_3d_base64,
                 'plotly_json': plotly_3d,
                 'chart_type': 'scatter3d',
                 'is_3d': True
@@ -439,11 +329,23 @@ def generate_automatic_charts(df, semantic_types, max_charts=10):
     # 2. Correlation Matrix Heatmap Chart
     corr_plot = generate_correlation_heatmap(plot_df, semantic_types)
     if corr_plot:
+        valid_types = ["measure", "currency", "percentage"]
+        m_cols = [c for c, t in semantic_types.items() if t in valid_types and c in plot_df.columns]
+        num_df = plot_df[m_cols].copy().dropna()
+        corr_matrix = num_df.corr() if not num_df.empty and len(num_df.columns) >= 2 else None
+        plotly_corr = None
+        if corr_matrix is not None:
+            plotly_corr = build_plotly_payload(
+                "heatmap", "Correlation Matrix Heatmap",
+                x_data=corr_matrix.columns.tolist(),
+                y_data=corr_matrix.index.tolist(),
+                z_data=corr_matrix.values.round(2).tolist()
+            )
         charts.append({
             'title': 'Correlation Matrix Heatmap',
             'description': 'Evaluates pairwise linear relationships across numerical measure columns.',
             'plot': corr_plot,
-            'plotly_json': None,
+            'plotly_json': plotly_corr,
             'chart_type': 'heatmap',
             'is_3d': False
         })

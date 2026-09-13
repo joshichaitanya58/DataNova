@@ -44,7 +44,7 @@
                     <li class="nav-item"><a class="nav-link dn-nav-link" href="#home">Home</a></li>
                     <li class="nav-item"><a class="nav-link dn-nav-link" href="#features">Features</a></li>
                     <li class="nav-item"><a class="nav-link dn-nav-link" href="#how-it-works">How It Works</a></li>
-                    <li class="nav-item"><a class="nav-link dn-nav-link" href="#about">About</a></li>
+                    <li class="nav-item"><a class="nav-link dn-nav-link" href="#ai-insights">AI Insights</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-2 dn-nav-actions">
                     <a href="{{ url_for('auth.login') }}" class="btn dn-btn-ghost">Login</a>
@@ -90,7 +90,8 @@
                             <span class="dn-dot dn-dot-red"></span>
                             <span class="dn-dot dn-dot-amber"></span>
                             <span class="dn-dot dn-dot-green"></span>
-                            <span class="dn-console-filename">sales_data.csv &mdash; live preview</span>
+                            <span class="dn-console-filename">sales_data.csv &mdash; live sample preview</span>
+                            <span class="badge bg-indigo text-white ms-auto" style="font-size: 0.72rem; padding: 3px 8px; border-radius: 12px; background: rgba(79, 70, 229, 0.85);">Sample Preview</span>
                         </div>
 
                         <div class="dn-console-body">
@@ -119,7 +120,7 @@
                                 <div class="col-4">
                                     <div class="dn-kpi-card">
                                         <span class="dn-kpi-label">REVENUE</span>
-                                        <span class="dn-kpi-value">$482K</span>
+                                        <span class="dn-kpi-value">&#8377;48.2L</span>
                                         <span class="dn-kpi-trend dn-up"><i class="bi bi-arrow-up-short"></i>21%</span>
                                     </div>
                                 </div>
@@ -421,31 +422,63 @@
         <div class="container">
             <div class="row align-items-center g-5">
                 <div class="col-lg-5 dn-reveal">
-                    <span class="dn-eyebrow dn-eyebrow-muted">AI INSIGHTS PREVIEW</span>
+                    <span class="dn-eyebrow dn-eyebrow-muted"><i class="bi bi-cpu-fill text-primary me-1"></i> AI INSIGHTS PREVIEW</span>
                     <h2 class="dn-section-title">Insights, Written in Plain English</h2>
                     <p class="dn-section-sub">
-                        Instead of charts you have to interpret yourself, DataNova writes out what your data means
-                        &mdash;
-                        in sentences anyone on the team can act on.
+                        Instead of complex charts you have to interpret yourself, DataNova automatically writes out what your data means &mdash; in clear, actionable sentences anyone on the team can act on immediately.
                     </p>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2"><i class="bi bi-check2-circle me-1"></i> Automated Executive Summaries</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"><i class="bi bi-graph-up-arrow me-1"></i> Trend &amp; Growth Detection</span>
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2"><i class="bi bi-shield-exclamation me-1"></i> Outlier &amp; Anomaly Detection</span>
+                    </div>
                 </div>
 
                 <div class="col-lg-7 dn-reveal">
-                    <div class="dn-insights-card">
-                        <div class="dn-insights-header">
-                            <i class="bi bi-stars"></i>
-                            <span>Key Insights</span>
+                    <div class="dn-insights-card shadow-lg border border-primary border-opacity-25" style="border-radius: 16px; overflow: hidden; background: #ffffff;">
+                        <div class="dn-insights-header d-flex align-items-center justify-content-between p-3" style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white;">
+                            <div class="d-flex align-items-center gap-2 fw-semibold">
+                                <i class="bi bi-stars fs-5"></i>
+                                <span>DataNova AI Insights Engine</span>
+                            </div>
+                            <span class="badge bg-white text-primary fw-bold px-2 py-1" style="font-size: 0.75rem;">LIVE DEMO</span>
                         </div>
-                        <ul class="dn-insights-list">
-                            <li><span class="dn-insight-dot dn-dot-indigo"></span>Electronics is the best-performing
-                                category.</li>
-                            <li><span class="dn-insight-dot dn-dot-cyan"></span>Sales increased by <b>21%</b> in the
-                                last three months.</li>
-                            <li><span class="dn-insight-dot dn-dot-violet"></span>West region generated the highest
-                                revenue.</li>
-                            <li><span class="dn-insight-dot dn-dot-green"></span>Product A shows an unusual increase in
-                                demand.</li>
-                        </ul>
+                        <div class="p-4">
+                            <ul class="dn-insights-list list-unstyled d-flex flex-column gap-3 mb-0">
+                                <li class="p-3 rounded border" style="background: rgba(79, 70, 229, 0.04); border-color: rgba(79, 70, 229, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-indigo mt-1"></span>
+                                        <div>
+                                            <strong class="text-indigo">Top Performing Segment:</strong> Electronics category generated <strong>&#8377;21,84,000</strong>, contributing to <strong>45.2%</strong> of overall revenue.
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="p-3 rounded border" style="background: rgba(6, 182, 212, 0.04); border-color: rgba(6, 182, 212, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-cyan mt-1"></span>
+                                        <div>
+                                            <strong class="text-info">Growth Momentum:</strong> Sales increased by <span class="badge bg-success text-white">+21%</span> over the last quarter, driven by strong repeat orders in the West Region.
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="p-3 rounded border" style="background: rgba(124, 58, 237, 0.04); border-color: rgba(124, 58, 237, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-violet mt-1"></span>
+                                        <div>
+                                            <strong style="color:#7C3AED;">Geographic Leader:</strong> West region outperformed all other territories with a customer satisfaction score of <strong>4.8 / 5.0</strong>.
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="p-3 rounded border" style="background: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.15) !important;">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <span class="dn-insight-dot dn-dot-green mt-1"></span>
+                                        <div>
+                                            <strong class="text-success">Anomaly Flagged:</strong> Product A experienced a <strong>3.4x spike</strong> in demand during flash weekend promotions without inventory shortages.
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>

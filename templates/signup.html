@@ -126,6 +126,19 @@
           <p class="field-error" id="email-error"></p>
         </div>
 
+        <div class="form-row">
+          <div class="field">
+            <label for="organization"><i class="bi bi-building me-1"></i> Organization / Company</label>
+            <input id="organization" type="text" placeholder="e.g. Acme Corp" class="login-input" required />
+            <p class="field-error" id="organization-error"></p>
+          </div>
+          <div class="field">
+            <label for="phone"><i class="bi bi-telephone me-1"></i> Mobile / Phone</label>
+            <input id="phone" type="tel" placeholder="+91 9876543210" class="login-input" />
+            <p class="field-error" id="phone-error"></p>
+          </div>
+        </div>
+
         <div class="field">
           <label for="password">Password</label>
           <div class="password-wrap">
@@ -144,10 +157,10 @@
           <p class="field-error" id="confirm-password-error"></p>
         </div>
 
-        <!-- ROLE SELECTION FOR SIGNUP (ALL 4 ROLES) -->
+        <!-- ROLE SELECTION FOR PUBLIC SIGNUP -->
         <div class="field">
           <label>Select Account Role</label>
-          <div class="role-selector-grid">
+          <div class="role-selector-grid" style="grid-template-columns: repeat(2, 1fr);">
             <label class="role-pill">
               <input type="radio" name="role" value="admin" />
               <span class="role-pill-btn"><i class="bi bi-shield-lock-fill"></i> Admin</span>

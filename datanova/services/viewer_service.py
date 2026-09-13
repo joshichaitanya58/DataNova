@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
-from typing import Optional, Dict, Any, List
-from .manager_service import format_currency_inr
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -10,11 +9,12 @@ logger = logging.getLogger(__name__)
 def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_id: Optional[int] = None, role: str = 'viewer') -> Dict[str, Any]:
     """
     Compiles complete production-ready viewer dashboard analytics from accessible shared dashboards,
-    reports, notifications, and active dataset metrics.
+    reports, notifications, and active dataset metrics without fake/hardcoded fallbacks.
     """
     shared_dashboards = []
     reports_list = []
     notifications = []
+    assigned_tasks = []
     shared_dashboards_count = 0
     reports_available_count = 0
 
@@ -23,13 +23,13 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
             with conn.cursor() as cursor:
                 # 1. Fetch accessible shared dashboards
                 cursor.execute("""
-                    SELECT s.id, s.title, s.description, s.created_at, s.dataset_id,
-                           u.first_name, u.last_name
+                    SELECT s.id, s.title, s.description, s.remark, s.status, s.created_at, s.dataset_id,
+                           u.first_name, u.last_name, u.role as owner_role
                     FROM shared_dashboards s
                     JOIN users u ON s.owner_id = u.id
-                    WHERE s.owner_id = %s OR s.shared_with_role = %s OR s.shared_with_role = 'all'
-                    ORDER BY s.created_at DESC LIMIT 6
-                """, (user_id or 0, role or 'viewer'))
+                    WHERE s.owner_id = %s OR s.shared_with_user_id = %s OR s.shared_with_role = %s OR s.shared_with_role = 'all'
+                    ORDER BY s.created_at DESC LIMIT 12
+                """, (user_id or 0, user_id or 0, role or 'viewer'))
                 shared_rows = cursor.fetchall() or []
                 for row in shared_rows:
                     fn = row.get('first_name', 'User')
@@ -57,18 +57,35 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
                            u.first_name, u.last_name
                     FROM reports r
                     JOIN users u ON r.user_id = u.id
-                    WHERE r.user_id = %s OR r.is_public = TRUE
                     ORDER BY r.created_at DESC LIMIT 10
-                """, (user_id or 0,))
+                """)
                 reports_list = cursor.fetchall() or []
 
                 cursor.execute("""
                     SELECT COUNT(*) as count FROM reports
-                    WHERE user_id = %s OR is_public = TRUE
-                """, (user_id or 0,))
+                """)
                 reports_available_count = (cursor.fetchone() or {}).get('count', 0)
 
-                # 3. Dynamic notifications from real DB activity
+                # 3. Dynamic notifications & assigned tasks from real DB activity
+                assigned_tasks = []
+                try:
+                    from . import manager_service
+                    assigned_tasks = manager_service.get_user_assigned_tasks(conn, user_id)
+                    for task in assigned_tasks:
+                        st = task.get('status')
+                        if st != 'Completed':
+                            title = task.get('task_title', 'New Task')
+                            mgr = task.get('manager_name', 'Manager')
+                            due = task.get('due_date') or 'Flexible'
+                            notif_label = f"Task Re-opened by {mgr}" if st == 'Reopened' else f"Task Assigned by {mgr}"
+                            notifications.insert(0, {
+                                'icon': 'bi-card-checklist' if st != 'Reopened' else 'bi-arrow-counterclockwise',
+                                'text': f"{notif_label}: '{title}' (Due: {due})",
+                                'time': 'Action Required'
+                            })
+                except Exception as ex_t:
+                    logger.debug(f"Viewer manager tasks notice: {ex_t}")
+
                 if shared_dashboards:
                     latest_sd = shared_dashboards[0]
                     notifications.append({
@@ -92,35 +109,23 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
         except Exception as e:
             logger.warning(f"Error fetching DB data for viewer dashboard: {e}")
 
-    # Default fallback notifications if empty
+    # Fallback notifications if no DB activity exists
     if not notifications:
         notifications = [
-            {'icon': 'bi-share', 'text': 'New dashboard shared with you: "Regional Overview".', 'time': '1 hr ago'},
-            {'icon': 'bi-file-earmark-check', 'text': 'New report available: "Q2 Revenue Summary".', 'time': '1 day ago'},
-            {'icon': 'bi-arrow-repeat', 'text': 'Dashboard "Sales Trend" was updated.', 'time': '2 days ago'}
+            {'icon': 'bi-info-circle', 'text': 'No shared dashboards or reports available.', 'time': 'Now'}
         ]
 
-    # Analytics charts fallback and calculation
-    sales_trend = {'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'], 'values': [105, 120, 115, 145, 135, 175, 190]}
-    revenue_dist = {'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], 'values': [45000, 60000, 50000, 80000, 65000, 92000]}
-    category_perf = {'labels': ['Electronics', 'Apparel', 'Home & Kitchen', 'Grocery', 'Services'], 'values': [90, 55, 70, 40, 20]}
-    regional_perf = [
-        {'region': 'West India', 'percentage': 88, 'color': 'var(--dn-primary)'},
-        {'region': 'North India', 'percentage': 64, 'color': 'var(--dn-violet)'},
-        {'region': 'South India', 'percentage': 52, 'color': 'var(--dn-cyan)'}
-    ]
-
-    insights = [
-        "Electronics & Technology products represent the highest volume segment.",
-        "Sales metrics show a steady +21% upward trajectory across the last quarter.",
-        "West & North regions combined account for over 65% of total revenue contribution.",
-        "Dataset processing quality and data consistency remain at 99.4% precision."
-    ]
+    # Analytics charts computed strictly from real dataset (no fake defaults)
+    sales_trend = {'labels': [], 'values': []}
+    revenue_dist = {'labels': [], 'values': []}
+    category_perf = {'labels': [], 'values': []}
+    regional_perf = []
+    insights = []
 
     if df is not None and not df.empty:
         cols_lower = {c.lower(): c for c in df.columns}
         rev_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['revenue', 'sales', 'amount', 'total', 'price', 'profit'])), None)
-        cat_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['category', 'product', 'type', 'region', 'segment'])), None)
+        cat_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['category', 'product', 'type', 'segment'])), None)
         reg_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['region', 'location', 'city', 'state', 'country', 'zone'])), None)
 
         if rev_col:
@@ -136,6 +141,7 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
                 if sum(b_values) > 0:
                     revenue_dist = {'labels': b_labels[:6], 'values': b_values[:6]}
                     sales_trend = {'labels': b_labels, 'values': [round(v / max(1, len(df)//7), 1) for v in b_values]}
+                    insights.append(f"Total active metric cumulative sum across periods is {round(float(rev_vals.sum()), 2):,}.")
             except Exception as e:
                 logger.warning(f"Error computing viewer dataset metrics: {e}")
 
@@ -147,7 +153,7 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
                         'labels': top_cats.index.tolist(),
                         'values': top_cats.values.tolist()
                     }
-                    insights[0] = f"'{top_cats.index[0]}' is the leading category with {top_cats.values[0]} recorded entries."
+                    insights.append(f"'{top_cats.index[0]}' is the leading category with {top_cats.values[0]} recorded entries.")
             except Exception as e:
                 logger.warning(f"Error computing viewer category performance: {e}")
 
@@ -165,14 +171,30 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
                             'percentage': pct,
                             'color': colors[idx % len(colors)]
                         })
+                    insights.append(f"Primary region '{reg_counts.index[0]}' represents {round((reg_counts.values[0]/tot_reg)*100, 1)}% of top regional records.")
             except Exception as e:
                 logger.warning(f"Error computing viewer regional performance: {e}")
+
+    if not sales_trend['values']:
+        sales_trend = {'labels': [], 'values': []}
+    if not revenue_dist['values']:
+        revenue_dist = {'labels': [], 'values': []}
+    if not category_perf['values']:
+        category_perf = {'labels': [], 'values': []}
+    if not regional_perf:
+        regional_perf = []
+
+    if not insights:
+        insights = [
+            "Platform analytics initialized. Upload or select a shared dataset to inspect live analytical metrics."
+        ]
 
     kpi = {
         'shared_dashboards_count': shared_dashboards_count,
         'reports_available': reports_available_count,
         'recent_insights': len(insights),
-        'last_updated': 'Just now' if df is not None else '2 hrs ago'
+        'pending_tasks_count': sum(1 for t in assigned_tasks if t.get('status') in ['Pending', 'In Progress', 'Reopened']),
+        'last_updated': 'Just now' if df is not None else 'N/A'
     }
 
     return {
@@ -180,6 +202,7 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
         'shared_dashboards': shared_dashboards,
         'reports': reports_list,
         'notifications': notifications,
+        'assigned_tasks': assigned_tasks,
         'sales_trend': sales_trend,
         'revenue_dist': revenue_dist,
         'category_perf': category_perf,

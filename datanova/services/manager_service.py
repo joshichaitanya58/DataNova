@@ -153,6 +153,245 @@ def generate_predictions_preview(df: Optional[pd.DataFrame]) -> Dict[str, str]:
     }
 
 
+def _fetchone_dict(cursor):
+    row = cursor.fetchone()
+    if not row:
+        return {}
+    if isinstance(row, dict):
+        return row
+    cols = [d[0] for d in cursor.description]
+    return dict(zip(cols, row))
+
+
+def _fetchall_dict(cursor):
+    rows = cursor.fetchall()
+    if not rows:
+        return []
+    if isinstance(rows[0], dict):
+        return list(rows)
+    cols = [d[0] for d in cursor.description]
+    return [dict(zip(cols, r)) for r in rows]
+
+
+def ensure_manager_tables_exist(conn=None):
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS manager_tasks (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    manager_id INT NOT NULL,
+                    assigned_to_id INT NOT NULL,
+                    task_title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    priority VARCHAR(20) DEFAULT 'Medium',
+                    status VARCHAR(20) DEFAULT 'Pending',
+                    due_date DATE,
+                    remark TEXT,
+                    dataset_id INT DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (assigned_to_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            try:
+                cursor.execute("ALTER TABLE manager_tasks ADD COLUMN remark TEXT")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE manager_tasks ADD COLUMN dataset_id INT DEFAULT NULL")
+            except Exception:
+                pass
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS manager_team_members (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    manager_id INT NOT NULL,
+                    user_id INT NOT NULL,
+                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE KEY manager_user_unique (manager_id, user_id)
+                )
+            """)
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Error ensuring manager tables exist: {e}")
+
+
+def get_manager_team_members(conn=None, manager_id=None) -> list:
+    """Fetches list of active platform team members explicitly assigned to manager with task stats."""
+    if not conn or not manager_id:
+        return []
+    ensure_manager_tables_exist(conn)
+    try:
+        with conn.cursor() as cursor:
+            query = """
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role,
+                       COALESCE(u.status, 'active') as status, u.created_at,
+                       COUNT(t.id) as total_tasks,
+                       SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) as completed_tasks,
+                       SUM(CASE WHEN t.status IN ('Pending', 'In Progress') THEN 1 ELSE 0 END) as active_tasks
+                FROM manager_team_members mtm
+                JOIN users u ON mtm.user_id = u.id
+                LEFT JOIN manager_tasks t ON u.id = t.assigned_to_id
+                WHERE mtm.manager_id = %s
+                GROUP BY u.id, u.first_name, u.last_name, u.email, u.role, u.status, u.created_at
+                ORDER BY mtm.added_at DESC, u.created_at DESC
+            """
+            cursor.execute(query, (manager_id,))
+            members = _fetchall_dict(cursor)
+            for m in members:
+                c_at = m.get('created_at')
+                if c_at and hasattr(c_at, 'strftime'):
+                    m['joined_at'] = c_at.strftime('%d %b %Y')
+                else:
+                    m['joined_at'] = 'Recently'
+                m['total_tasks'] = int(m.get('total_tasks') or 0)
+                m['completed_tasks'] = int(m.get('completed_tasks') or 0)
+                m['active_tasks'] = int(m.get('active_tasks') or 0)
+            return members
+    except Exception as e:
+        logger.warning(f"Error fetching team members: {e}")
+        return []
+
+
+def get_available_platform_users(conn=None, manager_id=None, organization=None) -> list:
+    """Fetches active platform users in same organization available to be added to manager's team."""
+    close_conn = False
+    if not conn:
+        from database.db_connector import get_db_connection
+        conn = get_db_connection()
+        close_conn = True
+    if not conn:
+        return []
+
+    ensure_manager_tables_exist(conn)
+    try:
+        with conn.cursor() as cursor:
+            # If organization is not provided, look it up for the manager
+            if manager_id and not organization:
+                cursor.execute("SELECT organization FROM users WHERE id = %s", (manager_id,))
+                mgr_row = cursor.fetchone()
+                if mgr_row:
+                    organization = mgr_row.get('organization') if isinstance(mgr_row, dict) else mgr_row[0]
+
+            query = """
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.organization,
+                       COALESCE(u.status, 'active') as status, u.created_at
+                FROM users u
+                WHERE (u.status = 'active' OR u.status IS NULL)
+            """
+            params = []
+            if organization:
+                query += " AND u.organization = %s"
+                params.append(organization)
+            if manager_id:
+                query += " AND u.id != %s AND u.role != 'admin' AND u.id NOT IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)"
+                params.extend([manager_id, manager_id])
+            query += " ORDER BY u.created_at DESC, u.first_name ASC"
+            cursor.execute(query, tuple(params))
+            users = _fetchall_dict(cursor)
+            for u in users:
+                c_at = u.get('created_at')
+                if c_at and hasattr(c_at, 'strftime'):
+                    u['joined_at'] = c_at.strftime('%d %b %Y')
+                else:
+                    u['joined_at'] = 'Recently'
+            return users
+    except Exception as e:
+        logger.warning(f"Error fetching available platform users: {e}")
+        return []
+    finally:
+        if close_conn and conn:
+            conn.close()
+
+
+def get_manager_tasks(conn=None, manager_id=None) -> list:
+    """Fetches all tasks assigned by manager."""
+    if not conn:
+        return []
+    ensure_manager_tables_exist(conn)
+    try:
+        with conn.cursor() as cursor:
+            query = """
+                SELECT t.id, t.manager_id, t.assigned_to_id, t.task_title, t.description,
+                       t.priority, t.status, t.due_date, t.remark, t.dataset_id, t.created_at,
+                       d.file_name as dataset_file_name, d.row_count as dataset_row_count, d.column_count as dataset_column_count,
+                       CONCAT(u.first_name, ' ', u.last_name) as assigned_to_name,
+                       u.email as assigned_to_email, u.role as assigned_to_role
+                FROM manager_tasks t
+                JOIN users u ON t.assigned_to_id = u.id
+                LEFT JOIN datasets d ON t.dataset_id = d.id
+            """
+            params = []
+            if manager_id:
+                query += " WHERE t.manager_id = %s"
+                params.append(manager_id)
+            query += " ORDER BY t.created_at DESC"
+            cursor.execute(query, tuple(params))
+            tasks = _fetchall_dict(cursor)
+            for tk in tasks:
+                c_at = tk.get('created_at')
+                if c_at and hasattr(c_at, 'strftime'):
+                    tk['created_at'] = c_at.strftime('%d %b %Y, %H:%M')
+                else:
+                    tk['created_at'] = 'N/A'
+
+                d_date = tk.get('due_date')
+                if d_date and hasattr(d_date, 'strftime'):
+                    tk['due_date'] = d_date.strftime('%d %b %Y')
+                elif d_date:
+                    tk['due_date'] = str(d_date)
+                else:
+                    tk['due_date'] = 'Flexible'
+            return tasks
+    except Exception as e:
+        logger.warning(f"Error fetching manager tasks: {e}")
+        return []
+
+
+def get_user_assigned_tasks(conn=None, user_id=None) -> list:
+    """Fetches all tasks assigned to a specific user (Analyst/Viewer) along with manager and dataset info."""
+    if not conn or not user_id:
+        return []
+    ensure_manager_tables_exist(conn)
+    try:
+        with conn.cursor() as cursor:
+            query = """
+                SELECT t.id, t.manager_id, t.assigned_to_id, t.task_title, t.description,
+                       t.priority, t.status, t.due_date, t.remark, t.dataset_id, t.created_at,
+                       d.file_name as dataset_file_name, d.row_count as dataset_row_count, d.column_count as dataset_column_count,
+                       CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')) as manager_name,
+                       u.email as manager_email
+                FROM manager_tasks t
+                JOIN users u ON t.manager_id = u.id
+                LEFT JOIN datasets d ON t.dataset_id = d.id
+                WHERE t.assigned_to_id = %s
+                ORDER BY t.created_at DESC
+            """
+            cursor.execute(query, (user_id,))
+            tasks = _fetchall_dict(cursor)
+            for tk in tasks:
+                c_at = tk.get('created_at')
+                if c_at and hasattr(c_at, 'strftime'):
+                    tk['created_at'] = c_at.strftime('%d %b %Y, %H:%M')
+                else:
+                    tk['created_at'] = 'N/A'
+
+                d_date = tk.get('due_date')
+                if d_date and hasattr(d_date, 'strftime'):
+                    tk['due_date'] = d_date.strftime('%d %b %Y')
+                elif d_date:
+                    tk['due_date'] = str(d_date)
+                else:
+                    tk['due_date'] = 'Flexible'
+            return tasks
+    except Exception as e:
+        logger.warning(f"Error fetching user assigned tasks: {e}")
+        return []
+
+
 def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Compiles complete production-ready manager dashboard analytics from active dataset and DB logs.
@@ -162,10 +401,13 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
 
     active_datasets_count = 0
     reports_generated_count = 0
+    team_members = []
+    manager_tasks = []
     team_activity = []
 
-    # Fetch database counts and real activity if conn provided
+    # Fetch database counts, team members, tasks, and real activity if conn provided
     if conn:
+        ensure_manager_tables_exist(conn)
         try:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT COUNT(*) as count FROM datasets")
@@ -200,6 +442,26 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
                     })
         except Exception as e:
             logger.warning(f"Could not load DB stats/activity for manager: {e}")
+
+        team_members = get_manager_team_members(conn, user_id)
+        available_users = get_available_platform_users(conn, user_id)
+        manager_tasks = get_manager_tasks(conn, user_id)
+        datasets_list = []
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, file_name, row_count, column_count, uploaded_at FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 25", (user_id,))
+                datasets_list = _fetchall_dict(cursor)
+        except Exception as e:
+            logger.warning(f"Could not load datasets for manager: {e}")
+
+    # Calculate Team KPI metrics
+    team_members_count = len(team_members)
+    total_tasks_count = len(manager_tasks)
+    completed_tasks_count = sum(1 for t in manager_tasks if t.get('status') == 'Completed')
+    pending_tasks_count = sum(1 for t in manager_tasks if t.get('status') in ['Pending', 'In Progress', 'Reopened'])
+    
+    completion_rate_val = (completed_tasks_count / total_tasks_count * 100) if total_tasks_count > 0 else 0.0
+    task_completion_rate = f"{completion_rate_val:.1f}%"
 
     # Default team activity if empty
     if not team_activity:
@@ -300,6 +562,16 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
         'total_sales': overview['total_sales'],
         'growth_rate': overview['growth_rate'],
         'top_category': overview['top_category'],
+        'team_members_count': team_members_count,
+        'available_users_count': len(available_users),
+        'total_tasks_count': total_tasks_count,
+        'completed_tasks_count': completed_tasks_count,
+        'pending_tasks_count': pending_tasks_count,
+        'task_completion_rate': task_completion_rate,
+        'team_members': team_members,
+        'available_users': available_users,
+        'manager_tasks': manager_tasks,
+        'datasets_list': datasets_list if 'datasets_list' in locals() else [],
         'predictions': predictions,
         'revenue_trend': revenue_trend,
         'category_perf': category_perf,
@@ -348,10 +620,34 @@ def compare_two_datasets(df1: pd.DataFrame, name1: str, df2: pd.DataFrame, name2
     }
 
 
+def _numpy_kmeans_segmentation(data_matrix: np.ndarray, n_clusters: int = 3, max_iter: int = 50):
+    """Pure NumPy K-Means implementation that never fails on missing or broken C-extensions."""
+    np.random.seed(42)
+    n_samples = data_matrix.shape[0]
+    n_c = min(n_clusters, n_samples)
+    init_indices = np.random.choice(n_samples, n_c, replace=False)
+    centroids = data_matrix[init_indices].copy()
+    labels = np.zeros(n_samples, dtype=int)
+
+    for _ in range(max_iter):
+        distances = np.linalg.norm(data_matrix[:, np.newaxis] - centroids, axis=2)
+        new_labels = np.argmin(distances, axis=1)
+        if np.array_equal(labels, new_labels):
+            break
+        labels = new_labels
+        for j in range(n_c):
+            cluster_points = data_matrix[labels == j]
+            if len(cluster_points) > 0:
+                centroids[j] = cluster_points.mean(axis=0)
+
+    return labels, centroids
+
+
 def generate_ml_clustering(df: Optional[pd.DataFrame], n_clusters: int = 3) -> Dict[str, Any]:
     """
-    Performs Scikit-learn K-Means clustering on numerical features in the dataset
+    Performs K-Means clustering on numerical features in the dataset
     to segment records into automated clusters (e.g. High/Medium/Low Value Segments).
+    Uses Scikit-learn if available, and seamlessly falls back to pure NumPy.
 
     Args:
         df (pd.DataFrame, optional): Input dataset
@@ -371,15 +667,20 @@ def generate_ml_clustering(df: Optional[pd.DataFrame], n_clusters: int = 3) -> D
     if len(sub_df) < n_clusters * 2:
         return {'success': False, 'message': 'Not enough data rows for clustering.'}
 
+    data_matrix = sub_df.values.astype(float)
+    # Standardize data
+    means = np.mean(data_matrix, axis=0)
+    stds = np.std(data_matrix, axis=0)
+    stds[stds == 0] = 1.0
+    scaled_data = (data_matrix - means) / stds
+
     try:
-        from sklearn.cluster import KMeans
-        from sklearn.preprocessing import StandardScaler
-
-        scaler = StandardScaler()
-        scaled_data = scaler.fit_transform(sub_df)
-
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-        labels = kmeans.fit_predict(scaled_data)
+        try:
+            from sklearn.cluster import KMeans
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(scaled_data)
+        except Exception:
+            labels, _ = _numpy_kmeans_segmentation(scaled_data, n_clusters=n_clusters)
 
         cluster_counts = pd.Series(labels).value_counts().to_dict()
         cluster_summary = []
@@ -406,3 +707,123 @@ def generate_ml_clustering(df: Optional[pd.DataFrame], n_clusters: int = 3) -> D
     except Exception as e:
         logger.warning(f"K-Means clustering failed: {e}")
         return {'success': False, 'message': f'Clustering error: {e}'}
+
+
+def assign_manager_task(conn, manager_id: int, assigned_to_id: int, task_title: str, priority: str = 'Medium', due_date: Optional[str] = None, description: Optional[str] = '', dataset_id: Optional[int] = None) -> Dict[str, Any]:
+    """Assigns a new task to a team member with optional attached dataset."""
+    ensure_manager_tables_exist(conn)
+    if not conn:
+        return {'success': False, 'message': 'Database connection unavailable.'}
+    try:
+        with conn.cursor() as cursor:
+            parsed_due = due_date.strip() if due_date and due_date.strip() else None
+            cursor.execute("""
+                INSERT INTO manager_tasks (manager_id, assigned_to_id, task_title, priority, due_date, description, dataset_id, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending')
+            """, (manager_id, assigned_to_id, task_title, priority or 'Medium', parsed_due, description or '', dataset_id))
+            conn.commit()
+            return {'success': True, 'message': 'Task assigned successfully!'}
+    except Exception as e:
+        logger.warning(f"Error assigning task: {e}")
+        return {'success': False, 'message': f'Failed to assign task: {e}'}
+
+
+def update_manager_task_status(conn, manager_id: int, task_id: int, status: str, remark: Optional[str] = None) -> Dict[str, Any]:
+    """Updates the status of an assigned task and optionally records a remark."""
+    ensure_manager_tables_exist(conn)
+    if not conn:
+        return {'success': False, 'message': 'Database connection unavailable.'}
+    try:
+        with conn.cursor() as cursor:
+            if remark is not None:
+                cursor.execute("""
+                    UPDATE manager_tasks
+                    SET status = %s, remark = %s
+                    WHERE id = %s AND (manager_id = %s OR assigned_to_id = %s)
+                """, (status, remark.strip() if remark else None, task_id, manager_id, manager_id))
+            else:
+                cursor.execute("""
+                    UPDATE manager_tasks
+                    SET status = %s
+                    WHERE id = %s AND (manager_id = %s OR assigned_to_id = %s)
+                """, (status, task_id, manager_id, manager_id))
+            conn.commit()
+            return {'success': True, 'message': f'Task status updated to {status}.'}
+    except Exception as e:
+        logger.warning(f"Error updating task status: {e}")
+        return {'success': False, 'message': f'Failed to update task status: {e}'}
+
+
+def delete_manager_task(conn, manager_id: int, task_id: int) -> Dict[str, Any]:
+    """Deletes an assigned task."""
+    ensure_manager_tables_exist(conn)
+    if not conn:
+        return {'success': False, 'message': 'Database connection unavailable.'}
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM manager_tasks
+                WHERE id = %s AND (manager_id = %s OR assigned_to_id = %s)
+            """, (task_id, manager_id, manager_id))
+            conn.commit()
+            return {'success': True, 'message': 'Task deleted successfully!'}
+    except Exception as e:
+        logger.warning(f"Error deleting task: {e}")
+        return {'success': False, 'message': f'Failed to delete task: {e}'}
+
+
+def update_manager_team_member(conn, manager_id: int, member_id: int, status: str) -> Dict[str, Any]:
+    """Updates active/inactive status of a team member."""
+    ensure_manager_tables_exist(conn)
+    if not conn:
+        return {'success': False, 'message': 'Database connection unavailable.'}
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                UPDATE users
+                SET status = %s
+                WHERE id = %s
+            """, (status, member_id))
+            conn.commit()
+            return {'success': True, 'message': f'Team member status updated to {status}.'}
+    except Exception as e:
+        logger.warning(f"Error updating team member: {e}")
+        return {'success': False, 'message': f'Failed to update team member: {e}'}
+
+
+def get_manager_team_api_data(conn, manager_id: int) -> Dict[str, Any]:
+    """Fetches updated team members, available users, tasks, datasets, and KPI summary stats for AJAX refresh."""
+    members = get_manager_team_members(conn, manager_id)
+    available_users = get_available_platform_users(conn, manager_id)
+    tasks = get_manager_tasks(conn, manager_id)
+    datasets_list = []
+    if conn and manager_id:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, file_name, row_count, column_count, uploaded_at FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 25", (manager_id,))
+                datasets_list = _fetchall_dict(cursor)
+        except Exception as e:
+            logger.warning(f"Error fetching manager datasets: {e}")
+
+    total_members = len(members)
+    total_available_users = len(available_users)
+    total_tasks = len(tasks)
+    completed_tasks = sum(1 for t in tasks if t.get('status') == 'Completed')
+    pending_tasks = sum(1 for t in tasks if t.get('status') in ['Pending', 'In Progress', 'Reopened'])
+    completion_rate_val = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
+
+    return {
+        'success': True,
+        'members': members,
+        'available_users': available_users,
+        'tasks': tasks,
+        'datasets': datasets_list,
+        'stats': {
+            'total_members': total_members,
+            'total_available_users': total_available_users,
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'pending_tasks': pending_tasks,
+            'completion_rate': f"{completion_rate_val:.1f}%"
+        }
+    }

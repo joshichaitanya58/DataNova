@@ -282,12 +282,16 @@
   const firstNameInput = document.getElementById('first_name');
   const lastNameInput = document.getElementById('last_name');
   const emailInput = document.getElementById('email');
+  const orgInput = document.getElementById('organization');
+  const phoneInput = document.getElementById('phone');
   const passwordInput = document.getElementById('password');
   const confirmPasswordInput = document.getElementById('confirm_password');
 
   const firstNameError = document.getElementById('first-name-error');
   const lastNameError = document.getElementById('last-name-error');
   const emailError = document.getElementById('email-error');
+  const orgError = document.getElementById('organization-error');
+  const phoneError = document.getElementById('phone-error');
   const passwordError = document.getElementById('password-error');
   const confirmPasswordError = document.getElementById('confirm-password-error');
   const roleError = document.getElementById('role-error');
@@ -336,6 +340,17 @@
     return ok ? '' : 'Please enter a valid email address.';
   }
 
+  function validateOrganization() {
+    if (!orgInput) return '';
+    const val = orgInput.value.trim();
+    if (!val) {
+      if (orgError) orgError.textContent = 'Organization name is required.';
+      return 'Organization name is required.';
+    }
+    if (orgError) orgError.textContent = '';
+    return '';
+  }
+
   function validatePassword() {
     const val = passwordInput.value;
     if (!val) {
@@ -374,7 +389,7 @@
     return '';
   }
 
-  [firstNameInput, lastNameInput, emailInput].forEach(el => {
+  [firstNameInput, lastNameInput, emailInput, orgInput, phoneInput].forEach(el => {
     if (!el) return;
     el.addEventListener('focus', () => { setTyping(true); scheduleRender(); });
     el.addEventListener('blur', () => { setTyping(false); scheduleRender(); });
@@ -383,6 +398,7 @@
   firstNameInput.addEventListener('input', validateFirstName);
   lastNameInput.addEventListener('input', validateLastName);
   emailInput.addEventListener('input', validateEmail);
+  if (orgInput) orgInput.addEventListener('input', validateOrganization);
 
   passwordInput.addEventListener('input', () => {
     validatePassword();
@@ -428,12 +444,13 @@
     const fnErr = validateFirstName();
     const lnErr = validateLastName();
     const emailErr = validateEmail();
+    const orgErr = validateOrganization();
     const passErr = validatePassword();
     const confirmErr = validateConfirmPassword();
     const roleErr = validateRole();
 
-    if (fnErr || lnErr || emailErr || passErr || confirmErr || roleErr) {
-      formError.textContent = fnErr || lnErr || emailErr || passErr || confirmErr || roleErr;
+    if (fnErr || lnErr || emailErr || orgErr || passErr || confirmErr || roleErr) {
+      formError.textContent = fnErr || lnErr || emailErr || orgErr || passErr || confirmErr || roleErr;
       formError.style.display = 'block';
       return;
     }
@@ -442,6 +459,8 @@
       first_name: firstNameInput.value.trim(),
       last_name: lastNameInput.value.trim(),
       email: emailInput.value.trim(),
+      organization: orgInput ? orgInput.value.trim() : 'General',
+      phone: phoneInput ? phoneInput.value.trim() : '',
       password: passwordInput.value,
       role: getSelectedRole()
     };

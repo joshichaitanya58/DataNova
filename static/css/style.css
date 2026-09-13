@@ -57,10 +57,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
+    *:not(.spinner-border):not(.spinner-grow):not(.spin-animation):not(.dn-spin):not([class*="spinner-"]):not([class*="spin"]) {
         animation-duration: 0.001ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.001ms !important;
@@ -1201,4 +1198,43 @@ h4 {
     .dn-sparkline {
         width: 100%;
     }
+}
+
+/* Spinner and loading animations */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes spinner-border {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spinner-grow {
+    0% { transform: scale(0); }
+    50% { opacity: 1; transform: none; }
+}
+
+.spin-animation,
+.dn-spin {
+    display: inline-block;
+    animation: spin 1s linear infinite !important;
+}
+
+.spinner-border {
+    display: inline-block;
+    width: var(--bs-spinner-width, 2rem);
+    height: var(--bs-spinner-height, 2rem);
+    vertical-align: var(--bs-spinner-vertical-align, -0.125em);
+    border-radius: 50%;
+    animation: spinner-border var(--bs-spinner-animation-speed, 0.75s) linear infinite !important;
+}
+
+.spinner-grow {
+    display: inline-block;
+    width: var(--bs-spinner-width, 2rem);
+    height: var(--bs-spinner-height, 2rem);
+    vertical-align: var(--bs-spinner-vertical-align, -0.125em);
+    border-radius: 50%;
+    animation: spinner-grow var(--bs-spinner-animation-speed, 0.75s) linear infinite !important;
 }

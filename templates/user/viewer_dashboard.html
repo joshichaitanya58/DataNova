@@ -32,14 +32,14 @@
 
             <nav class="dn-sidebar-scroll">
                 <div class="dn-nav-section-label">Menu</div>
-                <a href="#" class="dn-nav-link active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
-                <a href="#shared" class="dn-nav-link"><i class="bi bi-share"></i> Shared Dashboards</a>
-                <a href="#insights" class="dn-nav-link"><i class="bi bi-stars"></i> Insights</a>
-                <a href="#reports" class="dn-nav-link"><i class="bi bi-file-earmark-text"></i> Reports</a>
-                <a href="#notifications" class="dn-nav-link"><i class="bi bi-bell"></i> Notifications</a>
+                <a href="#dashboardOverview" class="dn-nav-link active" data-action="nav-dashboard"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+                <a href="#assignedTasksPanel" class="dn-nav-link" data-action="nav-tasks"><i class="bi bi-check2-square"></i> Assigned Work <span class="badge rounded-pill bg-primary ms-auto" id="viewerAssignedTasksBadge">{{ pending_tasks_count|default(0) }}</span></a>
+                <a href="#shared" class="dn-nav-link" data-action="nav-shared"><i class="bi bi-share"></i> Shared Dashboards</a>
+                <a href="#analytics" class="dn-nav-link" data-action="nav-analytics"><i class="bi bi-bar-chart"></i> Visual Analytics</a>
+                <a href="#insights" class="dn-nav-link" data-action="nav-insights"><i class="bi bi-stars"></i> Insights</a>
+                <a href="#reports" class="dn-nav-link" data-action="nav-reports"><i class="bi bi-file-earmark-text"></i> Reports</a>
 
                 <div class="dn-nav-section-label">Account</div>
-                <a href="#" class="dn-nav-link"><i class="bi bi-person"></i> Profile</a>
                 <a href="{{ url_for('auth.logout') }}" class="dn-nav-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
             </nav>
 
@@ -56,12 +56,12 @@
 
                 <div class="dn-topbar-search">
                     <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Search shared dashboards...">
+                    <input type="text" id="viewerGlobalSearch" placeholder="Search shared dashboards, reports...">
                 </div>
 
                 <div class="dn-topbar-spacer"></div>
 
-                <button class="dn-icon-btn d-none d-sm-inline-flex" aria-label="Help"><i
+                <button class="dn-icon-btn d-none d-sm-inline-flex" aria-label="Help" data-action="help"><i
                         class="bi bi-question-circle"></i></button>
                 <button class="dn-icon-btn dn-theme-toggle" aria-label="Toggle dark mode"><i
                         class="bi bi-moon-stars"></i></button>
@@ -74,26 +74,13 @@
                     </button>
                     <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
                         <div class="dn-dropdown-header-custom"><strong>Notifications</strong></div>
-                        <div class="dn-notif-item">
-                            <div class="dn-notif-icon"><i class="bi bi-share"></i></div>
-                            <div>
-                                <div class="dn-notif-text">New dashboard shared with you: &ldquo;Regional
-                                    Overview&rdquo;.</div>
-                                <div class="dn-notif-time">1 hr ago</div>
-                            </div>
-                        </div>
-                        <div class="dn-notif-item">
-                            <div class="dn-notif-icon"><i class="bi bi-file-earmark-check"></i></div>
-                            <div>
-                                <div class="dn-notif-text">New report available: &ldquo;Q2 Revenue Summary&rdquo;.</div>
-                                <div class="dn-notif-time">1 day ago</div>
-                            </div>
-                        </div>
-                        <div class="dn-notif-item">
-                            <div class="dn-notif-icon"><i class="bi bi-arrow-repeat"></i></div>
-                            <div>
-                                <div class="dn-notif-text">Dashboard &ldquo;Sales Trend&rdquo; was updated.</div>
-                                <div class="dn-notif-time">2 days ago</div>
+                        <div id="viewerNotifDropdownContainer">
+                            <div class="dn-notif-item">
+                                <div class="dn-notif-icon"><i class="bi bi-share text-primary"></i></div>
+                                <div>
+                                    <div class="dn-notif-text">Read-only Viewer Portal active.</div>
+                                    <div class="dn-notif-time">Active</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -101,32 +88,33 @@
 
                 <div class="dropdown">
                     <div class="dn-user-trigger" data-bs-toggle="dropdown">
-                        <span class="dn-avatar">{{ (user.first_name|default('U'))[0] }}{{ (user.last_name|default(''))[0] if user and user.last_name else '' }}</span>
+                        <span class="dn-avatar">{{ (user.first_name|default('V'))[0] }}{{ (user.last_name|default(''))[0] if user and user.last_name else '' }}</span>
                         <div>
-                            <div class="dn-user-trigger-name">{{ user.first_name|default('User') }} {{ user.last_name|default('') }}</div>
-                            <div class="dn-user-trigger-role">{{ (user.role|default('Viewer'))|capitalize }}</div>
+                            <div class="dn-user-trigger-name">{{ user.first_name|default('Viewer') }} {{ user.last_name|default('') }}</div>
+                            <div class="dn-user-trigger-role">Viewer</div>
                         </div>
                         <i class="bi bi-chevron-down small text-secondary"></i>
                     </div>
                     <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
-                        <a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a>
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userProfileModal"><i class="bi bi-person"></i> My Profile</a>
+                        <a class="dropdown-item" href="#assignedTasksPanel"><i class="bi bi-check2-square"></i> Assigned Work</a>
+                        <a class="dropdown-item" href="#shared"><i class="bi bi-share"></i> Shared Dashboards</a>
+                        <a class="dropdown-item" href="#reports"><i class="bi bi-file-earmark-text"></i> Available Reports</a>
                         <div class="dropdown-divider"></div>
-                        <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i>
-                            Logout</a>
+                        <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
                     </div>
                 </div>
             </header>
 
             <main class="dn-content">
 
-                <div class="dn-page-header">
+                <div class="dn-page-header" id="dashboardOverview">
                     <div>
-                        <span class="dn-eyebrow"><i class="bi bi-eye"></i> READ-ONLY PORTAL</span>
+                        <span class="dn-eyebrow"><i class="bi bi-eye"></i> READ-ONLY INSIGHTS & ANALYTICS PORTAL</span>
                         <h1 class="dn-page-title">Viewer Dashboard</h1>
-                        <p class="dn-page-sub">View shared analytics, insights, and reports.</p>
+                        <p class="dn-page-sub">Explore shared analytics, inspect visual charts, and download reports.</p>
                     </div>
-                    <span class="dn-readonly-note"><i class="bi bi-lock"></i> View-only access &mdash; editing is
-                        disabled</span>
+                    <span class="dn-readonly-note"><i class="bi bi-lock-fill"></i> Read-only mode &mdash; editing disabled</span>
                 </div>
 
                 <!-- KPI cards -->
@@ -152,7 +140,7 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-cyan)"><i
                                         class="bi bi-stars"></i></span></div>
                             <div class="dn-kpi-label">Recent Insights</div>
-                            <div class="dn-kpi-value" id="kpiInsightsCount">{{ kpi.recent_insights|default(4) }}</div>
+                            <div class="dn-kpi-value" id="kpiInsightsCount">{{ kpi.recent_insights|default(0) }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-3">
@@ -160,15 +148,112 @@
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-green)"><i
                                         class="bi bi-clock-history"></i></span></div>
                             <div class="dn-kpi-label">Last Updated</div>
-                            <div class="dn-kpi-value" id="kpiLastUpdated" style="font-size:1.15rem">{{ kpi.last_updated|default('Recently') }}</div>
+                            <div class="dn-kpi-value" id="kpiLastUpdated" style="font-size:1.15rem">{{ kpi.last_updated|default('Just now') }}</div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- ===================== ASSIGNED WORK PANEL ===================== -->
+                <div class="dn-panel mb-4" id="assignedTasksPanel">
+                    <div class="dn-panel-head flex-wrap gap-2">
+                        <div>
+                            <h3 class="dn-panel-title"><i class="bi bi-check2-square text-primary"></i> Assigned Work &amp; Tasks</h3>
+                            <p class="dn-panel-sub text-muted small mb-0">Tasks delegated to you by management. Update status to reflect your progress.</p>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" id="refreshViewerTasksBtn" title="Refresh Tasks"><i class="bi bi-arrow-clockwise"></i></button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table dn-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Task Title &amp; Description</th>
+                                    <th>Assigned By</th>
+                                    <th>Priority</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Update Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody id="viewerAssignedTasksTableBody">
+                                {% if assigned_tasks %}
+                                    {% for task in assigned_tasks %}
+                                    <tr data-task-id="{{ task.id }}">
+                                        <td>
+                                            <div class="fw-semibold">{{ task.task_title }}</div>
+                                            {% if task.description %}
+                                                <div class="small text-secondary text-truncate" style="max-width:300px;">{{ task.description }}</div>
+                                            {% endif %}
+                                            {% if task.dataset_file_name %}
+                                                <div class="small mt-1 text-primary d-inline-flex align-items-center bg-primary-subtle px-2 py-0 rounded border border-primary-subtle" style="font-size:0.75rem;">
+                                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ task.dataset_file_name }}
+                                                </div>
+                                            {% endif %}
+                                            {% if task.remark %}
+                                                <div class="small mt-1 p-1 px-2 rounded bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="max-width:320px;">
+                                                    <i class="bi bi-chat-left-dots-fill me-1"></i><strong>Manager Remark:</strong> {{ task.remark }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="small fw-semibold">{{ task.manager_name }}</div>
+                                            <div class="small text-secondary">{{ task.manager_email }}</div>
+                                        </td>
+                                        <td>
+                                            {% if task.priority == 'High' %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-exclamation-triangle me-1"></i>High</span>
+                                            {% elif task.priority == 'Medium' %}
+                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Medium</span>
+                                            {% else %}
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle">Low</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="small">{{ task.due_date }}</td>
+                                        <td>
+                                            {% if task.status == 'Completed' %}
+                                                <span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Completed</span>
+                                            {% elif task.status == 'In Progress' %}
+                                                <span class="badge bg-primary text-white"><i class="bi bi-hourglass-split me-1"></i>In Progress</span>
+                                            {% elif task.status == 'Reopened' %}
+                                                <span class="badge bg-warning text-dark border border-warning-subtle"><i class="bi bi-arrow-counterclockwise me-1"></i>Reopened</span>
+                                            {% else %}
+                                                <span class="badge bg-amber text-dark" style="background:#f59e0b"><i class="bi bi-clock me-1"></i>Pending</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                {% if task.status == 'Completed' %}
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2"><i class="bi bi-check2-all me-1"></i>Completed</span>
+                                                {% elif task.status == 'In Progress' %}
+                                                    <button class="btn btn-outline-success" data-action="update-task-status" data-task-id="{{ task.id }}" data-status="Completed"><i class="bi bi-check-lg me-1"></i> Complete</button>
+                                                    <button class="btn btn-outline-secondary" data-action="update-task-status" data-task-id="{{ task.id }}" data-status="Pending"><i class="bi bi-pause-fill me-1"></i> Pause</button>
+                                                {% else %}
+                                                    <button class="btn btn-outline-primary" data-action="update-task-status" data-task-id="{{ task.id }}" data-status="In Progress"><i class="bi bi-play-fill me-1"></i> Start</button>
+                                                    <button class="btn btn-outline-success" data-action="update-task-status" data-task-id="{{ task.id }}" data-status="Completed"><i class="bi bi-check-lg me-1"></i> Done</button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-secondary py-4">
+                                            <i class="bi bi-check2-circle fs-3 d-block mb-1 text-muted"></i> No tasks currently assigned to you.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
                 <!-- Shared dashboards -->
                 <div class="dn-panel mb-4" id="shared">
-                    <div class="dn-panel-head">
-                        <h3 class="dn-panel-title"><i class="bi bi-share"></i> Shared Dashboards</h3>
+                    <div class="dn-panel-head flex-wrap gap-2">
+                        <div>
+                            <h3 class="dn-panel-title"><i class="bi bi-share text-primary"></i> Shared Dashboards</h3>
+                            <p class="dn-panel-sub text-muted small mb-0">Dashboards shared with your viewer group by managers and analysts.</p>
+                        </div>
                     </div>
                     <div class="row g-3" id="viewerSharedCardsContainer">
                         {% if shared_dashboards %}
@@ -178,33 +263,16 @@
                                     <div class="fw-semibold mb-1">{{ sd.title }}</div>
                                     <div class="small text-secondary mb-1">Owner: {{ sd.owner }}</div>
                                     <div class="small text-secondary mb-3">Shared {{ sd.date_str }} &middot; {{ sd.time_ago }}</div>
-                                    <a href="#" class="btn dn-btn-outline-dn btn-sm w-100"><i class="bi bi-eye"></i> View Dashboard</a>
+                                    <a href="#analytics" class="btn dn-btn-outline-dn btn-sm w-100" data-action="view-dashboard-details" data-title="{{ sd.title }}"><i class="bi bi-eye"></i> View Dashboard</a>
                                 </div>
                             </div>
                             {% endfor %}
                         {% else %}
-                            <div class="col-md-6 col-lg-4">
-                                <div class="dn-predict-card">
-                                    <div class="fw-semibold mb-1">Regional Overview</div>
-                                    <div class="small text-secondary mb-1">Owner: Vikram Nair</div>
-                                    <div class="small text-secondary mb-3">Shared 27 Jul 2026 &middot; Updated 2 hrs ago</div>
-                                    <a href="#" class="btn dn-btn-outline-dn btn-sm w-100"><i class="bi bi-eye"></i> View Dashboard</a>
-                                </div>
-                            </div>
-                            <div class="col-md-6 col-lg-4">
-                                <div class="dn-predict-card">
-                                    <div class="fw-semibold mb-1">Sales Trend &ndash; Q2</div>
-                                    <div class="small text-secondary mb-1">Owner: Aditya Kulkarni</div>
-                                    <div class="small text-secondary mb-3">Shared 20 Jul 2026 &middot; Updated 1 day ago</div>
-                                    <a href="#" class="btn dn-btn-outline-dn btn-sm w-100"><i class="bi bi-eye"></i> View Dashboard</a>
-                                </div>
-                            </div>
-                            <div class="col-md-6 col-lg-4">
-                                <div class="dn-predict-card">
-                                    <div class="fw-semibold mb-1">Inventory Health</div>
-                                    <div class="small text-secondary mb-1">Owner: Rohan Joshi</div>
-                                    <div class="small text-secondary mb-3">Shared 14 Jul 2026 &middot; Updated 4 days ago</div>
-                                    <a href="#" class="btn dn-btn-outline-dn btn-sm w-100"><i class="bi bi-eye"></i> View Dashboard</a>
+                            <div class="col-12">
+                                <div class="p-4 text-center text-secondary border rounded-3 bg-light-subtle">
+                                    <i class="bi bi-share fs-2 mb-2 d-block text-muted"></i>
+                                    <div class="fw-medium">No shared dashboards available</div>
+                                    <small>Dashboards shared by team managers and analysts will appear here.</small>
                                 </div>
                             </div>
                         {% endif %}
@@ -212,65 +280,50 @@
                 </div>
 
                 <!-- Analytics preview -->
-                <div class="row g-3 mb-4">
-                    <div class="col-lg-6">
-                        <div class="dn-panel">
-                            <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-graph-up"></i> Sales Trend</h3>
+                <div class="dn-panel mb-4" id="analytics">
+                    <div class="dn-panel-head">
+                        <h3 class="dn-panel-title"><i class="bi bi-bar-chart-line text-primary"></i> Read-Only Data Visualizations</h3>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-lg-6">
+                            <div class="p-3 border rounded-3 bg-body-tertiary">
+                                <h6 class="fw-semibold text-body mb-3"><i class="bi bi-graph-up text-primary me-2"></i>Sales Trend</h6>
+                                <div id="viewerSalesChart" style="height:200px;width:100%;"></div>
                             </div>
-                            <div id="viewerSalesChart" style="height:180px;width:100%;"></div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="p-3 border rounded-3 bg-body-tertiary">
+                                <h6 class="fw-semibold text-body mb-3"><i class="bi bi-cash-stack text-cyan me-2"></i>Revenue Distribution (₹)</h6>
+                                <div id="viewerRevenueChart" style="height:200px;width:100%;"></div>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-lg-6">
-                        <div class="dn-panel">
-                            <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-cash-stack"></i> Revenue Distribution (₹)</h3>
-                            </div>
-                            <div id="viewerRevenueChart" style="height:180px;width:100%;"></div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="row g-3 mb-4">
-                    <div class="col-lg-6">
-                        <div class="dn-panel">
-                            <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-bar-chart"></i> Category Performance</h3>
+                    <div class="row g-3">
+                        <div class="col-lg-6">
+                            <div class="p-3 border rounded-3 bg-body-tertiary">
+                                <h6 class="fw-semibold text-body mb-3"><i class="bi bi-bar-chart text-violet me-2"></i>Category Performance</h6>
+                                <div id="viewerCategoryChart" style="height:200px;width:100%;"></div>
                             </div>
-                            <div id="viewerCategoryChart" style="height:180px;width:100%;"></div>
                         </div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="dn-panel">
-                            <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-geo-alt"></i> Regional Performance</h3>
-                            </div>
-                            <div id="viewerRegionalContainer">
-                                {% if analytics and analytics.regional_perf %}
-                                    {% for reg in analytics.regional_perf %}
-                                    <div class="dn-quality-row"><span class="dn-quality-label">{{ reg.region }}</span>
-                                        <div class="dn-quality-track">
-                                            <div class="dn-quality-fill" style="width:{{ reg.percentage }}%;background:{{ reg.color }}"></div>
-                                        </div><span class="dn-quality-value">{{ reg.percentage }}%</span>
-                                    </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="dn-quality-row"><span class="dn-quality-label">West India</span>
-                                        <div class="dn-quality-track">
-                                            <div class="dn-quality-fill" style="width:88%;background:var(--dn-primary)"></div>
-                                        </div><span class="dn-quality-value">88%</span>
-                                    </div>
-                                    <div class="dn-quality-row"><span class="dn-quality-label">North India</span>
-                                        <div class="dn-quality-track">
-                                            <div class="dn-quality-fill" style="width:64%;background:var(--dn-violet)"></div>
-                                        </div><span class="dn-quality-value">64%</span>
-                                    </div>
-                                    <div class="dn-quality-row"><span class="dn-quality-label">South India</span>
-                                        <div class="dn-quality-track">
-                                            <div class="dn-quality-fill" style="width:52%;background:var(--dn-cyan)"></div>
-                                        </div><span class="dn-quality-value">52%</span>
-                                    </div>
-                                {% endif %}
+                        <div class="col-lg-6">
+                            <div class="p-3 border rounded-3 bg-body-tertiary">
+                                <h6 class="fw-semibold text-body mb-3"><i class="bi bi-geo-alt text-amber me-2"></i>Regional Performance</h6>
+                                <div id="viewerRegionalContainer">
+                                    {% if analytics and analytics.regional_perf %}
+                                        {% for reg in analytics.regional_perf %}
+                                        <div class="dn-quality-row"><span class="dn-quality-label">{{ reg.region }}</span>
+                                            <div class="dn-quality-track">
+                                                <div class="dn-quality-fill" style="--reg-w: {{ reg.percentage }}%; --reg-bg: {{ reg.color }}; width: var(--reg-w); background: var(--reg-bg);"></div>
+                                            </div><span class="dn-quality-value">{{ reg.percentage }}%</span>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="p-3 text-center text-secondary">
+                                            <small><i class="bi bi-info-circle"></i> No regional metrics available for the current dataset.</small>
+                                        </div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -279,7 +332,7 @@
                 <!-- Key insights -->
                 <div class="dn-panel mb-4" id="insights">
                     <div class="dn-panel-head">
-                        <h3 class="dn-panel-title"><i class="bi bi-stars"></i> Key Insights</h3>
+                        <h3 class="dn-panel-title"><i class="bi bi-stars text-warning"></i> Key Insights</h3>
                     </div>
                     <ul class="dn-insight-list" id="viewerInsightsList">
                         {% if insights %}
@@ -287,51 +340,74 @@
                             <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>{{ ins|safe }}</li>
                             {% endfor %}
                         {% else %}
-                            <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>Electronics is the best-performing category.</li>
-                            <li><span class="dn-insight-dot" style="background:var(--dn-cyan)"></span>Sales increased by <b>21%</b> in the last three months.</li>
-                            <li><span class="dn-insight-dot" style="background:var(--dn-violet)"></span>West India region generated the highest revenue.</li>
-                            <li><span class="dn-insight-dot" style="background:var(--dn-green)"></span>Data processing accuracy maintained above 99%.</li>
+                            <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>No automated insights available for the current dataset.</li>
                         {% endif %}
                     </ul>
                 </div>
 
-                <!-- Reports -->
+                <!-- Reports Repository -->
                 <div class="dn-panel mb-4" id="reports">
-                    <div class="dn-panel-head">
-                        <h3 class="dn-panel-title"><i class="bi bi-file-earmark-text"></i> Reports</h3>
+                    <div class="dn-panel-head flex-wrap gap-2">
+                        <div>
+                            <h3 class="dn-panel-title"><i class="bi bi-file-earmark-text text-primary"></i> Accessible Platform Reports</h3>
+                            <p class="dn-panel-sub text-muted small mb-0">Search, filter format, and inspect executive business reports.</p>
+                        </div>
                     </div>
+
+                    <!-- Filter Bar for Reports -->
+                    <div class="row g-2 mb-3 align-items-center">
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-secondary"></i></span>
+                                <input type="text" id="viewerReportSearchInput" class="form-control border-start-0" placeholder="Filter reports by title or author...">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select id="viewerReportFormatFilter" class="form-select form-select-sm">
+                                <option value="all">All Formats (HTML, PDF, Excel, Word)</option>
+                                <option value="html">HTML Reports</option>
+                                <option value="pdf">PDF Reports</option>
+                                <option value="excel">Excel Reports</option>
+                                <option value="word">Word Reports</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button class="btn btn-sm btn-outline-secondary w-100" id="resetReportFilterBtn"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
-                        <table class="dn-table" id="viewerReportsTable">
+                        <table class="table dn-table align-middle" id="viewerReportsTable">
                             <thead>
                                 <tr>
                                     <th>Report Name</th>
                                     <th>Created By</th>
                                     <th>Date</th>
                                     <th>Format</th>
-                                    <th>Action</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="viewerReportsTableBody">
                                 {% for r in reports %}
                                 <tr>
-                                    <td>{{ r.report_name }}</td>
-                                    <td>{{ r.first_name|default('') }} {{ r.last_name|default('') }}</td>
-                                    <td>{{ r.created_at.strftime('%d %b %Y') if r.created_at else 'N/A' }}</td>
-                                    <td><span class="dn-badge-status neutral"><i class="bi bi-file-earmark-pdf"></i> {{ (r.report_type|default('HTML'))|upper }}</span></td>
+                                    <td class="fw-semibold">{{ r.report_name }}</td>
+                                    <td class="small">{{ r.first_name|default('') }} {{ r.last_name|default('') }}</td>
+                                    <td class="small">{{ r.created_at.strftime('%d %b %Y') if r.created_at else 'N/A' }}</td>
                                     <td>
-                                        <a href="/api/export_eda_report/{{ r.dataset_id }}" class="dn-table-action" title="View" target="_blank"><i class="bi bi-eye"></i></a>
-                                        <a href="/api/export_eda_report/{{ r.dataset_id }}" class="dn-table-action" title="Download"><i class="bi bi-download"></i></a>
+                                        <span class="badge bg-secondary-subtle text-body border">
+                                            <i class="bi {% if (r.report_type|default('HTML'))|upper == 'PDF' %}bi-file-earmark-pdf text-danger{% elif (r.report_type|default('HTML'))|upper == 'WORD' or (r.report_type|default('HTML'))|upper == 'DOCX' %}bi-file-earmark-word text-primary{% elif (r.report_type|default('HTML'))|upper == 'EXCEL' or (r.report_type|default('HTML'))|upper == 'XLSX' %}bi-file-earmark-excel text-success{% else %}bi-filetype-html text-info{% endif %}"></i>
+                                            {{ (r.report_type|default('HTML'))|upper }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-primary me-1" data-action="preview-report" data-report-name="{{ r.report_name }}" data-dataset-id="{{ r.dataset_id }}"><i class="bi bi-eye"></i> View</button>
+                                        <a href="/api/export_eda_report/{{ r.dataset_id }}" class="btn btn-sm btn-outline-success" data-action="download-report" title="Download" target="_blank"><i class="bi bi-download"></i> Export</a>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td>Q2 Revenue & Business Summary</td>
-                                    <td>System Analytics</td>
-                                    <td>Recent</td>
-                                    <td><span class="dn-badge-status neutral"><i class="bi bi-file-earmark-pdf"></i> HTML/PDF</span></td>
-                                    <td>
-                                        <a href="/api/export_eda_report/1" class="dn-table-action" title="View" target="_blank"><i class="bi bi-eye"></i></a>
-                                        <a href="/api/export_eda_report/1" class="dn-table-action" title="Download"><i class="bi bi-download"></i></a>
+                                    <td colspan="5" class="text-center text-secondary py-4">
+                                        <i class="bi bi-file-earmark fs-3 d-block mb-1"></i> No reports available for viewing.
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -343,7 +419,7 @@
                 <!-- Notifications -->
                 <div class="dn-panel mb-4" id="notifications">
                     <div class="dn-panel-head">
-                        <h3 class="dn-panel-title"><i class="bi bi-bell"></i> Notifications</h3>
+                        <h3 class="dn-panel-title"><i class="bi bi-bell text-primary"></i> Notifications & Activity</h3>
                     </div>
                     <div id="viewerNotifsContainer">
                         {% if notifications %}
@@ -358,17 +434,10 @@
                             {% endfor %}
                         {% else %}
                             <div class="dn-notif-item">
-                                <div class="dn-notif-icon"><i class="bi bi-share"></i></div>
+                                <div class="dn-notif-icon"><i class="bi bi-info-circle"></i></div>
                                 <div>
-                                    <div class="dn-notif-text">New dashboard shared with you: &ldquo;Regional Overview&rdquo;.</div>
-                                    <div class="dn-notif-time">1 hr ago</div>
-                                </div>
-                            </div>
-                            <div class="dn-notif-item">
-                                <div class="dn-notif-icon"><i class="bi bi-file-earmark-check"></i></div>
-                                <div>
-                                    <div class="dn-notif-text">New report available: &ldquo;Q2 Revenue Summary&rdquo;.</div>
-                                    <div class="dn-notif-time">1 day ago</div>
+                                    <div class="dn-notif-text">No new notifications.</div>
+                                    <div class="dn-notif-time">Now</div>
                                 </div>
                             </div>
                         {% endif %}
@@ -381,14 +450,10 @@
                         <h3 class="dn-panel-title"><i class="bi bi-lightning-charge"></i> Quick Actions</h3>
                     </div>
                     <div class="row g-3">
-                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i class="bi bi-eye"></i><span>View
-                                    Dashboard</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
-                                    class="bi bi-stars"></i><span>View Insights</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
-                                    class="bi bi-file-earmark-text"></i><span>View Report</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action"><i
-                                    class="bi bi-download"></i><span>Download Report</span></button></div>
+                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="nav-shared"><i class="bi bi-share"></i><span>Shared Dashboards</span></button></div>
+                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="nav-analytics"><i class="bi bi-bar-chart"></i><span>View Analytics</span></button></div>
+                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="nav-insights"><i class="bi bi-stars"></i><span>Key Insights</span></button></div>
+                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="nav-reports"><i class="bi bi-file-earmark-text"></i><span>Available Reports</span></button></div>
                     </div>
                 </div>
 
@@ -396,9 +461,328 @@
         </div>
     </div>
 
+    <!-- Modal for Report Preview / Details -->
+    <div class="modal fade" id="dnReportDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content dn-panel p-3">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Report Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="small text-secondary fw-semibold">Report Title</label>
+                        <div class="fw-bold fs-6 text-body" id="modalReportTitle">Report Preview</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-secondary fw-semibold">Dataset Identifier</label>
+                        <div class="small" id="modalReportDataset">Dataset #1</div>
+                    </div>
+                    <div class="alert alert-info p-2 small mb-3">
+                        <i class="bi bi-info-circle me-1"></i> Executive business summary generated with automated EDA charts and distribution metrics.
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-sm btn-secondary me-2" data-bs-dismiss="modal">Close</button>
+                        <a href="#" id="modalReportDownloadLink" target="_blank" class="btn btn-sm btn-primary dn-btn-primary"><i class="bi bi-download me-1"></i>Open Full Report</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== SHARED DASHBOARD DETAIL MODAL (READ ONLY) ===================== -->
+    <div class="modal fade" id="sharedDashboardDetailModal" tabindex="-1" aria-labelledby="sharedDashboardDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content dn-panel p-4">
+                <div class="modal-header border-0 pb-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                            <h5 class="modal-title fw-bold mb-0" id="sharedDetailTitle">Shared Dashboard</h5>
+                            <span class="badge bg-primary" id="sharedDetailStatusBadge">Shared</span>
+                            <span class="badge bg-info-subtle text-info border border-info-subtle" id="sharedDetailDomainBadge">General Analytics</span>
+                        </div>
+                        <div class="small text-secondary" id="sharedDetailMeta">Shared by Analyst &bull; Date</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-2">
+                    <!-- Recipients Bar -->
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 px-3 border rounded bg-body-tertiary" id="sharedDetailRecipientsContainer">
+                        <small class="text-secondary fw-semibold"><i class="bi bi-people-fill text-primary me-1"></i>Shared With:</small>
+                        <div id="sharedDetailRecipientsList" class="d-flex flex-wrap gap-1 align-items-center"></div>
+                    </div>
+
+                    <!-- Note / Description Alert -->
+                    <div class="dn-alert dn-alert-info mb-3" id="sharedDetailDescContainer" style="display: none;">
+                        <i class="bi bi-chat-quote-fill me-2 fs-5"></i>
+                        <div>
+                            <strong>Analyst Note:</strong>
+                            <div id="sharedDetailDescText" class="mt-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Manager Remark Banner (if exists) -->
+                    <div class="dn-alert dn-alert-warn mb-3" id="sharedDetailRemarkBanner" style="display: none;">
+                        <i class="bi bi-exclamation-circle-fill me-2 fs-5 text-warning"></i>
+                        <div>
+                            <strong id="sharedDetailRemarkTitle">Manager Remark:</strong>
+                            <div id="sharedDetailRemarkText" class="mt-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Tabs -->
+                    <ul class="nav nav-pills mb-3 gap-1 border-bottom pb-2" id="sdDetailTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active btn-sm" id="tab-sd-overview-btn" data-bs-toggle="pill" data-bs-target="#tab-sd-overview" type="button" role="tab"><i class="bi bi-speedometer2 me-1"></i> Overview &amp; KPIs</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm" id="tab-sd-charts-btn" data-bs-toggle="pill" data-bs-target="#tab-sd-charts" type="button" role="tab"><i class="bi bi-bar-chart-line me-1"></i> Charts &amp; Heatmap</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm" id="tab-sd-audit-btn" data-bs-toggle="pill" data-bs-target="#tab-sd-audit" type="button" role="tab"><i class="bi bi-clipboard2-check me-1"></i> Cleaning Audit</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm" id="tab-sd-insights-btn" data-bs-toggle="pill" data-bs-target="#tab-sd-insights" type="button" role="tab"><i class="bi bi-stars me-1"></i> AI Insights</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm" id="tab-sd-qa-btn" data-bs-toggle="pill" data-bs-target="#tab-sd-qa" type="button" role="tab"><i class="bi bi-question-diamond-fill me-1"></i> Dataset Q&amp;A (5+)</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm" id="tab-sd-preview-btn" data-bs-toggle="pill" data-bs-target="#tab-sd-preview" type="button" role="tab"><i class="bi bi-table me-1"></i> Data Preview</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link btn-sm" id="tab-sd-code-btn" data-bs-toggle="pill" data-bs-target="#tab-sd-code" type="button" role="tab"><i class="bi bi-filetype-py me-1"></i> Python Code</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Contents -->
+                    <div class="tab-content" id="sdDetailTabContent">
+                        <!-- 1. Overview & KPIs Tab -->
+                        <div class="tab-pane fade show active" id="tab-sd-overview" role="tabpanel">
+                            <div class="row g-2 mb-3 text-center" id="sharedDetailKpiRow">
+                                <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Rows</small><strong class="fs-6" id="sdKpiRows">0</strong></div></div>
+                                <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Columns</small><strong class="fs-6" id="sdKpiCols">0</strong></div></div>
+                                <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Memory</small><strong class="fs-6" id="sdKpiMemory">0 KB</strong></div></div>
+                                <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Quality</small><strong class="fs-6 text-success" id="sdKpiQuality">100%</strong></div></div>
+                                <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Missing (Before)</small><strong class="fs-6 text-warning" id="sdKpiMissing">0</strong></div></div>
+                                <div class="col-6 col-md-2"><div class="p-2 border rounded bg-body-tertiary"><small class="text-secondary d-block">Duplicates</small><strong class="fs-6 text-info" id="sdKpiDuplicates">0</strong></div></div>
+                            </div>
+
+                            <div class="p-3 border rounded bg-body-tertiary mb-3">
+                                <h6 class="fw-bold text-primary mb-2"><i class="bi bi-info-circle me-1"></i> Executive Summary</h6>
+                                <p class="small text-muted mb-0" id="sdExecSummaryText">Loading analysis summary...</p>
+                            </div>
+
+                            <div class="p-3 border rounded bg-body-tertiary">
+                                <h6 class="fw-bold text-primary mb-2"><i class="bi bi-lightning-charge me-1"></i> Quick Action Highlights</h6>
+                                <ul class="small mb-0 ps-3" id="sdQuickHighlightsList"></ul>
+                            </div>
+                        </div>
+
+                        <!-- 2. Charts & Visualizations Tab -->
+                        <div class="tab-pane fade" id="tab-sd-charts" role="tabpanel">
+                            <div id="sdTopCorrsSection" class="mb-3" style="display: none;">
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div class="p-2 border rounded bg-body-tertiary">
+                                            <h6 class="small fw-bold text-success mb-2"><i class="bi bi-graph-up-arrow me-1"></i> Top Positive Correlations</h6>
+                                            <ul class="list-group list-group-flush small" id="sdTopPositiveList"></ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-2 border rounded bg-body-tertiary">
+                                            <h6 class="small fw-bold text-danger mb-2"><i class="bi bi-graph-down-arrow me-1"></i> Top Negative Correlations</h6>
+                                            <ul class="list-group list-group-flush small" id="sdTopNegativeList"></ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3" id="sdChartsGridContainer">
+                                <!-- Chart cards inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- 3. Cleaning Audit Trail Tab -->
+                        <div class="tab-pane fade" id="tab-sd-audit" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="border rounded p-3 bg-body-tertiary">
+                                        <h6 class="fw-bold text-danger mb-2"><i class="bi bi-trash3-fill me-1"></i> Dropped &amp; Excluded Columns</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered table-hover bg-white mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Column Name</th>
+                                                        <th>Data Type</th>
+                                                        <th>Reason for Removal</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="sdDroppedColsTbody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="border rounded p-3 bg-body-tertiary">
+                                        <h6 class="fw-bold text-warning mb-2"><i class="bi bi-magic me-1"></i> Null Value Replacement &amp; Imputation Log</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered table-hover bg-white mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Column Name</th>
+                                                        <th>Initial Nulls</th>
+                                                        <th>Missing %</th>
+                                                        <th>Imputation Strategy</th>
+                                                        <th>Replaced Value</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="sdImputationTbody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. AI Insights & Strategic Recommendations Tab -->
+                        <div class="tab-pane fade" id="tab-sd-insights" role="tabpanel">
+                            <div class="p-3 border rounded bg-body-tertiary mb-3">
+                                <h6 class="fw-bold text-primary mb-2"><i class="bi bi-stars me-1"></i> Key Findings &amp; Patterns</h6>
+                                <div id="sdAiFindingsList" class="small"></div>
+                            </div>
+                            <div class="p-3 border rounded bg-body-tertiary">
+                                <h6 class="fw-bold text-success mb-2"><i class="bi bi-check-circle-fill me-1"></i> Strategic Business Recommendations</h6>
+                                <div id="sdAiRecommendationsList" class="small"></div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Dataset Q&A / FAQs (5+) Tab -->
+                        <div class="tab-pane fade" id="tab-sd-qa" role="tabpanel">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-patch-question-fill me-1"></i> Executive Dataset Q&amp;A (Analytical Breakdown)</h6>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">5 Dataset-Specific Answers</span>
+                            </div>
+                            <div class="accordion" id="sdQaAccordion">
+                                <!-- Q&A items injected dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- 6. Data Preview Tab -->
+                        <div class="tab-pane fade" id="tab-sd-preview" role="tabpanel">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-table me-1"></i> Cleaned Dataset Preview (First 10 Rows)</h6>
+                            <div class="table-responsive border rounded" style="max-height: 380px;" id="sharedDetailPreviewContainer">
+                                <!-- Preview Table HTML -->
+                            </div>
+                        </div>
+
+                        <!-- 7. Python Pipeline Code Tab (Read-Only Viewer Friendly) -->
+                        <div class="tab-pane fade" id="tab-sd-code" role="tabpanel">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div>
+                                    <h6 class="fw-bold text-primary mb-0"><i class="bi bi-filetype-py me-1"></i> Auto-Generated Python Pipeline Script</h6>
+                                    <span class="small text-muted">Read-only code replication of the data pipeline.</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopySdCodeSnippet"><i class="bi bi-clipboard me-1"></i> Copy Code</button>
+                            </div>
+                            <pre class="p-3 bg-dark text-light rounded font-monospace small" style="max-height: 400px; overflow-y: auto; tab-size: 4;" id="sdPipelineCodeContainer"># Loading pipeline code...</pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 d-flex justify-content-between align-items-center">
+                    <span class="small text-secondary" id="sharedDetailDatasetFile"></span>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== USER PROFILE MODAL (SELF EDIT) ===================== -->
+    <div class="modal fade" id="userProfileModal" tabindex="-1" aria-labelledby="userProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content dn-panel p-4">
+                <div class="modal-header border-0 pb-2">
+                    <h5 class="modal-title fw-bold" id="userProfileModalLabel">
+                        <i class="bi bi-person-badge-fill text-primary me-2"></i>My Profile
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <div class="dn-avatar mx-auto mb-2 userProfileAvatarBadge"
+                            style="width:64px;height:64px;font-size:1.5rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--dn-primary),var(--dn-violet));color:#fff;border-radius:50%;">
+                            {{ (user.first_name|default('V'))[0] }}{{ (user.last_name|default(''))[0] if user and user.last_name else '' }}
+                        </div>
+                        <h5 class="mb-0 userProfileFullNameDisplay">{{ user.first_name|default('Viewer') }} {{ user.last_name|default('') }}</h5>
+                        <div class="mt-1">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle userProfileRoleBadge">
+                                {{ (user.role|default('Viewer'))|capitalize }} Role
+                            </span>
+                            <span class="badge bg-secondary-subtle text-body border ms-1">
+                                <i class="bi bi-building me-1 text-primary"></i>{{ user.organization|default('General') }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <form class="dnUserProfileForm" novalidate>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold text-black">First Name</label>
+                                <input type="text" class="form-control userProfileFirstName" value="{{ user.first_name|default('') }}" required placeholder="First name">
+                                <div class="invalid-feedback">First name is required.</div>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold text-black">Last Name</label>
+                                <input type="text" class="form-control userProfileLastName" value="{{ user.last_name|default('') }}" placeholder="Last name">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold text-black">Email Address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-envelope"></i></span>
+                                    <input type="email" class="form-control bg-light border-start-0 userProfileEmail" value="{{ user.email|default('') }}" readonly>
+                                </div>
+                                <small class="text-secondary" style="font-size: 0.75rem;"><i class="bi bi-lock-fill"></i> Email address is permanent.</small>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold text-black">Organization / Company</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-building"></i></span>
+                                    <input type="text" class="form-control bg-light border-start-0 userProfileOrganization" value="{{ user.organization|default('General') }}" readonly>
+                                </div>
+                                <small class="text-secondary" style="font-size: 0.72rem;"><i class="bi bi-lock-fill"></i> Organization cannot be changed by user (Contact Administrator).</small>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold text-black">Phone / Mobile</label>
+                                <div class="input-group">
+                                    <span class="input-group-text border-end-0"><i class="bi bi-telephone"></i></span>
+                                    <input type="tel" class="form-control border-start-0 userProfilePhone" value="{{ user.phone|default('') }}" placeholder="+91 9876543210">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold text-black">Bio / About</label>
+                                <textarea class="form-control userProfileBio" rows="2" placeholder="Tell your team about yourself...">{{ user.bio|default('') }}</textarea>
+                            </div>
+                        </div>
+                        <div class="alert alert-danger mt-3 d-none p-2 small userProfileErrorAlert"></div>
+                        <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-sm btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary btnSubmitUserProfile">
+                                <span class="spinner-border spinner-border-sm me-1 d-none userProfileSpinner" role="status"></span>
+                                <i class="bi bi-check-circle me-1 userProfileSaveIcon"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/viewer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/common.js') }}?v=2.4"></script>
+    <script src="{{ url_for('static', filename='js/viewer.js') }}?v=2.4"></script>
 </body>
 
 </html>

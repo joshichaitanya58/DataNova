@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'viewer',
+    organization VARCHAR(100) NOT NULL DEFAULT 'General',
+    phone VARCHAR(30) DEFAULT NULL,
+    bio TEXT DEFAULT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -63,6 +66,35 @@ CREATE TABLE IF NOT EXISTS shared_dashboards (
     dataset_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE SET NULL
+);
+
+-- Manager Team Members Table
+CREATE TABLE IF NOT EXISTS manager_team_members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    manager_id INT NOT NULL,
+    user_id INT NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY manager_user_unique (manager_id, user_id)
+);
+
+-- Manager Assigned Tasks with Dataset Attachment Support
+CREATE TABLE IF NOT EXISTS manager_tasks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    manager_id INT NOT NULL,
+    assigned_to_id INT NOT NULL,
+    task_title VARCHAR(255) NOT NULL,
+    description TEXT,
+    priority VARCHAR(20) DEFAULT 'Medium',
+    status VARCHAR(20) DEFAULT 'Pending',
+    due_date DATE,
+    remark TEXT,
+    dataset_id INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_to_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE SET NULL
 );
 

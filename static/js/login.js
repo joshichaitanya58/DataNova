@@ -39,15 +39,19 @@
 
   // set base eye/pupil sizes from data attrs
   function initEye(eyeEl) {
+    if (!eyeEl) return;
     const size = eyeEl.dataset.size;
     const pupilSize = eyeEl.dataset.pupil;
     eyeEl.style.width = size + 'px';
     eyeEl.style.height = size + 'px';
     const pupil = eyeEl.querySelector('.pupil');
-    pupil.style.width = pupilSize + 'px';
-    pupil.style.height = pupilSize + 'px';
+    if (pupil) {
+      pupil.style.width = pupilSize + 'px';
+      pupil.style.height = pupilSize + 'px';
+    }
   }
   function initPupilOnly(el) {
+    if (!el) return;
     const size = el.dataset.size;
     el.style.width = size + 'px';
     el.style.height = size + 'px';
@@ -321,29 +325,35 @@
     return '';
   }
 
-  emailInput.addEventListener('input', validateEmail);
-  passwordInput.addEventListener('input', () => {
-    validatePassword();
-    passwordLength = passwordInput.value.length;
-    updatePeekWatcher();
-    scheduleRender();
-  });
+  if (emailInput) {
+    emailInput.addEventListener('input', validateEmail);
+    emailInput.addEventListener('focus', () => { setTyping(true); scheduleRender(); });
+    emailInput.addEventListener('blur', () => { setTyping(false); scheduleRender(); });
+  }
+
+  if (passwordInput) {
+    passwordInput.addEventListener('input', () => {
+      validatePassword();
+      passwordLength = passwordInput.value.length;
+      updatePeekWatcher();
+      scheduleRender();
+    });
+  }
 
   document.querySelectorAll('input[name="role"]').forEach((radio) => {
     radio.addEventListener('change', validateRole);
   });
 
-  emailInput.addEventListener('focus', () => { setTyping(true); scheduleRender(); });
-  emailInput.addEventListener('blur', () => { setTyping(false); scheduleRender(); });
-
-  togglePasswordBtn.addEventListener('click', () => {
-    showPassword = !showPassword;
-    passwordInput.type = showPassword ? 'text' : 'password';
-    eyeOpen.style.display = showPassword ? 'block' : 'none';
-    eyeClosed.style.display = showPassword ? 'none' : 'block';
-    updatePeekWatcher();
-    scheduleRender();
-  });
+  if (togglePasswordBtn && passwordInput) {
+    togglePasswordBtn.addEventListener('click', () => {
+      showPassword = !showPassword;
+      passwordInput.type = showPassword ? 'text' : 'password';
+      if (eyeOpen) eyeOpen.style.display = showPassword ? 'block' : 'none';
+      if (eyeClosed) eyeClosed.style.display = showPassword ? 'none' : 'block';
+      updatePeekWatcher();
+      scheduleRender();
+    });
+  }
 
   function setLoading(loading) {
     submitBtn.disabled = loading;

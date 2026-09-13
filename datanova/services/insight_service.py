@@ -1,202 +1,269 @@
 import os
 import json
 import logging
+from typing import Dict, Any, List
 from . import ai_helper
 
 logger = logging.getLogger(__name__)
 
 
-def generate_rule_based_insights(analytics_summary):
+def _extract_outlier_count(outliers) -> int:
+    if isinstance(outliers, int):
+        return outliers
+    if isinstance(outliers, dict):
+        if "summary" in outliers and isinstance(outliers["summary"], dict):
+            return int(outliers["summary"].get("total_unique_outliers", 0))
+        if "by_column" in outliers and isinstance(outliers["by_column"], dict):
+            total = 0
+            for v in outliers["by_column"].values():
+                if isinstance(v, dict):
+                    total += int(v.get("count", 0))
+                elif isinstance(v, (int, float)):
+                    total += int(v)
+            return total
+        total = 0
+        for v in outliers.values():
+            if isinstance(v, (int, float)):
+                total += int(v)
+            elif isinstance(v, dict):
+                total += int(v.get("count", 0))
+        return total
+    return 0
+
+
+def generate_automl_recommendations(analytics_summary: Dict[str, Any]) -> List[Dict[str, str]]:
     """
-    Generates rule-based business insights and recommendations when AI key is unavailable.
+    Analyzes dataset metadata and generates automated Machine Learning & statistical model recommendations.
     """
-    domain = analytics_summary.get("domain", "General Analytics")
-    row_count = analytics_summary.get("row_count", 0)
-    quality_score = analytics_summary.get("quality_score", 100.0)
-    grade = analytics_summary.get("grade", "A+")
-    biz_kpis = analytics_summary.get("business_kpis", {})
-    top_bottom = analytics_summary.get("top_bottom_analysis", {})
-    outliers = analytics_summary.get("outliers_detected", {})
-    top_corr = analytics_summary.get("top_correlations", [])
-
-    # 1. Executive Summary
-    total_sales = biz_kpis.get("total_sales")
-    total_profit = biz_kpis.get("total_profit")
-    margin_pct = biz_kpis.get("profit_margin_pct")
-
-    exec_summary = f"The dataset contains {row_count} records evaluated under the '{domain}' domain with a Data Quality Score of {quality_score}/100 (Grade {grade})."
-    if total_sales:
-        exec_summary += f" Total Revenue is ₹{total_sales:,.2f}."
-    if total_profit:
-        exec_summary += f" Total Profit generated is ₹{total_profit:,.2f} (Margin: {margin_pct}%)."
-
-    # 2. Positive Highlights
-    highlights = []
-    if quality_score >= 80:
-        highlights.append(f"High data quality rating of {quality_score}/100 ({grade} Grade).")
-    if margin_pct and margin_pct > 15.0:
-        highlights.append(f"Strong overall profit margin of {margin_pct}%.")
-    if top_bottom and "top_n" in top_bottom:
-        top_cat = list(top_bottom["top_n"].keys())[0] if top_bottom["top_n"] else "N/A"
-        highlights.append(f"Category '{top_cat}' is the highest revenue/value driver.")
-    if top_corr:
-        c_item = top_corr[0]
-        highlights.append(f"Strong correlation found between '{c_item.get('col1')}' and '{c_item.get('col2')}' (r = {c_item.get('correlation')}).")
-    if not highlights:
-        highlights.append("Dataset structure is intact and ready for deeper segment profiling.")
-
-    # 3. Anomalies & Risks
-    risks = []
-    total_outliers = sum(outliers.values()) if isinstance(outliers, dict) else 0
-    if total_outliers > 0:
-        risks.append(f"Detected {total_outliers} numerical outliers across measure columns.")
-    if quality_score < 70:
-        risks.append(f"Data quality is low ({quality_score}/100) due to missing or duplicate entries.")
-    if margin_pct and margin_pct < 5.0:
-        risks.append(f"Low profit margin detected ({margin_pct}%). Review discount strategies.")
-    if not risks:
-        risks.append("No critical anomalies or severe risk patterns detected.")
-
-    # 4. Strategic Recommendations
     recommendations = []
-    if total_outliers > 0:
-        recommendations.append("Apply IQR capping or Isolation Forest cleaning to normalize extreme measure values.")
-    if top_bottom and "bottom_n" in top_bottom:
-        bot_cat = list(top_bottom["bottom_n"].keys())[0] if top_bottom["bottom_n"] else "N/A"
-        recommendations.append(f"Evaluate low-performing category '{bot_cat}' for pricing optimization or phase-out.")
-    recommendations.append("Generate automated feature columns (Year, Month, Quarter, Profit Margin) to power predictive dashboards.")
-    recommendations.append("Export the full EDA report (PDF/Excel) for business stakeholder review.")
+    numeric_summary = analytics_summary.get("numeric_summary", {})
+    semantic_types = analytics_summary.get("semantic_types", {})
+    row_count = analytics_summary.get("row_count", 0)
 
-    return {
-        "executive_summary": exec_summary,
-        "positive_highlights": highlights,
-        "anomalies_and_risks": risks,
-        "strategic_recommendations": recommendations
-    }
+    has_datetime = any(t == "datetime" for t in semantic_types.values())
+    numeric_cols = [c for c, t in semantic_types.items() if t in ["measure", "currency", "percentage", "numeric"]]
+    categorical_cols = [c for c, t in semantic_types.items() if t in ["categorical", "category"]]
+
+    # 1. Time Series Forecasting Recommender
+    if has_datetime and numeric_cols:
+        primary_measure = numeric_cols[0]
+        recommendations.append({
+            "model_type": "Time Series Forecasting",
+            "recommended_algorithms": "Prophet / ARIMA / Exponential Smoothing",
+            "target": primary_measure,
+            "objective": f"Forecast future growth trends and seasonality for '{primary_measure}'.",
+            "confidence": "High"
+        })
+
+    # 2. Supervised Regression Recommender
+    if len(numeric_cols) >= 2:
+        target_measure = numeric_cols[0]
+        features = numeric_cols[1:5]
+        recommendations.append({
+            "model_type": "Predictive Regression",
+            "recommended_algorithms": "Random Forest Regressor / XGBoost / Ridge Regression",
+            "target": target_measure,
+            "objective": f"Predict '{target_measure}' based on features ({', '.join(features)}).",
+            "confidence": "Very High" if row_count >= 50 else "Moderate"
+        })
+
+    # 3. Customer / Entity Segmentation (Clustering)
+    if len(numeric_cols) >= 3:
+        recommendations.append({
+            "model_type": "Unsupervised Clustering",
+            "recommended_algorithms": "K-Means / HDBSCAN / Gaussian Mixture",
+            "target": "N/A (Unsupervised)",
+            "objective": "Segment high-value clusters, customer cohorts, and performance tiers.",
+            "confidence": "High"
+        })
+
+    # 4. Classification Recommender
+    if categorical_cols and numeric_cols:
+        cat_target = categorical_cols[0]
+        recommendations.append({
+            "model_type": "Classification & Churn/Risk Modeling",
+            "recommended_algorithms": "LightGBM / Random Forest / Logistic Regression",
+            "target": cat_target,
+            "objective": f"Classify and predict '{cat_target}' categories automatically.",
+            "confidence": "High"
+        })
+
+    return recommendations
 
 
-def generate_rule_based_insights(analytics_summary, language="en"):
+def generate_rule_based_insights(analytics_summary: Dict[str, Any], language: str = "en") -> Dict[str, Any]:
     """
-    Generates rule-based business insights and recommendations in English, Hindi, or Marathi.
+    Generates rich, prescriptive business insights, Pareto risk analysis, and actionable next steps.
     """
     domain = analytics_summary.get("domain", "General Analytics")
     row_count = analytics_summary.get("row_count", 0)
+    col_count = analytics_summary.get("column_count", 0)
     quality_score = analytics_summary.get("quality_score", 100.0)
     grade = analytics_summary.get("grade", "A+")
     biz_kpis = analytics_summary.get("business_kpis", {})
     top_bottom = analytics_summary.get("top_bottom_analysis", {})
     outliers = analytics_summary.get("outliers_detected", {})
     top_corr = analytics_summary.get("top_correlations", [])
+    ml_recs = generate_automl_recommendations(analytics_summary)
 
     total_sales = biz_kpis.get("total_sales")
     total_profit = biz_kpis.get("total_profit")
     margin_pct = biz_kpis.get("profit_margin_pct")
+    total_outliers = _extract_outlier_count(outliers)
 
     if language == "hi":
-        exec_summary = f"डेटासेट में '{domain}' डोमेन के तहत {row_count} रिकॉर्ड हैं। डेटा गुणवत्ता स्कोर {quality_score}/100 (ग्रेड {grade}) है।"
+        exec_summary = (
+            f"डेटासेट में '{domain}' डोमेन के तहत कुल {row_count:,} रिकॉर्ड्स और {col_count} कॉलम्स शामिल हैं। "
+            f"डेटा हेल्थ और क्वालिटी स्कोर {quality_score}/100 (ग्रेड {grade}) है।"
+        )
         if total_sales:
-            exec_summary += f" कुल राजस्व ₹{total_sales:,.2f} है।"
+            exec_summary += f" कुल दर्ज राजस्व ₹{total_sales:,.2f} है।"
         if total_profit:
-            exec_summary += f" कुल लाभ ₹{total_profit:,.2f} (मार्जिन: {margin_pct}%) प्राप्त हुआ।"
-
-        highlights = [f"डेटा गुणवत्ता रेटिंग उच्च ({quality_score}/100) है।"]
-        outlier_count_val = sum(outliers.values()) if isinstance(outliers, dict) else 0
-        risks = [f"{outlier_count_val} संख्यात्मक आउटलायर्स का पता चला।"] if outlier_count_val > 0 else ["कोई गंभीर जोखिम नहीं पाया गया।"]
-        recommendations = ["भविष्य के रुझानों का विश्लेषण करने के लिए समय-श्रृंखला और ML पूर्वानुमान मॉडल का उपयोग करें।"]
-
-    elif language == "mr":
-        exec_summary = f"डेटासेटमध्ये '{domain}' क्षेत्राअंतर्गत {row_count} नोंदी आढळल्या आहेत. डेटा गुणवत्ता गुण {quality_score}/100 (श्रेणी {grade}) आहे."
-        if total_sales:
-            exec_summary += f" एकूण महसूल ₹{total_sales:,.2f} आहे."
-        if total_profit:
-            exec_summary += f" एकूण नफा ₹{total_profit:,.2f} (मार्जिन: {margin_pct}%) मिळाला."
-
-        highlights = [f"उत्कृष्ट डेटा गुणवत्ता गुण {quality_score}/100 आहे."]
-        risks = ["डेटासेट विश्लेषण प्रक्रियेत कोणतेही गंभीर धोके आढळले नाहीत."]
-        recommendations = ["उत्पादक निर्णय घेण्यासाठी स्वयंचलित अंदाज आणि अहवाल वापरा."]
-
-    else:
-        exec_summary = f"The dataset contains {row_count} records evaluated under the '{domain}' domain with a Data Quality Score of {quality_score}/100 (Grade {grade})."
-        if total_sales:
-            exec_summary += f" Total Revenue is ₹{total_sales:,.2f}."
-        if total_profit:
-            exec_summary += f" Total Profit generated is ₹{total_profit:,.2f} (Margin: {margin_pct}%)."
+            exec_summary += f" कुल दर्ज लाभ ₹{total_profit:,.2f} (लाभ मार्जिन: {margin_pct}%) रहा।"
 
         highlights = []
         if quality_score >= 80:
-            highlights.append(f"High data quality rating of {quality_score}/100 ({grade} Grade).")
+            highlights.append(f"डेटा स्वच्छता और गुणवत्ता रेटिंग उत्कृष्ट ({quality_score}/100) है।")
         if margin_pct and margin_pct > 15.0:
-            highlights.append(f"Strong overall profit margin of {margin_pct}%.")
+            highlights.append(f"मजबूत लाभप्रदता मार्जिन ({margin_pct}%) दर्ज किया गया है।")
         if top_bottom and "top_n" in top_bottom:
             top_cat = list(top_bottom["top_n"].keys())[0] if top_bottom["top_n"] else "N/A"
-            highlights.append(f"Category '{top_cat}' is the highest revenue/value driver.")
+            highlights.append(f"शीर्ष श्रेणी '{top_cat}' सबसे बड़ा रेवेन्यू ड्राइवर सिद्ध हुआ।")
         if not highlights:
-            highlights.append("Dataset structure is intact and ready for deeper segment profiling.")
+            highlights.append("डेटा संरचना सुसंगत है और त्वरित निर्णय लेने के लिए तैयार है।")
 
         risks = []
-        total_outliers = sum(outliers.values()) if isinstance(outliers, dict) else 0
         if total_outliers > 0:
-            risks.append(f"Detected {total_outliers} numerical outliers across measure columns.")
+            risks.append(f"{total_outliers:,} सांख्यिकीय आउटलायर्स का पता चला है, जिन्हें कैपिंग/क्लीनिंग की आवश्यकता है।")
+        if quality_score < 75:
+            risks.append("मिसिंग वैल्यूज या इनकंसिस्टेंसी के कारण डेटा गुणवत्ता स्कोर कम है।")
         if not risks:
-            risks.append("No critical anomalies or severe risk patterns detected.")
+            risks.append("डेटासेट में कोई गंभीर असामान्यता या गंभीर जोखिम पैटर्न नहीं पाया गया।")
 
         recommendations = [
-            "Apply IQR capping or Isolation Forest cleaning to normalize extreme measure values.",
-            "Generate automated feature columns to power predictive dashboards.",
-            "Export the full EDA report (PDF/Word/PPT/Excel) for business review."
+            "Pareto 80/20 सिद्धांत लागू करके शीर्ष 20% राजस्व प्रदाताओं पर रणनीतिक फोकस बढ़ाएं।",
+            "संभावित जोखिम और अप्रत्याशित उतार-चढ़ाव रोकने के लिए आउटलायर नॉर्मलाइजेशन लागू करें।",
+            "भविष्य के सटीक पूर्वानुमानों के लिए ऑटोमेटेड ML मॉडल्स (XGBoost / Time Series) को सक्रिय करें।"
+        ]
+
+    elif language == "mr":
+        exec_summary = (
+            f"डेटासेटमध्ये '{domain}' क्षेत्राअंतर्गत एकूण {row_count:,} नोंदी व {col_count} स्तंभ आढळले आहेत. "
+            f"डेटा गुणवत्ता गुण {quality_score}/100 (श्रेणी {grade}) आहे."
+        )
+        if total_sales:
+            exec_summary += f" एकूण महसूल ₹{total_sales:,.2f} नोंदवला गेला."
+        if total_profit:
+            exec_summary += f" एकूण नफा ₹{total_profit:,.2f} (नफा मार्जिन: {margin_pct}%) मिळाला."
+
+        highlights = [f"डेटा गुणवत्ता गुण {quality_score}/100 (ग्रेड {grade}) सह उच्च दर्जाचा आहे."]
+        risks = [f"{total_outliers:,} सांख्यिकीय आउटलायर्स आढळले आहेत."] if total_outliers > 0 else ["डेटासेटमध्ये कोणतेही गंभीर धोके आढळले नाहीत."]
+        recommendations = [
+            "८०/२० पारेटो नियमानुसार सर्वाधिक उत्पन्न देणाऱ्या घटकांवर विशेष लक्ष केंद्रित करा.",
+            "अचूक व्यवसाय अंदाजासाठी स्वयंचलित टाइम-सिरीज व एमएल मॉडेल्स वापरा.",
+            "कार्यकारी मंडळासाठी सर्वसमावेशक विश्लेषणात्मक अहवाल निर्यात करा."
+        ]
+
+    else:
+        exec_summary = (
+            f"The dataset encapsulates {row_count:,} records across {col_count} attributes within the '{domain}' domain, "
+            f"maintaining a Data Quality Index of {quality_score}/100 (Grade {grade})."
+        )
+        if total_sales:
+            exec_summary += f" Aggregate Revenue is ₹{total_sales:,.2f}."
+        if total_profit:
+            exec_summary += f" Total Profit stands at ₹{total_profit:,.2f} with an operating margin of {margin_pct}%."
+
+        highlights = []
+        if quality_score >= 80:
+            highlights.append(f"Exceptional data reliability with a Quality Score of {quality_score}/100 ({grade} Grade).")
+        if margin_pct and margin_pct > 15.0:
+            highlights.append(f"Robust operational profit margin of {margin_pct}%.")
+        if top_bottom and "top_n" in top_bottom:
+            top_cat = list(top_bottom["top_n"].keys())[0] if top_bottom["top_n"] else "N/A"
+            highlights.append(f"Dominant segment '{top_cat}' is the primary value & volume generator.")
+        if top_corr:
+            strongest = top_corr[0]
+            highlights.append(f"Strong correlation ({strongest.get('correlation')}) discovered between '{strongest.get('col1')}' and '{strongest.get('col2')}'.")
+        if not highlights:
+            highlights.append("Dataset structure is intact and optimized for multidimensional intelligence extraction.")
+
+        risks = []
+        if total_outliers > 0:
+            risks.append(f"Detected {total_outliers:,} numerical anomalies/outliers that may distort mean indicators.")
+        if quality_score < 75:
+            risks.append("Sub-optimal data hygiene detected due to missing attributes or text inconsistencies.")
+        if not risks:
+            risks.append("Zero critical structural risks or disruptive variance anomalies detected.")
+
+        recommendations = [
+            "Leverage Pareto 80/20 optimization: allocate 80% of retention efforts to the top 20% revenue-generating contributors.",
+            "Apply IQR capping or Isolation Forest cleaning to normalize high-leverage numeric outliers.",
+            "Deploy recommended predictive ML pipelines (Random Forest / XGBoost / Time Series) for forward-looking demand forecasting.",
+            "Export the multi-dimensional analytical executive summary (PDF/Word/PPT/Excel) for stakeholder review."
         ]
 
     return {
         "executive_summary": exec_summary,
         "positive_highlights": highlights,
         "anomalies_and_risks": risks,
-        "strategic_recommendations": recommendations
+        "strategic_recommendations": recommendations,
+        "automl_recommendations": ml_recs
     }
 
 
-def generate_ai_explanation(analytics_summary, language="en"):
+def generate_ai_explanation(analytics_summary: Dict[str, Any], language: str = "en") -> Dict[str, Any]:
     """
-    Sends pre-calculated Python analytical facts to AI Engine for clear business explanation
-    in the requested language ('en', 'hi', 'mr').
+    Sends pre-calculated analytical facts to the AI Engine and returns
+    a professional, executive-ready explanation in the requested language.
     """
-    lang_instruction = "Respond in clear, professional English."
-    if language == "hi":
-        lang_instruction = "Respond completely in clear, natural Hindi (हिंदी भाषा)."
-    elif language == "mr":
-        lang_instruction = "Respond completely in clear, natural Marathi (मराठी भाषा)."
+    language_guidance = {
+        "en": "Respond entirely in clear, natural, professional English like a Principal Data Scientist advising an Executive.",
+        "hi": "पूरा उत्तर सरल, स्वाभाविक और प्रभावशाली व्यावसायिक हिंदी में दें जैसे एक सीनियर एनालिस्ट बिज़नेस लीडर को समझा रहा हो।",
+        "mr": "संपूर्ण उत्तर सोप्या, अस्खलित आणि व्यावसायिक मराठीत द्या जणू एक वरिष्ठ डेटा सायंटिस्ट व्यवस्थापनाला मार्गदर्शन करत आहे."
+    }
+    lang_instruction = language_guidance.get(language, language_guidance["en"])
 
     prompt = f"""
-You are an expert senior data analyst.
-Language Requirement: {lang_instruction}
+You are a Principal Data Scientist and Executive Business Advisor.
+Your job is to translate the raw analytical data below into clear, persuasive, strategic executive insights.
 
-Pre-Calculated Analytics Data:
+LANGUAGE REQUIREMENTS:
+{lang_instruction}
+
+TONE & STYLE:
+- Authoritative, professional, concise, and focused on business value creation.
+- Avoid technical jargon (translate p-values and distributions into concrete business outcomes).
+- Highlight key revenue drivers, risk areas, and actionable prescriptive decisions.
+
+RAW ANALYTICS DATA:
 {json.dumps(analytics_summary, indent=2, default=str)}
 
-Please provide a structured business interpretation covering:
-1. Executive Summary & Overview
-2. Key Positive Highlights
-3. Anomaly & Risk Detection
-4. Strategic Business Recommendations
+Provide four concise, high-impact sections:
+1. "executive_summary": Clear high-level takeaway with core volume and revenue impact.
+2. "positive_highlights": What is working exceptionally well and driving value.
+3. "anomalies_and_risks": What operational or statistical risks need immediate mitigation.
+4. "strategic_recommendations": 3 concrete, prioritized business action items.
 
-Return your response as a valid JSON object with keys:
-"executive_summary", "positive_highlights", "anomalies_and_risks", "strategic_recommendations".
+OUTPUT FORMAT:
+Return ONLY a valid JSON object with the exact keys above.
 """
 
     try:
         ai_response = ai_helper.generate_ai_completion(prompt, expect_json=True)
-        logger.info(f"AI explanation generated in language: {language}")
+        logger.info(f"AI strategic explanation generated in language: {language}")
         return {
             "success": True,
             "mode": "ai",
             "language": language,
-            "explanation": ai_response
+            "explanation": ai_response,
         }
     except Exception as e:
-        logger.warning(f"Error calling AI Service: {e}. Falling back to rule-based engine.")
+        logger.warning(f"Error calling AI Service: {e}. Falling back to rule-based intelligence engine.")
         return {
             "success": True,
             "mode": "rule_based_fallback",
             "language": language,
-            "message": f"AI service fallback executed for language '{language}'.",
-            "explanation": generate_rule_based_insights(analytics_summary, language=language)
+            "message": f"Rule-based intelligence engine executed for language '{language}'.",
+            "explanation": generate_rule_based_insights(analytics_summary, language=language),
         }
