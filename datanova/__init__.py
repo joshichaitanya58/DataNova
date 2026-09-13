@@ -35,7 +35,8 @@ def create_app():
         instance_path=instance_path,
         instance_relative_config=True,
         template_folder=template_dir,
-        static_folder=static_dir
+        static_folder=static_dir,
+        static_url_path='/static'
     )
 
     # --- Configure Terminal Logging & Suppress Noisy 3rd-Party Debuggers ---
@@ -65,6 +66,7 @@ def create_app():
         UPLOAD_FOLDER=upload_folder,
         MAX_CONTENT_LENGTH=50 * 1024 * 1024,  # 50 MB upload limit
         TEMPLATES_AUTO_RELOAD=not is_serverless,
+        SEND_FILE_MAX_AGE_DEFAULT=0 if not is_serverless else 86400,
         PRIMARY_COLOR='#4F46E5',
         VIOLET_COLOR='#7C3AED',
         CYAN_COLOR='#06B6D4',
