@@ -36,12 +36,15 @@ def create_user_account(first_name, last_name, email, password, role, organizati
     phone_clean = (phone or '').strip() or None
 
     if not all([first_name, last_name, email, password]):
+        current_app.logger.warning("[SIGNUP 400]: Missing one or more required fields.")
         return False, "All user fields (first_name, last_name, email, password) are required.", 400
 
     if '@' not in email or '.' not in email or len(email) < 5:
+        current_app.logger.warning(f"[SIGNUP 400]: Invalid email address '{email}'.")
         return False, "Please enter a valid email address.", 400
 
     if len(str(password)) < 6:
+        current_app.logger.warning("[SIGNUP 400]: Password shorter than 6 characters.")
         return False, "Password must be at least 6 characters long.", 400
 
     try:
@@ -51,11 +54,13 @@ def create_user_account(first_name, last_name, email, password, role, organizati
     if settings.get('enforce_strong_passwords', True):
         pwd = str(password)
         if len(pwd) < 8 or not any(c.isupper() for c in pwd) or not any(c.isdigit() for c in pwd):
+            current_app.logger.warning("[SIGNUP 400]: Password does not meet strong password requirements (min 8 chars, 1 uppercase, 1 digit).")
             return False, "Password must be at least 8 characters long and contain at least one uppercase letter and one number.", 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
     conn = get_db_connection()
     if not conn:
+        current_app.logger.error("[SIGNUP 500]: Database connection failed.")
         return False, "Database connection error.", 500
 
     try:
@@ -68,10 +73,13 @@ def create_user_account(first_name, last_name, email, password, role, organizati
                 (first_name, last_name, email, hashed_password, role_clean, org_clean, phone_clean)
             )
         conn.commit()
+        current_app.logger.info(f"[SIGNUP SUCCESS 200]: User '{email}' created with role '{role_clean}'.")
         return True, "Account created successfully.", 200
     except pymysql.IntegrityError:
-        return False, "An account with this email already exists.", 400
+        current_app.logger.warning(f"[SIGNUP 400]: Email '{email}' already registered.")
+        return False, "An account with this email already exists. Please log in.", 400
     except Exception as e:
+        current_app.logger.error(f"[SIGNUP 500]: DB Exception: {e}", exc_info=True)
         return False, f"An error occurred while creating the account: {e}", 500
     finally:
         conn.close()
