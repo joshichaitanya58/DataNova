@@ -20,5 +20,7 @@ from . import (
     analyst_service,
     report_service,
     code_service,
-    ai_helper
+    ai_helper,
+    system_settings_service
 )
+

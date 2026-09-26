@@ -47,8 +47,8 @@ def get_viewer_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, user_i
 
                 cursor.execute("""
                     SELECT COUNT(*) as count FROM shared_dashboards
-                    WHERE owner_id = %s OR shared_with_role = %s OR shared_with_role = 'all'
-                """, (user_id or 0, role or 'viewer'))
+                    WHERE owner_id = %s OR shared_with_user_id = %s OR shared_with_role = %s OR shared_with_role = 'all'
+                """, (user_id or 0, user_id or 0, role or 'viewer'))
                 shared_dashboards_count = (cursor.fetchone() or {}).get('count', 0)
 
                 # 2. Fetch accessible reports

@@ -65,7 +65,15 @@
 
                 <div class="dn-topbar-search">
                     <i class="bi bi-search"></i>
-                    <input type="text" id="managerGlobalSearch" placeholder="Search team members, tasks, reports...">
+                    <input type="text" id="managerGlobalSearch" placeholder="Search team members, tasks, reports..." autocomplete="off">
+                    <button type="button" class="dn-search-clear-btn d-none" id="managerSearchClearBtn" title="Clear search"><i class="bi bi-x-circle-fill"></i></button>
+                    <div class="dn-search-dropdown d-none" id="managerSearchDropdown">
+                        <div class="p-2 border-bottom d-flex justify-content-between align-items-center bg-body-tertiary">
+                            <small class="fw-bold text-secondary text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.05em;"><i class="bi bi-funnel-fill text-primary me-1"></i> Live Search Results</small>
+                            <span class="badge bg-primary" id="managerSearchMatchCount" style="font-size: 0.68rem;">0 matches</span>
+                        </div>
+                        <div class="p-2" style="max-height: 380px; overflow-y: auto;" id="managerSearchDropdownContent"></div>
+                    </div>
                 </div>
 
                 <div class="dn-topbar-spacer"></div>
@@ -119,20 +127,36 @@
                         <h1 class="dn-page-title">Manager Dashboard</h1>
                         <p class="dn-page-sub">Monitor business performance, assign team tasks, and manage staff operations.</p>
                     </div>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button class="btn dn-btn-primary" id="btnManagerOpenCodeStudio"><i class="bi bi-filetype-py me-1"></i> Python Studio (.ipynb)</button>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="d-flex align-items-center gap-2 bg-body-tertiary px-3 py-2 rounded-3 border shadow-sm" style="background: rgba(var(--dn-primary-rgb), 0.04) !important;">
+                            <label for="managerActiveDatasetSelect" class="small fw-semibold text-nowrap mb-0 text-secondary">
+                                <i class="bi bi-database-fill-check text-primary me-1"></i>Active Dataset:
+                            </label>
+                            <select class="form-select form-select-sm border-0 bg-transparent fw-bold text-dark shadow-none cursor-pointer" id="managerActiveDatasetSelect" style="min-width: 240px; max-width: 360px;">
+                                {% for ds in kpi.datasets_list %}
+                                    <option value="{{ ds.id }}" {% if ds.id == session.get('active_dataset_id') %}selected{% endif %}>
+                                        📁 {{ ds.file_name }} ({{ ds.first_name }} {{ ds.last_name[:1] if ds.last_name else '' }}.) — {{ ds.row_count }} rows
+                                    </option>
+                                {% else %}
+                                    <option value="">No Datasets Available</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                         <button class="btn dn-btn-outline-dn" data-action="add-member"><i class="bi bi-person-plus"></i> Add Team Member</button>
                         <button class="btn dn-btn-primary" data-action="assign-task"><i class="bi bi-plus-circle"></i> Assign Task</button>
                     </div>
                 </div>
 
                 <!-- KPI cards -->
-                <div class="row g-3 mb-4">
+                <div class="row g-3 mb-4 justify-content-start">
                     <div class="col-6 col-lg-2">
-                        <div class="dn-kpi-card">
-                            <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-primary)"><i class="bi bi-cash-stack"></i></span></div>
-                            <div class="dn-kpi-label">Total Revenue</div>
-                            <div class="dn-kpi-value" id="kpiTotalRevenue">{{ kpi.total_revenue|default('₹0') }}</div>
+                        <div class="dn-kpi-card shadow-sm" id="kpiCardTotalRevenue" data-bs-toggle="modal" data-bs-target="#datasetRevenueModal" style="cursor: pointer; transition: transform 0.2s;" title="Click to view dataset-wise revenue breakdown">
+                            <div class="dn-kpi-top d-flex justify-content-between align-items-center">
+                                <span class="dn-kpi-icon" style="background:var(--dn-primary)"><i class="bi bi-cash-stack"></i></span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill style-xs" style="font-size: 0.6rem;">Breakdown</span>
+                            </div>
+                            <div class="dn-kpi-label mt-1">Total Revenue</div>
+                            <div class="dn-kpi-value text-primary fw-bold" id="kpiTotalRevenue">{{ kpi.total_revenue|default('₹0') }}</div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-2">
@@ -171,6 +195,7 @@
                         </div>
                     </div>
                 </div>
+
 
                 <!-- ===================== TEAM & TASK MANAGEMENT SYSTEM ===================== -->
                 <div class="dn-panel mb-4" id="teamSection">
@@ -581,29 +606,47 @@
                     </div>
                 </div>
 
-                <!-- Team activity & Recommendations / Reports -->
+                <!-- Team activity & Recommendations (Side by Side) -->
                 <div class="row g-3 mb-4">
-                    <div class="col-lg-6" id="reportsSection">
-                        <div class="dn-panel">
+                    <div class="col-lg-6">
+                        <div class="dn-panel h-100 mb-0" id="businessRecsSection">
                             <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-lightbulb"></i> Business Recommendations &amp; Reports</h3>
+                                <h3 class="dn-panel-title"><i class="bi bi-lightbulb text-warning me-2"></i> Business Recommendations</h3>
                             </div>
                             <div id="managerRecsContainer">
                                 {% if kpi.recommendations %}
                                     {% for rec in kpi.recommendations %}
-                                    <div class="dn-rec-item"><i class="bi bi-box-seam dn-rec-icon"></i><span class="dn-rec-text">{{ rec }}</span></div>
+                                    <div class="dn-rec-item">
+                                        {% if 'Concentration' in rec or 'Risk' in rec %}
+                                            <i class="bi bi-exclamation-triangle-fill text-warning dn-rec-icon fs-5"></i>
+                                        {% elif 'Pricing' in rec or 'Margin' in rec or 'AOV' in rec %}
+                                            <i class="bi bi-cash-stack text-success dn-rec-icon fs-5"></i>
+                                        {% elif 'Inventory' in rec or 'Stock' in rec or 'Supply' in rec %}
+                                            <i class="bi bi-box-seam-fill text-primary dn-rec-icon fs-5"></i>
+                                        {% elif 'Territory' in rec or 'Region' in rec %}
+                                            <i class="bi bi-geo-alt-fill text-info dn-rec-icon fs-5"></i>
+                                        {% elif 'Revenue' in rec or 'Momentum' in rec %}
+                                            <i class="bi bi-graph-up-arrow text-success dn-rec-icon fs-5"></i>
+                                        {% elif 'Team' in rec or 'Alignment' in rec %}
+                                            <i class="bi bi-people-fill text-secondary dn-rec-icon fs-5"></i>
+                                        {% else %}
+                                            <i class="bi bi-lightbulb-fill text-warning dn-rec-icon fs-5"></i>
+                                        {% endif %}
+                                        <span class="dn-rec-text fw-medium">{{ rec }}</span>
+                                    </div>
                                     {% endfor %}
                                 {% else %}
-                                    <div class="dn-rec-item"><i class="bi bi-box-seam dn-rec-icon"></i><span class="dn-rec-text">Increase stock for high-demand products ahead of next quarter.</span></div>
-                                    <div class="dn-rec-item"><i class="bi bi-geo dn-rec-icon"></i><span class="dn-rec-text">Focus marketing spend on high-growth territories to maximize ROI.</span></div>
+                                    <div class="dn-rec-item"><i class="bi bi-box-seam-fill text-primary dn-rec-icon fs-5"></i><span class="dn-rec-text fw-medium">Increase stock for high-demand products ahead of next quarter.</span></div>
+                                    <div class="dn-rec-item"><i class="bi bi-geo-alt-fill text-info dn-rec-icon fs-5"></i><span class="dn-rec-text fw-medium">Focus marketing spend on high-growth territories to maximize ROI.</span></div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-6" id="teamActivitySection">
-                        <div class="dn-panel">
+
+                    <div class="col-lg-6">
+                        <div class="dn-panel h-100 mb-0" id="teamActivitySection">
                             <div class="dn-panel-head">
-                                <h3 class="dn-panel-title"><i class="bi bi-activity"></i> Team Activity Log</h3>
+                                <h3 class="dn-panel-title"><i class="bi bi-activity text-info me-2"></i> Team Activity Log</h3>
                             </div>
                             <ul class="dn-insight-list" id="managerTeamActivityList">
                                 {% if kpi.team_activity %}
@@ -614,6 +657,81 @@
                                     <li><span class="dn-insight-dot" style="background:var(--dn-primary)"></span>System initialized team activity tracking. <span class="text-secondary ms-auto small">Active</span></li>
                                 {% endif %}
                             </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Platform Reports Section (Full Width Below) -->
+                <div class="row g-3 mb-4" id="reportsSection">
+                    <div class="col-12">
+                        <div class="dn-panel">
+                            <div class="dn-panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h3 class="dn-panel-title"><i class="bi bi-file-earmark-bar-graph text-primary me-2"></i> Recent Platform &amp; Team Reports</h3>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">{{ (kpi.reports|default([]))|length }} Active Reports</span>
+                                    <button type="button" class="btn btn-sm dn-btn-outline-dn py-1 px-3 style-xs rounded-pill" onclick="showViewReportsModal(); return false;"><i class="bi bi-arrow-right-circle me-1"></i> See All Reports</button>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle dn-table mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Report Name</th>
+                                            <th>Dataset</th>
+                                            <th>Generated By</th>
+                                            <th>Date</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for rep in (kpi.reports|default([]))[:5] %}
+                                        {% set rtype = (rep.report_type|default('HTML'))|upper %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    {% if 'PDF' in rtype %}
+                                                        <i class="bi bi-file-earmark-pdf text-danger fs-5 me-2"></i>
+                                                    {% elif 'DOCX' in rtype or 'WORD' in rtype %}
+                                                        <i class="bi bi-file-earmark-word text-primary fs-5 me-2"></i>
+                                                    {% elif 'XLSX' in rtype or 'EXCEL' in rtype or 'CSV' in rtype %}
+                                                        <i class="bi bi-file-earmark-excel text-success fs-5 me-2"></i>
+                                                    {% elif 'PPTX' in rtype or 'PPT' in rtype %}
+                                                        <i class="bi bi-file-earmark-ppt text-warning fs-5 me-2"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-filetype-html text-info fs-5 me-2"></i>
+                                                    {% endif %}
+                                                    <div>
+                                                        <div class="fw-semibold text-dark small">{{ rep.report_name }}</div>
+                                                        <span class="badge {% if 'PDF' in rtype %}bg-danger-subtle text-danger border border-danger-subtle{% elif 'DOCX' in rtype or 'WORD' in rtype %}bg-primary-subtle text-primary border border-primary-subtle{% elif 'XLSX' in rtype or 'EXCEL' in rtype %}bg-success-subtle text-success border border-success-subtle{% else %}bg-info-subtle text-info border border-info-subtle{% endif %} style-xs" style="font-size:10px;">{{ rtype }}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ rep.dataset_file_name|default('Platform Dataset') }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="small fw-medium">{{ rep.user_name|default('Analyst') }}</div>
+                                                <small class="text-muted" style="font-size: 11px;">{{ (rep.role|default('analyst'))|capitalize }}</small>
+                                            </td>
+                                            <td><small class="text-muted" style="font-size: 11px;">{{ rep.created_at_str }}</small></td>
+                                            <td class="text-end">
+                                                <a href="/api/report/view/{{ rep.id }}" target="_blank" class="btn btn-outline-primary btn-sm py-1 px-3" title="Open {{ rtype }} Report">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> Open {{ rtype }}
+                                                </a>
+                                            </td>
+                                        </tr>
+
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4 text-muted">
+                                                <i class="bi bi-file-earmark-x fs-3 d-block text-secondary mb-1"></i>
+                                                No executive reports generated yet. Analysts can generate and share reports from the Workbench.
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -705,58 +823,200 @@
     <div class="modal fade" id="dnCompareDatasetsModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content dn-panel p-3">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-columns-gap text-primary me-2"></i>Compare Platform Datasets</h5>
+                <div class="modal-header border-0 pb-2">
+                    <div>
+                        <h5 class="modal-title fw-bold"><i class="bi bi-columns-gap text-primary me-2"></i>Compare Platform Datasets</h5>
+                        <p class="small text-secondary mb-0">Upload two CSV/Excel files directly or compare existing platform datasets.</p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="dnCompareDatasetsForm">
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Primary Dataset ID / Name</label>
-                                <input type="text" id="compareDs1Input" class="form-control" placeholder="Dataset 1 ID (e.g. 1)" required>
+                        <!-- Mode Selection Nav Pills -->
+                        <ul class="nav nav-pills gap-2 mb-3" id="compareModeTabNav" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active py-1 px-3 fw-semibold small" id="compareModeUploadTab" data-bs-toggle="pill" data-bs-target="#compareModeUploadPane" type="button" role="tab">
+                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload 2 Files (CSV / Excel)
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link py-1 px-3 fw-semibold small" id="compareModeIdTab" data-bs-toggle="pill" data-bs-target="#compareModeIdPane" type="button" role="tab">
+                                    <i class="bi bi-database-fill me-1"></i> By Dataset ID / Platform Name
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link py-1 px-3 fw-semibold small" id="compareModeGSheetTab" data-bs-toggle="pill" data-bs-target="#compareModeGSheetPane" type="button" role="tab">
+                                    <i class="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i> Google Sheets URL / Link
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="compareModeTabContent">
+                            <!-- TAB 1: File Upload Mode -->
+                            <div class="tab-pane fade show active" id="compareModeUploadPane" role="tabpanel">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-primary text-white rounded-pill px-2 py-1">File 1</span>
+                                                <label class="form-label small fw-bold mb-0">Primary Dataset File</label>
+                                            </div>
+                                            <input type="file" id="compareFile1Input" class="form-control form-control-sm" accept=".csv,.xlsx,.xls,.json">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-filetype-csv me-1"></i>Supports .csv, .xlsx, .xls</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-info text-dark rounded-pill px-2 py-1">File 2</span>
+                                                <label class="form-label small fw-bold mb-0">Secondary Dataset File</label>
+                                            </div>
+                                            <input type="file" id="compareFile2Input" class="form-control form-control-sm" accept=".csv,.xlsx,.xls,.json">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-filetype-csv me-1"></i>Supports .csv, .xlsx, .xls</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Secondary Dataset ID / Name</label>
-                                <input type="text" id="compareDs2Input" class="form-control" placeholder="Dataset 2 ID (e.g. 2)" required>
+
+                            <!-- TAB 2: Dataset ID Mode -->
+                            <div class="tab-pane fade" id="compareModeIdPane" role="tabpanel">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Primary Dataset ID / Name</label>
+                                        <input type="text" id="compareDs1Input" class="form-control form-control-sm" placeholder="Dataset 1 ID (e.g. 1)">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Secondary Dataset ID / Name</label>
+                                        <input type="text" id="compareDs2Input" class="form-control form-control-sm" placeholder="Dataset 2 ID (e.g. 2)">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TAB 3: Google Sheets URL Mode -->
+                            <div class="tab-pane fade" id="compareModeGSheetPane" role="tabpanel">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-success text-white rounded-pill px-2 py-1">GSheet 1</span>
+                                                <label class="form-label small fw-bold mb-0">Primary Google Sheet URL</label>
+                                            </div>
+                                            <input type="url" id="compareGSheet1Input" class="form-control form-control-sm" placeholder="https://docs.google.com/spreadsheets/d/...">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-info-circle me-1"></i>Ensure share setting is set to "Anyone with the link can view".</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-info text-dark rounded-pill px-2 py-1">GSheet 2</span>
+                                                <label class="form-label small fw-bold mb-0">Secondary Google Sheet URL</label>
+                                            </div>
+                                            <input type="url" id="compareGSheet2Input" class="form-control form-control-sm" placeholder="https://docs.google.com/spreadsheets/d/...">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-info-circle me-1"></i>Ensure share setting is set to "Anyone with the link can view".</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
                         <div id="compareDatasetsAlert" class="alert alert-danger p-2 small d-none mb-3"></div>
-                        <div class="text-end mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="small text-muted"><i class="bi bi-lightning-charge text-warning me-1"></i>Side-by-side schema, quality &amp; row comparison</span>
                             <button type="submit" class="btn btn-sm btn-primary dn-btn-primary" id="btnSubmitCompare"><i class="bi bi-arrow-left-right me-1"></i>Run Comparison</button>
                         </div>
                     </form>
+
+                    <!-- Results Section -->
                     <div id="compareResultsContainer" class="d-none border-top pt-3">
-                        <h6 class="fw-bold mb-2"><i class="bi bi-bar-chart-steps text-success me-1"></i>Comparison Results Summary</h6>
-                        <div class="table-responsive">
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <h6 class="fw-bold mb-0 text-success"><i class="bi bi-bar-chart-steps me-1"></i>Comparison Results</h6>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="compOverviewBadge">Comparison Ready</span>
+                        </div>
+                        <div class="table-responsive mb-3">
                             <table class="table dn-table align-middle text-center small mb-0">
                                 <thead>
                                     <tr>
-                                        <th>Metric</th>
-                                        <th id="compHeadDs1">Dataset 1</th>
-                                        <th id="compHeadDs2">Dataset 2</th>
+                                        <th class="text-start">Metric / Parameter</th>
+                                        <th id="compHeadDs1" class="text-primary fw-bold">Dataset 1</th>
+                                        <th id="compHeadDs2" class="text-info fw-bold">Dataset 2</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td class="fw-semibold text-start">Total Rows</td>
-                                        <td id="compRows1">0</td>
-                                        <td id="compRows2">0</td>
+                                        <td class="fw-semibold text-start"><i class="bi bi-list-ol me-1 text-secondary"></i>Total Rows</td>
+                                        <td id="compRows1" class="fw-bold">0</td>
+                                        <td id="compRows2" class="fw-bold">0</td>
                                     </tr>
                                     <tr>
-                                        <td class="fw-semibold text-start">Total Columns</td>
-                                        <td id="compCols1">0</td>
-                                        <td id="compCols2">0</td>
+                                        <td class="fw-semibold text-start"><i class="bi bi-layout-three-columns me-1 text-secondary"></i>Total Columns</td>
+                                        <td id="compCols1" class="fw-bold">0</td>
+                                        <td id="compCols2" class="fw-bold">0</td>
                                     </tr>
                                     <tr>
-                                        <td class="fw-semibold text-start">Missing Values</td>
+                                        <td class="fw-semibold text-start"><i class="bi bi-hdd me-1 text-secondary"></i>Memory Size</td>
+                                        <td id="compMem1">0 KB</td>
+                                        <td id="compMem2">0 KB</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-exclamation-circle me-1 text-warning"></i>Missing Data Points</td>
                                         <td id="compMiss1">0</td>
                                         <td id="compMiss2">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-copy me-1 text-secondary"></i>Duplicate Rows</td>
+                                        <td id="compDup1">0</td>
+                                        <td id="compDup2">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-shield-check me-1 text-success"></i>Data Quality Grade</td>
+                                        <td id="compGrade1"><span class="badge bg-primary-subtle text-primary border border-primary-subtle">A+ (100)</span></td>
+                                        <td id="compGrade2"><span class="badge bg-info-subtle text-info border border-info-subtle">A+ (100)</span></td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
-                        <div class="mt-2 text-muted small" id="compCommonColsText"></div>
+
+                        <!-- Column Breakdown Sections -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-12">
+                                <div class="p-2 border rounded-2 bg-body-tertiary">
+                                    <div class="small fw-semibold mb-1 text-success"><i class="bi bi-intersect me-1"></i>Common Overlapping Columns (<span id="compCommonCount">0</span>):</div>
+                                    <div id="compCommonPills" class="d-flex flex-wrap gap-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+                                    <div class="small fw-semibold mb-1 text-primary"><i class="bi bi-box-arrow-in-left me-1"></i>Only in <span id="compOnlyName1">Dataset 1</span> (<span id="compOnlyCount1">0</span>):</div>
+                                    <div id="compOnly1Pills" class="d-flex flex-wrap gap-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+                                    <div class="small fw-semibold mb-1 text-info"><i class="bi bi-box-arrow-in-right me-1"></i>Only in <span id="compOnlyName2">Dataset 2</span> (<span id="compOnlyCount2">0</span>):</div>
+                                    <div id="compOnly2Pills" class="d-flex flex-wrap gap-1"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schema / Data Types Compatibility Accordion -->
+                        <div class="border rounded-2 p-2" id="compSchemaSection">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small fw-bold"><i class="bi bi-table me-1"></i>Column Schema &amp; Data Types Comparison</span>
+                            </div>
+                            <div class="table-responsive" style="max-height: 180px; overflow-y: auto;">
+                                <table class="table table-sm dn-table small mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Column</th>
+                                            <th>Type (Dataset 1)</th>
+                                            <th>Type (Dataset 2)</th>
+                                            <th>Match Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="compSchemaTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -808,11 +1068,11 @@
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label small fw-semibold text-black">Email Address</label>
-                                    <input type="email" id="addMemberEmail" class="form-control" placeholder="rohan@example.com">
+                                    <input type="email" id="addMemberEmail" class="form-control" placeholder="rohan@example.com" autocomplete="username">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold text-black">Password</label>
-                                    <input type="password" id="addMemberPassword" class="form-control" placeholder="••••••••">
+                                    <input type="password" id="addMemberPassword" class="form-control" placeholder="••••••••" autocomplete="new-password">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold text-black">Team Role</label>
@@ -1304,9 +1564,244 @@
         </div>
     </div>
 
+    <!-- Modal: View All Generated Reports (Manager) -->
+    <div class="modal fade" id="managerViewReportsModal" tabindex="-1" aria-labelledby="managerViewReportsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content dn-panel p-3">
+                <div class="modal-header border-0 pb-2">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="managerViewReportsModalLabel">
+                            <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>All Generated Platform &amp; Executive Reports
+                        </h5>
+                        <small class="text-muted" id="managerReportsModalCount">Viewing all platform reports across team members and datasets.</small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-2">
+                    <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+                        <div class="input-group input-group-sm" style="max-width: 340px;">
+                            <span class="input-group-text bg-transparent"><i class="bi bi-search text-secondary"></i></span>
+                            <input type="text" id="managerReportsModalSearch" class="form-control" placeholder="Search reports by name, user, dataset..." onkeyup="filterManagerReportsTable()">
+                        </div>
+                        <select id="managerReportsModalTypeFilter" class="form-select form-select-sm" style="width: auto;" onchange="filterManagerReportsTable()">
+                            <option value="all">All Formats</option>
+                            <option value="HTML">HTML Reports</option>
+                            <option value="PDF">PDF Reports</option>
+                            <option value="DOCX">Word (DOCX)</option>
+                            <option value="XLSX">Excel (XLSX)</option>
+                            <option value="PPTX">PowerPoint (PPTX)</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle dn-table" id="managerReportsModalTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Report Name</th>
+                                    <th>Generated By</th>
+                                    <th>Dataset</th>
+                                    <th>Format</th>
+                                    <th>Generated At</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="managerReportsModalTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Loading reports...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Dataset Revenue Breakdown by Analysts -->
+    <div class="modal fade" id="datasetRevenueModal" tabindex="-1" aria-labelledby="datasetRevenueModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content dn-panel p-3">
+                <div class="modal-header border-0 pb-2">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="datasetRevenueModalLabel">
+                            <i class="bi bi-cash-coin text-primary me-2"></i>Analyst Datasets & Revenue Breakdown
+                        </h5>
+                        <small class="text-muted">Detailed view of datasets analyzed by analysts and individual dataset revenue generation.</small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-2">
+                    <!-- Top Summary Cards -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 border bg-body-tertiary">
+                                <div class="text-muted small fw-semibold">Total Datasets Analyzed</div>
+                                <div class="fs-4 fw-bold text-primary" id="modalStatTotalDatasets">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 border bg-body-tertiary">
+                                <div class="text-muted small fw-semibold">Contributing Analysts</div>
+                                <div class="fs-4 fw-bold text-info" id="modalStatTotalAnalysts">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3 border bg-body-tertiary">
+                                <div class="text-muted small fw-semibold">Combined Total Revenue</div>
+                                <div class="fs-4 fw-bold text-success" id="modalStatTotalRevenue">₹0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datasets Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle dn-table" id="datasetRevenueTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Dataset Name</th>
+                                    <th>Analyst / User</th>
+                                    <th>Dimensions</th>
+                                    <th>Revenue Column</th>
+                                    <th>Dataset Revenue</th>
+                                    <th>Uploaded At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="datasetRevenueTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Loading analyst dataset revenue breakdown...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/common.js') }}?v=2.4"></script>
     <script src="{{ url_for('static', filename='js/manager.js') }}?v=2.4"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const kpiCard = document.getElementById('kpiCardTotalRevenue');
+        const revenueModalEl = document.getElementById('datasetRevenueModal');
+        const dsSelect = document.getElementById('managerActiveDatasetSelect');
+
+        if (dsSelect) {
+            dsSelect.addEventListener('change', function () {
+                const dsId = this.value;
+                if (!dsId) return;
+                fetch(`/api/select_dataset/${dsId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.success) {
+                        if (window.showToast) window.showToast('✅ Active dataset switched successfully. Updating dashboard...', 'success');
+                        setTimeout(() => window.location.reload(), 250);
+                    } else {
+                        alert(res.message || 'Failed to switch dataset.');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error switching dataset:', err);
+                    alert('Server error switching dataset.');
+                });
+            });
+        }
+
+        if (kpiCard && revenueModalEl) {
+            kpiCard.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (window.bootstrap) {
+                    const bsModal = bootstrap.Modal.getOrCreateInstance(revenueModalEl);
+                    bsModal.show();
+                }
+            });
+        }
+
+        if (revenueModalEl) {
+            revenueModalEl.addEventListener('show.bs.modal', function () {
+                const tbody = document.getElementById('datasetRevenueTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Loading analyst dataset revenue breakdown...
+                            </td>
+                        </tr>`;
+                }
+                fetch('/api/manager/dataset_revenue_breakdown', { credentials: 'same-origin' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data || !data.success) {
+                            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-3 text-danger">Failed to load revenue breakdown.</td></tr>`;
+                            return;
+                        }
+                        document.getElementById('modalStatTotalDatasets').textContent = data.count || 0;
+                        document.getElementById('modalStatTotalAnalysts').textContent = data.analysts_count || 0;
+                        document.getElementById('modalStatTotalRevenue').textContent = data.total_revenue || '₹0';
+
+                        if (!data.datasets || data.datasets.length === 0) {
+                            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No datasets analyzed or uploaded yet.</td></tr>`;
+                            return;
+                        }
+
+                        let rowsHtml = '';
+                        data.datasets.forEach((ds, index) => {
+                            const revBadgeClass = ds.revenue_raw > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border';
+                            rowsHtml += `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-file-earmark-spreadsheet text-primary fs-5 me-2"></i>
+                                            <div>
+                                                <div class="fw-semibold">${ds.file_name}</div>
+                                                <small class="text-muted">Dataset #${ds.id}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">${ds.analyst_name}</div>
+                                        <small class="text-muted">${ds.analyst_email} (${ds.analyst_role})</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-body-tertiary text-dark border">${ds.row_count} rows x ${ds.column_count} cols</span>
+                                    </td>
+                                    <td>
+                                        <code class="text-primary">${ds.revenue_column}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge ${revBadgeClass} fs-6 px-2 py-1">${ds.revenue}</span>
+                                    </td>
+                                    <td><small class="text-muted">${ds.uploaded_at}</small></td>
+                                </tr>`;
+                        });
+                        if (tbody) tbody.innerHTML = rowsHtml;
+                    })
+                    .catch(err => {
+                        console.error('Error fetching revenue breakdown:', err);
+                        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-3 text-danger">Network error loading breakdown data.</td></tr>`;
+                    });
+            });
+        }
+    });
+    </script>
 </body>
 
 </html>

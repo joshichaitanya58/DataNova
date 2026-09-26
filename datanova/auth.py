@@ -1,14 +1,20 @@
+import os
+import secrets
+import urllib.parse
+import requests
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash, current_app
 import pymysql
 from . import bcrypt
 from database.db_connector import get_db_connection
 from functools import wraps
 
+
 bp = Blueprint('auth', __name__)
 
 # Allowed roles for validation
 ALLOWED_ROLES = ['admin', 'manager', 'analyst', 'viewer']
 PUBLIC_ROLES = ['admin', 'manager', 'analyst', 'viewer']
+
 
 
 def is_maintenance_active():
@@ -36,15 +42,12 @@ def create_user_account(first_name, last_name, email, password, role, organizati
     phone_clean = (phone or '').strip() or None
 
     if not all([first_name, last_name, email, password]):
-        current_app.logger.warning("[SIGNUP 400]: Missing one or more required fields.")
         return False, "All user fields (first_name, last_name, email, password) are required.", 400
 
     if '@' not in email or '.' not in email or len(email) < 5:
-        current_app.logger.warning(f"[SIGNUP 400]: Invalid email address '{email}'.")
         return False, "Please enter a valid email address.", 400
 
     if len(str(password)) < 6:
-        current_app.logger.warning("[SIGNUP 400]: Password shorter than 6 characters.")
         return False, "Password must be at least 6 characters long.", 400
 
     try:
@@ -54,13 +57,11 @@ def create_user_account(first_name, last_name, email, password, role, organizati
     if settings.get('enforce_strong_passwords', True):
         pwd = str(password)
         if len(pwd) < 8 or not any(c.isupper() for c in pwd) or not any(c.isdigit() for c in pwd):
-            current_app.logger.warning("[SIGNUP 400]: Password does not meet strong password requirements (min 8 chars, 1 uppercase, 1 digit).")
             return False, "Password must be at least 8 characters long and contain at least one uppercase letter and one number.", 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
     conn = get_db_connection()
     if not conn:
-        current_app.logger.error("[SIGNUP 500]: Database connection failed.")
         return False, "Database connection error.", 500
 
     try:
@@ -73,13 +74,10 @@ def create_user_account(first_name, last_name, email, password, role, organizati
                 (first_name, last_name, email, hashed_password, role_clean, org_clean, phone_clean)
             )
         conn.commit()
-        current_app.logger.info(f"[SIGNUP SUCCESS 200]: User '{email}' created with role '{role_clean}'.")
         return True, "Account created successfully.", 200
     except pymysql.IntegrityError:
-        current_app.logger.warning(f"[SIGNUP 400]: Email '{email}' already registered.")
-        return False, "An account with this email already exists. Please log in.", 400
+        return False, "An account with this email already exists.", 400
     except Exception as e:
-        current_app.logger.error(f"[SIGNUP 500]: DB Exception: {e}", exc_info=True)
         return False, f"An error occurred while creating the account: {e}", 500
     finally:
         conn.close()
@@ -187,7 +185,7 @@ def login():
         if user_db_role != role_lower:
             return jsonify({
                 'success': False,
-                'message': f"Role mismatch! Your registered account role is '{user['role'].capitalize()}', not '{role.capitalize()}'."
+                'message': 'Role mismatch! The selected role does not match this account.'
             }), 403
 
         # Maintenance Mode Check - Restrict platform access to Admins only
@@ -206,6 +204,7 @@ def login():
         session['last_name'] = user.get('last_name', '')
         session['organization'] = user.get('organization') or 'General'
         session['phone'] = user.get('phone') or ''
+        session.pop('active_dataset_id', None)
 
         # Role-based dashboard redirect URL
         if user_db_role == 'admin':
@@ -229,51 +228,43 @@ def login():
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        is_ajax = request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
-
         # Maintenance Mode & Public Registration Check for signup
         if is_maintenance_active():
-            msg = 'System is currently under maintenance. New account registration is temporarily paused.'
-            if is_ajax:
-                return jsonify({'success': False, 'message': msg}), 503
-            flash(msg, 'warning')
-            return render_template('signup.html'), 503
+            return jsonify({
+                'success': False,
+                'message': 'System is currently under maintenance. New account registration is temporarily paused.'
+            }), 503
 
         settings = current_app.config.get('SYSTEM_SETTINGS', {})
         if not settings.get('allow_user_registration', True):
-            msg = 'New user self-registration is currently disabled by administrator. Please contact your system administrator.'
-            if is_ajax:
-                return jsonify({'success': False, 'message': msg}), 403
-            flash(msg, 'danger')
-            return render_template('signup.html'), 403
+            return jsonify({
+                'success': False,
+                'message': 'New user self-registration is currently disabled by administrator. Please contact your system administrator.'
+            }), 403
 
-        if request.is_json:
-            data = request.get_json(silent=True) or {}
-        else:
-            data = request.form.to_dict() if request.form else {}
-
+        data = request.get_json()
         if not data:
-            msg = 'Invalid request format or empty submission.'
-            if is_ajax:
-                return jsonify({'success': False, 'message': msg}), 400
-            flash(msg, 'danger')
-            return render_template('signup.html'), 400
+            return jsonify({'success': False, 'message': 'Invalid request format.'}), 400
 
-        first_name = data.get('first_name', '')
-        last_name = data.get('last_name', '')
-        email = data.get('email', '')
-        password = data.get('password', '')
-        organization = data.get('organization', '')
-        phone = data.get('phone', '')
-
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        email = data.get('email')
+        password = data.get('password')
+        organization = data.get('organization')
+        phone = data.get('phone')
+        
         # Respect configured Default Role on Signup from SYSTEM_SETTINGS if default is requested
+        settings = current_app.config.get('SYSTEM_SETTINGS', {})
         default_signup_role = settings.get('default_role', 'viewer').lower().strip()
         requested_role = data.get('role', '').lower().strip()
         role = requested_role if requested_role else default_signup_role
 
-        # Public signup is restricted to ALLOWED_ROLES
-        if role not in ALLOWED_ROLES:
-            role = default_signup_role
+        # Public signup is restricted to PUBLIC_ROLES (analyst, viewer, manager, admin if allowed)
+        if role not in PUBLIC_ROLES and role != default_signup_role:
+            return jsonify({
+                'success': False,
+                'message': 'Public registration is restricted to Analyst and Viewer roles only.'
+            }), 400
 
         success, msg, status_code = create_user_account(
             first_name=first_name,
@@ -283,23 +274,17 @@ def signup():
             role=role,
             organization=organization,
             phone=phone,
-            allowed_roles=ALLOWED_ROLES
+            allowed_roles=PUBLIC_ROLES
         )
 
         if success:
-            if is_ajax:
-                return jsonify({
-                    'success': True,
-                    'message': 'Account created successfully! Redirecting to login...',
-                    'redirect_url': url_for('auth.login')
-                })
-            flash('Account created successfully! Please log in.', 'success')
-            return redirect(url_for('auth.login'))
+            return jsonify({
+                'success': True,
+                'message': 'Account created! Redirecting to login...',
+                'redirect_url': url_for('auth.login')
+            })
         else:
-            if is_ajax:
-                return jsonify({'success': False, 'message': msg}), status_code
-            flash(msg, 'danger')
-            return render_template('signup.html'), status_code
+            return jsonify({'success': False, 'message': msg}), status_code
 
     return render_template('signup.html')
 
@@ -386,4 +371,218 @@ def forgot_password():
             conn.close()
 
     return render_template('forgot_password.html')
-
+
+
+@bp.route('/google')
+@bp.route('/auth/google')
+def google_login():
+    """
+    Initiates Google OAuth 2.0 flow. Accepts an optional `role` parameter.
+    """
+    client_id = os.getenv('GOOGLE_CLIENT_ID', '').strip()
+    client_secret = os.getenv('GOOGLE_CLIENT_SECRET', '').strip()
+
+    if not client_id or not client_secret or client_id == 'your_google_client_id_here':
+        flash('Google Login credentials (GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET) are not configured in your .env file.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    role = request.args.get('role', '').lower().strip()
+    if role not in ALLOWED_ROLES:
+        settings = current_app.config.get('SYSTEM_SETTINGS', {})
+        role = settings.get('default_role', 'analyst').lower().strip()
+        if role not in ALLOWED_ROLES:
+            role = 'analyst'
+
+    session['google_oauth_role'] = role
+    state = secrets.token_urlsafe(16)
+    session['google_oauth_state'] = state
+
+    redirect_uri = os.getenv('GOOGLE_REDIRECT_URI', '').strip()
+    if not redirect_uri:
+        redirect_uri = url_for('auth.google_callback', _external=True)
+
+    params = {
+        'client_id': client_id,
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'state': state,
+        'prompt': 'select_account'
+    }
+
+    google_auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' + urllib.parse.urlencode(params)
+    return redirect(google_auth_url)
+
+
+@bp.route('/google/callback')
+@bp.route('/auth/google/callback')
+def google_callback():
+
+    """
+    Handles callback from Google OAuth 2.0 server.
+    Exchanges authorization code for access token, fetches profile, and authenticates the user.
+    """
+    client_id = os.getenv('GOOGLE_CLIENT_ID', '').strip()
+    client_secret = os.getenv('GOOGLE_CLIENT_SECRET', '').strip()
+
+    error = request.args.get('error')
+    if error:
+        flash(f'Google Sign-in was cancelled or failed: {error}', 'warning')
+        return redirect(url_for('auth.login'))
+
+    code = request.args.get('code')
+    state = request.args.get('state')
+    saved_state = session.pop('google_oauth_state', None)
+
+    if not code:
+        flash('Authorization code missing from Google response.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    if saved_state and state != saved_state:
+        flash('Invalid OAuth state parameter. Security verification failed.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    redirect_uri = os.getenv('GOOGLE_REDIRECT_URI', '').strip()
+    if not redirect_uri:
+        redirect_uri = url_for('auth.google_callback', _external=True)
+
+    # 1. Exchange authorization code for access token
+    token_url = 'https://oauth2.googleapis.com/token'
+    token_data = {
+        'code': code,
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'redirect_uri': redirect_uri,
+        'grant_type': 'authorization_code'
+    }
+
+    try:
+        token_resp = requests.post(token_url, data=token_data, timeout=10)
+        token_json = token_resp.json()
+
+        if token_resp.status_code != 200 or 'access_token' not in token_json:
+            error_msg = token_json.get('error_description') or token_json.get('error') or 'Failed to exchange authorization code for token.'
+            flash(f'Google OAuth Token Error: {error_msg}', 'danger')
+            return redirect(url_for('auth.login'))
+
+        access_token = token_json['access_token']
+
+        # 2. Fetch User Profile Info from Google
+        userinfo_url = 'https://www.googleapis.com/oauth2/v3/userinfo'
+        userinfo_resp = requests.get(userinfo_url, headers={'Authorization': f'Bearer {access_token}'}, timeout=10)
+
+        if userinfo_resp.status_code != 200:
+            flash('Failed to retrieve user profile from Google.', 'danger')
+            return redirect(url_for('auth.login'))
+
+        google_user = userinfo_resp.json()
+        email = google_user.get('email', '').strip()
+        first_name = google_user.get('given_name') or google_user.get('name') or email.split('@')[0]
+        last_name = google_user.get('family_name') or ''
+
+        if not email:
+            flash('Google account did not return a valid email address.', 'danger')
+            return redirect(url_for('auth.login'))
+
+        conn = get_db_connection()
+        if not conn:
+            flash('Database connection error. Please try again later.', 'danger')
+            return redirect(url_for('auth.login'))
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+                user = cursor.fetchone()
+
+                if user:
+                    # Existing user account found
+                    user_status = (user.get('status') or 'active').lower()
+                    if user_status == 'inactive':
+                        flash('Your account has been deactivated. Please contact your administrator.', 'danger')
+                        return redirect(url_for('auth.login'))
+
+                    user_role = user['role'].lower()
+                    if is_maintenance_active() and user_role != 'admin':
+                        flash('System is currently under maintenance. Access restricted to Admins only.', 'warning')
+                        return redirect(url_for('auth.login'))
+
+                    # Log in existing user
+                    session['loggedin'] = True
+                    session['id'] = user['id']
+                    session['email'] = user['email']
+                    session['role'] = user_role
+                    session['first_name'] = user.get('first_name', first_name)
+                    session['last_name'] = user.get('last_name', last_name)
+                    session['organization'] = user.get('organization') or 'Google Auth'
+                    session['phone'] = user.get('phone') or ''
+                    session.pop('active_dataset_id', None)
+
+                    flash(f"Welcome back, {session['first_name']}! Signed in with Google.", 'success')
+
+                    if user_role == 'admin':
+                        return redirect(url_for('dashboards.admin_dashboard'))
+                    elif user_role == 'manager':
+                        return redirect(url_for('dashboards.manager_dashboard'))
+                    elif user_role == 'analyst':
+                        return redirect(url_for('dashboards.analyst_dashboard'))
+                    else:
+                        return redirect(url_for('dashboards.viewer_dashboard'))
+
+                else:
+                    # User does not exist, auto-register new Google user account
+                    if is_maintenance_active():
+                        flash('System is currently under maintenance. New user registration is temporarily paused.', 'warning')
+                        return redirect(url_for('auth.login'))
+
+                    settings = current_app.config.get('SYSTEM_SETTINGS', {})
+                    if not settings.get('allow_user_registration', True):
+                        flash('New user self-registration is currently disabled by administrator.', 'warning')
+                        return redirect(url_for('auth.login'))
+
+                    requested_role = session.pop('google_oauth_role', 'analyst')
+                    role = requested_role if requested_role in PUBLIC_ROLES else 'analyst'
+
+                    # Generate random dummy password for google user
+                    random_password = secrets.token_hex(16)
+                    hashed_password = bcrypt.generate_password_hash(random_password).decode('utf-8')
+
+                    cursor.execute(
+                        """
+                        INSERT INTO users (first_name, last_name, email, password, role, organization)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (first_name, last_name, email, hashed_password, role, 'Google Auth')
+                    )
+                    conn.commit()
+                    new_user_id = cursor.lastrowid
+
+                    session['loggedin'] = True
+                    session['id'] = new_user_id
+                    session['email'] = email
+                    session['role'] = role
+                    session['first_name'] = first_name
+                    session['last_name'] = last_name
+                    session['organization'] = 'Google Auth'
+                    session['phone'] = ''
+                    session.pop('active_dataset_id', None)
+
+                    flash(f"Account created successfully! Welcome to DataNova, {first_name}.", 'success')
+
+                    if role == 'admin':
+                        return redirect(url_for('dashboards.admin_dashboard'))
+                    elif role == 'manager':
+                        return redirect(url_for('dashboards.manager_dashboard'))
+                    elif role == 'analyst':
+                        return redirect(url_for('dashboards.analyst_dashboard'))
+                    else:
+                        return redirect(url_for('dashboards.viewer_dashboard'))
+
+        finally:
+            conn.close()
+
+    except Exception as e:
+        current_app.logger.error(f"Google OAuth Exception: {e}")
+        flash(f"An error occurred during Google Sign-in: {e}", 'danger')
+        return redirect(url_for('auth.login'))
+
+

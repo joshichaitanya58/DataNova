@@ -32,7 +32,7 @@ def numeric_statistics(series):
     median_val = float(numeric_series.median())
 
     # Coefficient of Variation (CV) & Mean Absolute Deviation (MAD)
-    cv_val = round((std_val / abs(mean_val)) * 100, 2) if mean_val != 0 else 0.0
+    cv_val = round((std_val / abs(mean_val)), 4) if mean_val != 0 else 0.0
     mad_val = round(float((numeric_series - mean_val).abs().mean()), 4)
     val_range = round(max_val - min_val, 4)
 

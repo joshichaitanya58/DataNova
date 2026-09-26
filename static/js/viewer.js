@@ -123,8 +123,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (reportModalInstance) reportModalInstance.show();
     }
 
-    // --- Dynamic Search & Filter for Reports ---
-    const searchInput = document.getElementById('viewerReportSearchInput') || document.getElementById('viewerGlobalSearch');
+    // --- Dynamic Search & Filter for Reports Table ---
+    const searchInput = document.getElementById('viewerReportSearchInput');
     const formatFilter = document.getElementById('viewerReportFormatFilter');
     const resetBtn = document.getElementById('resetReportFilterBtn');
 
@@ -674,254 +674,49 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function openViewerSharedDetail(sharedId) {
+    const _viewerSharedDetailCache = new Map();
+
+    function openViewerSharedDetail(sharedId, forceReload = false) {
         if (!sharedDetailModalInstance && sharedDetailModalEl) {
             sharedDetailModalInstance = new bootstrap.Modal(sharedDetailModalEl);
         }
+
+        const cacheKey = 'dn_shared_dash_' + sharedId;
+
+        // 1. In-memory cache
+        if (!forceReload && _viewerSharedDetailCache.has(sharedId)) {
+            renderViewerSharedDetailData(_viewerSharedDetailCache.get(sharedId));
+            if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+            return;
+        }
+
+        // 2. SessionStorage cache
+        if (!forceReload) {
+            try {
+                const sessionCached = sessionStorage.getItem(cacheKey);
+                if (sessionCached) {
+                    const parsed = JSON.parse(sessionCached);
+                    if (parsed && parsed.success && parsed.dashboard) {
+                        _viewerSharedDetailCache.set(sharedId, parsed.dashboard);
+                        renderViewerSharedDetailData(parsed.dashboard);
+                        if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        if (sharedDetailModalInstance) sharedDetailModalInstance.show();
 
         fetch(`/api/shared_dashboard/view/${sharedId}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.dashboard) {
-                    const sd = data.dashboard;
-
-                    const titleEl = document.getElementById('sharedDetailTitle');
-                    const metaEl = document.getElementById('sharedDetailMeta');
-                    const statusBadge = document.getElementById('sharedDetailStatusBadge');
-                    const domainBadge = document.getElementById('sharedDetailDomainBadge');
-                    const descContainer = document.getElementById('sharedDetailDescContainer');
-                    const descText = document.getElementById('sharedDetailDescText');
-                    const remarkBanner = document.getElementById('sharedDetailRemarkBanner');
-                    const remarkText = document.getElementById('sharedDetailRemarkText');
-                    const fileText = document.getElementById('sharedDetailDatasetFile');
-
-                    if (titleEl) titleEl.textContent = sd.title;
-                    if (metaEl) metaEl.textContent = `Shared by ${sd.owner_name} (${sd.owner_role}) • ${sd.created_at_str}`;
-                    if (fileText) fileText.textContent = `Dataset: ${sd.dataset_name}`;
-                    if (domainBadge) domainBadge.textContent = sd.business_domain || 'General Analytics';
-
-                    if (statusBadge) {
-                        statusBadge.textContent = sd.status;
-                        statusBadge.className = 'badge ' + (sd.status === 'Approved' ? 'bg-success' : sd.status === 'Reopened' ? 'bg-warning text-dark' : 'bg-primary');
-                    }
-
-                    // Populate Recipients list in modal
-                    const recListEl = document.getElementById('sharedDetailRecipientsList');
-                    if (recListEl) {
-                        if (sd.shared_with_users && sd.shared_with_users.length > 0) {
-                            recListEl.innerHTML = sd.shared_with_users.map(u => `
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                    <i class="bi bi-person-fill me-1"></i>${escapeHtml(u.name)} <small class="opacity-75">(${escapeHtml(u.role || 'User')})</small>
-                                </span>
-                            `).join('');
-                        } else {
-                            recListEl.innerHTML = '<span class="badge bg-secondary-subtle text-secondary">All Team Members</span>';
-                        }
-                    }
-
-                    if (descContainer && descText) {
-                        if (sd.description) {
-                            descContainer.style.display = 'flex';
-                            descText.textContent = sd.description;
-                        } else {
-                            descContainer.style.display = 'none';
-                        }
-                    }
-
-                    if (remarkBanner && remarkText) {
-                        if (sd.remark) {
-                            remarkBanner.style.display = 'flex';
-                            remarkText.textContent = sd.remark;
-                        } else {
-                            remarkBanner.style.display = 'none';
-                        }
-                    }
-
-                    // 1. KPIs & Overview
-                    const rEl = document.getElementById('sdKpiRows');
-                    const cEl = document.getElementById('sdKpiCols');
-                    const mEl = document.getElementById('sdKpiMemory');
-                    const qEl = document.getElementById('sdKpiQuality');
-                    const miEl = document.getElementById('sdKpiMissing');
-                    const dEl = document.getElementById('sdKpiDuplicates');
-
-                    if (rEl) rEl.textContent = Number(sd.row_count || 0).toLocaleString();
-                    if (cEl) cEl.textContent = Number(sd.column_count || 0).toLocaleString();
-                    if (mEl) mEl.textContent = sd.memory_usage || '0 KB';
-                    if (qEl) qEl.textContent = `${sd.quality_score || 100}% (${sd.quality_grade || 'A+'})`;
-                    if (miEl) miEl.textContent = Number(sd.missing_count || 0).toLocaleString();
-                    if (dEl) dEl.textContent = Number(sd.duplicate_count || 0).toLocaleString();
-
-                    const execSumEl = document.getElementById('sdExecSummaryText');
-                    if (execSumEl) {
-                        execSumEl.textContent = sd.ai_explanation?.executive_summary || 'Comprehensive end-to-end analytics pipeline executed across all dataset attributes.';
-                    }
-
-                    const hlListEl = document.getElementById('sdQuickHighlightsList');
-                    if (hlListEl) {
-                        const hl = [];
-                        hl.push(`<strong>Data Scale:</strong> Verified <strong>${Number(sd.row_count || 0).toLocaleString()} rows</strong> across <strong>${sd.column_count || 0} features</strong> in domain <em>${escapeHtml(sd.business_domain || 'General')}</em>.`);
-                        hl.push(`<strong>Data Hygiene:</strong> Quality grade <strong>${sd.quality_grade || 'A+'}</strong> (${sd.quality_score || 100}/100) with <strong>${sd.duplicates_removed || 0} duplicates removed</strong>.`);
-                        if (sd.imputation_details && sd.imputation_details.length > 0) {
-                            hl.push(`<strong>Imputation:</strong> Successfully resolved null values across <strong>${sd.imputation_details.length} columns</strong>.`);
-                        }
-                        if (sd.dropped_columns && sd.dropped_columns.length > 0) {
-                            hl.push(`<strong>Feature Optimization:</strong> Isolated <strong>${sd.dropped_columns.length} low-variance / redundant columns</strong>.`);
-                        }
-                        hlListEl.innerHTML = hl.map(x => `<li class="mb-1">${x}</li>`).join('');
-                    }
-
-                    // 2. Charts Showcase & Correlations
-                    const topCorrsSection = document.getElementById('sdTopCorrsSection');
-                    const posList = document.getElementById('sdTopPositiveList');
-                    const negList = document.getElementById('sdTopNegativeList');
-                    if (topCorrsSection && posList && negList) {
-                        const hasPos = sd.top_positive_corrs && sd.top_positive_corrs.length > 0;
-                        const hasNeg = sd.top_negative_corrs && sd.top_negative_corrs.length > 0;
-                        if (hasPos || hasNeg) {
-                            posList.innerHTML = (sd.top_positive_corrs || []).map(p => `
-                                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
-                                    <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">+${Number(p.correlation).toFixed(2)}</span>
-                                </li>
-                            `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong positive pairs</li>';
-
-                            negList.innerHTML = (sd.top_negative_corrs || []).map(p => `
-                                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
-                                    <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">${Number(p.correlation).toFixed(2)}</span>
-                                </li>
-                            `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong negative pairs</li>';
-                            topCorrsSection.style.display = 'block';
-                        } else {
-                            topCorrsSection.style.display = 'none';
-                        }
-                    }
-
-                    const chartsGrid = document.getElementById('sdChartsGridContainer');
-                    if (chartsGrid) {
-                        if (sd.charts_showcase && sd.charts_showcase.length > 0) {
-                            chartsGrid.innerHTML = sd.charts_showcase.map(c => `
-                                <div class="col-md-6">
-                                    <div class="border rounded p-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
-                                        <div>
-                                            <h6 class="fw-bold mb-1 text-primary">${escapeHtml(c.title || 'Analytical Visualization')}</h6>
-                                            <p class="small text-muted mb-2">${escapeHtml(c.description || '')}</p>
-                                        </div>
-                                        <div class="text-center my-auto">
-                                            <img src="data:image/png;base64,${c.plot}" alt="${escapeHtml(c.title || 'Chart')}" class="img-fluid rounded border bg-white shadow-sm" style="max-height: 280px; width: 100%; object-fit: contain;">
-                                        </div>
-                                    </div>
-                                </div>
-                            `).join('');
-                        } else {
-                            chartsGrid.innerHTML = '<div class="col-12"><div class="alert alert-info small mb-0">Visualizations are being rendered for this dataset.</div></div>';
-                        }
-                    }
-
-                    // 3. Cleaning Audit Trail
-                    const droppedTbody = document.getElementById('sdDroppedColsTbody');
-                    if (droppedTbody) {
-                        if (sd.dropped_columns && sd.dropped_columns.length > 0) {
-                            droppedTbody.innerHTML = sd.dropped_columns.map(dc => `
-                                <tr>
-                                    <td class="fw-semibold text-danger">${escapeHtml(dc.column)}</td>
-                                    <td><span class="badge bg-secondary-subtle text-secondary">${escapeHtml(dc.type)}</span></td>
-                                    <td class="small text-muted">${escapeHtml(dc.reason)}</td>
-                                    <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">${escapeHtml(dc.status)}</span></td>
-                                </tr>
-                            `).join('');
-                        } else {
-                            droppedTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted small py-3"><i class="bi bi-check-circle-fill text-success me-1"></i> No columns were dropped. All features were retained.</td></tr>';
-                        }
-                    }
-
-                    const impTbody = document.getElementById('sdImputationTbody');
-                    if (impTbody) {
-                        if (sd.imputation_details && sd.imputation_details.length > 0) {
-                            impTbody.innerHTML = sd.imputation_details.map(imp => `
-                                <tr>
-                                    <td class="fw-semibold text-primary">${escapeHtml(imp.column)}</td>
-                                    <td class="text-danger fw-bold">${Number(imp.missing_count || 0).toLocaleString()}</td>
-                                    <td><span class="badge bg-warning-subtle text-warning-emphasis">${imp.missing_percentage}%</span></td>
-                                    <td class="small">${escapeHtml(imp.strategy)}</td>
-                                    <td class="small fw-semibold text-dark">${escapeHtml(imp.replacement_value)}</td>
-                                    <td><span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check2 me-1"></i>${escapeHtml(imp.status)}</span></td>
-                                </tr>
-                            `).join('');
-                        } else {
-                            impTbody.innerHTML = '<tr><td colspan="6" class="text-center text-success small py-3"><i class="bi bi-check-circle-fill me-1"></i> 0 missing values detected in dataset. No imputation needed.</td></tr>';
-                        }
-                    }
-
-                    // 4. AI Insights & Strategic Recommendations
-                    const findingsEl = document.getElementById('sdAiFindingsList');
-                    if (findingsEl) {
-                        const findings = sd.ai_explanation?.key_findings || sd.ai_explanation?.patterns || [];
-                        if (findings.length > 0) {
-                            findingsEl.innerHTML = `<ul class="mb-0 ps-3">${findings.map(f => `<li class="mb-1">${escapeHtml(f)}</li>`).join('')}</ul>`;
-                        } else {
-                            findingsEl.innerHTML = '<span class="text-muted">Dataset features demonstrate high integrity with consistent distributions across categories.</span>';
-                        }
-                    }
-
-                    const recEl = document.getElementById('sdAiRecommendationsList');
-                    if (recEl) {
-                        const recs = sd.ai_explanation?.recommendations || [];
-                        if (recs.length > 0) {
-                            recEl.innerHTML = `<ul class="mb-0 ps-3">${recs.map(r => `<li class="mb-1">${escapeHtml(r)}</li>`).join('')}</ul>`;
-                        } else {
-                            recEl.innerHTML = '<span class="text-muted">Maintain current operational tracking and monitor high-volume categorical segments.</span>';
-                        }
-                    }
-
-                    // 5. Dataset Q&A / FAQs (5+)
-                    const qaAccordion = document.getElementById('sdQaAccordion');
-                    if (qaAccordion) {
-                        if (sd.dataset_qa && sd.dataset_qa.length > 0) {
-                            qaAccordion.innerHTML = sd.dataset_qa.map((qa, idx) => `
-                                <div class="accordion-item mb-2 border rounded overflow-hidden shadow-sm">
-                                    <h2 class="accordion-header" id="vwSdQaHead${idx}">
-                                        <button class="accordion-button ${idx === 0 ? '' : 'collapsed'} py-2 px-3 fw-semibold small bg-body-tertiary" type="button" data-bs-toggle="collapse" data-bs-target="#vwSdQaCollapse${idx}" aria-expanded="${idx === 0 ? 'true' : 'false'}" aria-controls="vwSdQaCollapse${idx}">
-                                            <i class="bi ${qa.icon || 'bi-patch-question-fill'} text-primary me-2"></i>
-                                            <span class="badge bg-secondary-subtle text-secondary me-2 extra-small">${escapeHtml(qa.category || 'Analysis')}</span>
-                                            <span>${escapeHtml(qa.question)}</span>
-                                        </button>
-                                    </h2>
-                                    <div id="vwSdQaCollapse${idx}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}" aria-labelledby="vwSdQaHead${idx}" data-bs-parent="#sdQaAccordion">
-                                        <div class="accordion-body small bg-white text-secondary py-3 px-3 border-top" style="line-height: 1.6;">
-                                            ${qa.answer}
-                                        </div>
-                                    </div>
-                                </div>
-                            `).join('');
-                        } else {
-                            qaAccordion.innerHTML = '<div class="alert alert-info small mb-0">Dataset Q&A analysis available.</div>';
-                        }
-                    }
-
-                    // 6. Preview Table
-                    const prevContainer = document.getElementById('sharedDetailPreviewContainer');
-                    if (prevContainer) {
-                        prevContainer.innerHTML = sd.preview_html || '<div class="p-3 text-muted">No preview table available.</div>';
-                    }
-
-                    // 7. Python Pipeline Code (Read-Only)
-                    const codeContainer = document.getElementById('sdPipelineCodeContainer');
-                    if (codeContainer) {
-                        codeContainer.textContent = sd.pipeline_code || '# Auto-generated pipeline code is available for this shared dataset.';
-                    }
-
-                    // Reset to overview tab
-                    const overviewTabBtn = document.getElementById('tab-sd-overview-btn');
-                    if (overviewTabBtn) {
-                        const tabTrigger = new bootstrap.Tab(overviewTabBtn);
-                        tabTrigger.show();
-                    }
-
-                    if (sharedDetailModalInstance) {
-                        sharedDetailModalInstance.show();
-                    }
+                    _viewerSharedDetailCache.set(sharedId, data.dashboard);
+                    try {
+                        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                    } catch (e) {}
+                    renderViewerSharedDetailData(data.dashboard);
                 } else {
                     showToast(data.message || 'Could not load shared dashboard.', 'danger');
                 }
@@ -930,6 +725,246 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error('Error fetching dashboard details:', err);
                 showToast('Error loading shared dashboard details.', 'danger');
             });
+    }
+
+    function renderViewerSharedDetailData(sd) {
+        const titleEl = document.getElementById('sharedDetailTitle');
+        const metaEl = document.getElementById('sharedDetailMeta');
+        const statusBadge = document.getElementById('sharedDetailStatusBadge');
+        const domainBadge = document.getElementById('sharedDetailDomainBadge');
+        const descContainer = document.getElementById('sharedDetailDescContainer');
+        const descText = document.getElementById('sharedDetailDescText');
+        const remarkBanner = document.getElementById('sharedDetailRemarkBanner');
+        const remarkText = document.getElementById('sharedDetailRemarkText');
+        const fileText = document.getElementById('sharedDetailDatasetFile');
+
+        if (titleEl) titleEl.textContent = sd.title;
+        if (metaEl) metaEl.textContent = `Shared by ${sd.owner_name} (${sd.owner_role}) • ${sd.created_at_str}`;
+        if (fileText) fileText.textContent = `Dataset: ${sd.dataset_name}`;
+        if (domainBadge) domainBadge.textContent = sd.business_domain || 'General Analytics';
+
+        if (statusBadge) {
+            statusBadge.textContent = sd.status;
+            statusBadge.className = 'badge ' + (sd.status === 'Approved' ? 'bg-success' : sd.status === 'Reopened' ? 'bg-warning text-dark' : 'bg-primary');
+        }
+
+        // Populate Recipients list in modal
+        const recListEl = document.getElementById('sharedDetailRecipientsList');
+        if (recListEl) {
+            if (sd.shared_with_users && sd.shared_with_users.length > 0) {
+                recListEl.innerHTML = sd.shared_with_users.map(u => `
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                        <i class="bi bi-person-fill me-1"></i>${escapeHtml(u.name)} <small class="opacity-75">(${escapeHtml(u.role || 'User')})</small>
+                    </span>
+                `).join('');
+            } else {
+                recListEl.innerHTML = '<span class="badge bg-secondary-subtle text-secondary">All Team Members</span>';
+            }
+        }
+
+        if (descContainer && descText) {
+            if (sd.description) {
+                descContainer.style.display = 'flex';
+                descText.textContent = sd.description;
+            } else {
+                descContainer.style.display = 'none';
+            }
+        }
+
+        if (remarkBanner && remarkText) {
+            if (sd.remark) {
+                remarkBanner.style.display = 'flex';
+                remarkText.textContent = sd.remark;
+            } else {
+                remarkBanner.style.display = 'none';
+            }
+        }
+
+        // 1. KPIs & Overview
+        const rEl = document.getElementById('sdKpiRows');
+        const cEl = document.getElementById('sdKpiCols');
+        const mEl = document.getElementById('sdKpiMemory');
+        const qEl = document.getElementById('sdKpiQuality');
+        const miEl = document.getElementById('sdKpiMissing');
+        const dEl = document.getElementById('sdKpiDuplicates');
+
+        if (rEl) rEl.textContent = Number(sd.row_count || 0).toLocaleString();
+        if (cEl) cEl.textContent = Number(sd.column_count || 0).toLocaleString();
+        if (mEl) mEl.textContent = sd.memory_usage || '0 KB';
+        if (qEl) qEl.textContent = `${sd.quality_score || 100}% (${sd.quality_grade || 'A+'})`;
+        if (miEl) miEl.textContent = Number(sd.missing_count || 0).toLocaleString();
+        if (dEl) dEl.textContent = Number(sd.duplicate_count || 0).toLocaleString();
+
+        const execSumEl = document.getElementById('sdExecSummaryText');
+        if (execSumEl) {
+            execSumEl.textContent = sd.ai_explanation?.executive_summary || 'Comprehensive end-to-end analytics pipeline executed across all dataset attributes.';
+        }
+
+        const hlListEl = document.getElementById('sdQuickHighlightsList');
+        if (hlListEl) {
+            const hl = [];
+            hl.push(`<strong>Data Scale:</strong> Verified <strong>${Number(sd.row_count || 0).toLocaleString()} rows</strong> across <strong>${sd.column_count || 0} features</strong> in domain <em>${escapeHtml(sd.business_domain || 'General')}</em>.`);
+            hl.push(`<strong>Data Hygiene:</strong> Quality grade <strong>${sd.quality_grade || 'A+'}</strong> (${sd.quality_score || 100}/100) with <strong>${sd.duplicates_removed || 0} duplicates removed</strong>.`);
+            if (sd.imputation_details && sd.imputation_details.length > 0) {
+                hl.push(`<strong>Imputation:</strong> Successfully resolved null values across <strong>${sd.imputation_details.length} columns</strong>.`);
+            }
+            if (sd.dropped_columns && sd.dropped_columns.length > 0) {
+                hl.push(`<strong>Feature Optimization:</strong> Isolated <strong>${sd.dropped_columns.length} low-variance / redundant columns</strong>.`);
+            }
+            hlListEl.innerHTML = hl.map(x => `<li class="mb-1">${x}</li>`).join('');
+        }
+
+        // 2. Charts Showcase & Correlations
+        const topCorrsSection = document.getElementById('sdTopCorrsSection');
+        const posList = document.getElementById('sdTopPositiveList');
+        const negList = document.getElementById('sdTopNegativeList');
+        if (topCorrsSection && posList && negList) {
+            const hasPos = sd.top_positive_corrs && sd.top_positive_corrs.length > 0;
+            const hasNeg = sd.top_negative_corrs && sd.top_negative_corrs.length > 0;
+            if (hasPos || hasNeg) {
+                posList.innerHTML = (sd.top_positive_corrs || []).map(p => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
+                        <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">+${Number(p.correlation).toFixed(2)}</span>
+                    </li>
+                `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong positive pairs</li>';
+
+                negList.innerHTML = (sd.top_negative_corrs || []).map(p => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
+                        <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">${Number(p.correlation).toFixed(2)}</span>
+                    </li>
+                `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong negative pairs</li>';
+                topCorrsSection.style.display = 'block';
+            } else {
+                topCorrsSection.style.display = 'none';
+            }
+        }
+
+        const chartsGrid = document.getElementById('sdChartsGridContainer');
+        if (chartsGrid) {
+            if (sd.charts_showcase && sd.charts_showcase.length > 0) {
+                chartsGrid.innerHTML = sd.charts_showcase.map(c => `
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <h6 class="fw-bold mb-1 text-primary">${escapeHtml(c.title || 'Analytical Visualization')}</h6>
+                                <p class="small text-muted mb-2">${escapeHtml(c.description || '')}</p>
+                            </div>
+                            <div class="text-center my-auto">
+                                <img src="data:image/png;base64,${c.plot}" alt="${escapeHtml(c.title || 'Chart')}" class="img-fluid rounded border bg-white shadow-sm" style="max-height: 280px; width: 100%; object-fit: contain;">
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                chartsGrid.innerHTML = '<div class="col-12"><div class="alert alert-info small mb-0">Visualizations are being rendered for this dataset.</div></div>';
+            }
+        }
+
+        // 3. Cleaning Audit Trail
+        const droppedTbody = document.getElementById('sdDroppedColsTbody');
+        if (droppedTbody) {
+            if (sd.dropped_columns && sd.dropped_columns.length > 0) {
+                droppedTbody.innerHTML = sd.dropped_columns.map(dc => `
+                    <tr>
+                        <td class="fw-semibold text-danger">${escapeHtml(dc.column)}</td>
+                        <td><span class="badge bg-secondary-subtle text-secondary">${escapeHtml(dc.type)}</span></td>
+                        <td class="small text-muted">${escapeHtml(dc.reason)}</td>
+                        <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">${escapeHtml(dc.status)}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                droppedTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted small py-3"><i class="bi bi-check-circle-fill text-success me-1"></i> No columns were dropped. All features were retained.</td></tr>';
+            }
+        }
+
+        const impTbody = document.getElementById('sdImputationTbody');
+        if (impTbody) {
+            if (sd.imputation_details && sd.imputation_details.length > 0) {
+                impTbody.innerHTML = sd.imputation_details.map(imp => `
+                    <tr>
+                        <td class="fw-semibold text-primary">${escapeHtml(imp.column)}</td>
+                        <td class="text-danger fw-bold">${Number(imp.missing_count || 0).toLocaleString()}</td>
+                        <td><span class="badge bg-warning-subtle text-warning-emphasis">${imp.missing_percentage}%</span></td>
+                        <td class="small">${escapeHtml(imp.strategy)}</td>
+                        <td class="small fw-semibold text-dark">${escapeHtml(imp.replacement_value)}</td>
+                        <td><span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check2 me-1"></i>${escapeHtml(imp.status)}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                impTbody.innerHTML = '<tr><td colspan="6" class="text-center text-success small py-3"><i class="bi bi-check-circle-fill me-1"></i> 0 missing values detected in dataset. No imputation needed.</td></tr>';
+            }
+        }
+
+        // 4. AI Insights & Strategic Recommendations
+        const findingsEl = document.getElementById('sdAiFindingsList');
+        if (findingsEl) {
+            const findings = sd.ai_explanation?.key_findings || sd.ai_explanation?.patterns || [];
+            if (findings.length > 0) {
+                findingsEl.innerHTML = `<ul class="mb-0 ps-3">${findings.map(f => `<li class="mb-1">${escapeHtml(f)}</li>`).join('')}</ul>`;
+            } else {
+                findingsEl.innerHTML = '<span class="text-muted">Dataset features demonstrate high integrity with consistent distributions across categories.</span>';
+            }
+        }
+
+        const recEl = document.getElementById('sdAiRecommendationsList');
+        if (recEl) {
+            const recs = sd.ai_explanation?.recommendations || [];
+            if (recs.length > 0) {
+                recEl.innerHTML = `<ul class="mb-0 ps-3">${recs.map(r => `<li class="mb-1">${escapeHtml(r)}</li>`).join('')}</ul>`;
+            } else {
+                recEl.innerHTML = '<span class="text-muted">Maintain current operational tracking and monitor high-volume categorical segments.</span>';
+            }
+        }
+
+        // 5. Dataset Q&A / FAQs (5+)
+        const qaAccordion = document.getElementById('sdQaAccordion');
+        if (qaAccordion) {
+            if (sd.dataset_qa && sd.dataset_qa.length > 0) {
+                qaAccordion.innerHTML = sd.dataset_qa.map((qa, idx) => `
+                    <div class="accordion-item mb-2 border rounded overflow-hidden shadow-sm">
+                        <h2 class="accordion-header" id="vwSdQaHead${idx}">
+                            <button class="accordion-button ${idx === 0 ? '' : 'collapsed'} py-2 px-3 fw-semibold small bg-body-tertiary" type="button" data-bs-toggle="collapse" data-bs-target="#vwSdQaCollapse${idx}" aria-expanded="${idx === 0 ? 'true' : 'false'}" aria-controls="vwSdQaCollapse${idx}">
+                                <i class="bi ${qa.icon || 'bi-patch-question-fill'} text-primary me-2"></i>
+                                <span class="badge bg-secondary-subtle text-secondary me-2 extra-small">${escapeHtml(qa.category || 'Analysis')}</span>
+                                <span>${escapeHtml(qa.question)}</span>
+                            </button>
+                        </h2>
+                        <div id="vwSdQaCollapse${idx}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}" aria-labelledby="vwSdQaHead${idx}" data-bs-parent="#sdQaAccordion">
+                            <div class="accordion-body small bg-white text-secondary py-3 px-3 border-top" style="line-height: 1.6;">
+                                ${qa.answer}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                qaAccordion.innerHTML = '<div class="alert alert-info small mb-0">Dataset Q&A analysis available.</div>';
+            }
+        }
+
+        // 6. Preview Table
+        const prevContainer = document.getElementById('sharedDetailPreviewContainer');
+        if (prevContainer) {
+            prevContainer.innerHTML = sd.preview_html || '<div class="p-3 text-muted">No preview table available.</div>';
+        }
+
+        // 7. Python Pipeline Code (Read-Only)
+        const codeContainer = document.getElementById('sdPipelineCodeContainer');
+        if (codeContainer) {
+            codeContainer.textContent = sd.pipeline_code || '# Auto-generated pipeline code is available for this shared dataset.';
+        }
+
+        // Reset to overview tab
+        const overviewTabBtn = document.getElementById('tab-sd-overview-btn');
+        if (overviewTabBtn) {
+            const tabTrigger = new bootstrap.Tab(overviewTabBtn);
+            tabTrigger.show();
+        }
+
+        if (sharedDetailModalInstance) {
+            sharedDetailModalInstance.show();
+        }
     }
 
     // Bind Copy Pipeline Code button in Shared Dashboard modal

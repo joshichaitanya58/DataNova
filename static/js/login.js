@@ -426,12 +426,10 @@
   });
 
   if (googleBtn) {
-    googleBtn.addEventListener('click', async () => {
-      formError.style.display = 'block';
-      formError.style.background = 'rgba(79, 70, 229, 0.08)';
-      formError.style.borderColor = 'rgba(79, 70, 229, 0.2)';
-      formError.style.color = '#4F46E5';
-      formError.textContent = 'Google sign-in is disabled. Please log in using your account email and role.';
+    googleBtn.addEventListener('click', () => {
+      const selectedRole = getSelectedRole() || 'analyst';
+      window.location.href = `/google?role=${encodeURIComponent(selectedRole)}`;
     });
   }
 })();
+

@@ -3,13 +3,16 @@ try:
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import seaborn as sns
+    from mpl_toolkits.mplot3d import Axes3D
 except ImportError:
     matplotlib = None
     plt = None
     sns = None
+    Axes3D = None
 import base64
 from io import BytesIO
 import pandas as pd
+import numpy as np
 import logging
 
 from .cleaning_service import convert_currency, convert_percentage
@@ -26,7 +29,7 @@ GREEN_COLOR = '#10B981'    # Emerald
 def fig_to_base64(fig):
     """
     Converts a Matplotlib figure into a base64 encoded PNG string.
-    Optimized for high rendering speed and low latency.
+    Optimized for high rendering speed, crisp resolution, and low latency.
     """
     if fig is None or plt is None:
         return None
@@ -35,7 +38,7 @@ def fig_to_base64(fig):
         fig.tight_layout()
     except Exception as e:
         logger.warning(f"tight_layout failed: {e}")
-    fig.savefig(buf, format="png", bbox_inches='tight', transparent=True, dpi=95)
+    fig.savefig(buf, format="png", bbox_inches='tight', transparent=True, dpi=120)
     try:
         plt.close(fig)
     except Exception:
@@ -78,22 +81,31 @@ def recommend_chart(x_type, y_type=None, purpose=None):
 
 def generate_missingness_heatmap(df):
     """
-    Generates a missing value pattern heatmap visualization.
+    Generates a missing value pattern heatmap visualization with adaptive width and clean label formatting.
     """
     if plt is None or sns is None:
         return None
     if df.isna().sum().sum() == 0:
         return None
 
-    fig, ax = plt.subplots(figsize=(8, 3))
+    n_cols = len(df.columns)
+    fig_w = max(8.0, min(16.0, n_cols * 0.45 + 2.0))
+    fig, ax = plt.subplots(figsize=(fig_w, 3.8))
+    
+    label_size = max(7, min(9, int(110 / max(1, n_cols))))
     sns.heatmap(df.isna(), cbar=False, cmap='viridis', ax=ax, yticklabels=False)
-    ax.set_title('Missing Values Pattern Matrix (Yellow = Missing)', fontsize=11, fontweight='bold')
+    ax.tick_params(axis='x', rotation=45, labelsize=label_size)
+    plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
+    ax.set_title('Missing Values Pattern Matrix (Yellow = Missing)', fontsize=11, fontweight='bold', pad=10)
     return fig_to_base64(fig)
 
 
-def generate_correlation_heatmap(df, semantic_types):
+def generate_correlation_heatmap(df, semantic_types, max_features=10):
     """
-    Generates correlation heatmap visualization strictly for measure, currency, and percentage columns.
+    Generates a clean, highly interpretable correlation heatmap.
+    When a dataset has many numerical columns, it intelligently isolates the top 8-10
+    most influential / strongly correlated metrics and uses a clean lower-triangular mask
+    so business users can easily understand the chart without visual clutter.
     """
     if plt is None or sns is None:
         return None
@@ -111,10 +123,63 @@ def generate_correlation_heatmap(df, semantic_types):
     if num_df.empty or len(num_df.columns) < 2:
         return None
 
-    corr = num_df.corr()
-    fig, ax = plt.subplots(figsize=(7, 5))
-    sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", vmin=-1, vmax=1, ax=ax, cbar=True)
-    ax.set_title('Correlation Matrix Heatmap', fontsize=12, fontweight='bold')
+    # Calculate full correlation matrix
+    full_corr = num_df.corr()
+
+    # If more than max_features, pick top most correlated/meaningful features
+    if len(full_corr.columns) > max_features:
+        # Score each column by its maximum absolute correlation with other columns (excluding self 1.0)
+        corr_scores = (full_corr.abs() - np.eye(len(full_corr))).max(axis=0)
+        top_cols = corr_scores.sort_values(ascending=False).head(max_features).index.tolist()
+        corr = full_corr.loc[top_cols, top_cols]
+        is_focused = True
+    else:
+        corr = full_corr
+        is_focused = False
+
+    n_cols = len(corr.columns)
+
+    # Clean lower-triangle mask to cut 50% duplicate clutter
+    mask = np.triu(np.ones_like(corr, dtype=bool))
+
+    # Standard clean figure dimensions
+    fig, ax = plt.subplots(figsize=(8.5, 6.5))
+
+    # Clean formatted column labels
+    display_corr = corr.copy()
+    display_corr.columns = [str(c)[:18] + '..' if len(str(c)) > 20 else str(c) for c in display_corr.columns]
+    display_corr.index = [str(c)[:18] + '..' if len(str(c)) > 20 else str(c) for c in display_corr.index]
+
+    # Large, bold, crystal clear annotations
+    annot_kws = {"size": 9.5, "weight": "bold"}
+
+    sns.heatmap(
+        display_corr,
+        mask=mask,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        vmin=-1,
+        vmax=1,
+        center=0,
+        square=True,
+        linewidths=1.2,
+        linecolor='white',
+        ax=ax,
+        cbar=True,
+        annot_kws=annot_kws,
+        cbar_kws={"shrink": 0.75, "aspect": 18, "label": "Correlation"}
+    )
+
+    ax.tick_params(axis='x', rotation=40, labelsize=9)
+    ax.tick_params(axis='y', rotation=0, labelsize=9)
+    plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
+
+    if is_focused:
+        ax.set_title(f'Key Correlations Heatmap (Top {n_cols} High-Impact Metrics)', fontsize=13, fontweight='bold', pad=14)
+    else:
+        ax.set_title('Correlation Matrix Heatmap', fontsize=13, fontweight='bold', pad=14)
+
     return fig_to_base64(fig)
 
 
@@ -173,16 +238,18 @@ def build_plotly_payload(chart_type, title, x_data, y_data=None, z_data=None, ca
             "hoverongaps": False,
             "hovertemplate": "<b>%{x}</b> vs <b>%{y}</b><br>Correlation: %{z:.2f}<extra></extra>"
         })
-        layout["xaxis"] = {"tickangle": -45, "gridcolor": "rgba(148, 163, 184, 0.15)"}
-        layout["yaxis"] = {"gridcolor": "rgba(148, 163, 184, 0.15)"}
+        layout["xaxis"] = {"tickangle": -45, "automargin": True, "gridcolor": "rgba(148, 163, 184, 0.15)"}
+        layout["yaxis"] = {"automargin": True, "gridcolor": "rgba(148, 163, 184, 0.15)"}
+        layout["margin"] = {"l": 90, "r": 30, "t": 60, "b": 100}
 
     elif chart_type == "bar":
+        is_num = bool(y_data and len(y_data) > 0 and isinstance(y_data[0], (int, float)) and not (isinstance(y_data[0], float) and (np.isnan(y_data[0]) or np.isinf(y_data[0]))))
         plotly_data.append({
             "type": "bar",
             "x": x_data,
             "y": y_data,
             "marker": {
-                "color": y_data if y_data and isinstance(y_data[0], (int, float)) else "#4F46E5",
+                "color": y_data if is_num else "#4F46E5",
                 "colorscale": "Plasma",
                 "line": {"color": "#6366F1", "width": 1}
             },
@@ -249,6 +316,19 @@ def build_plotly_payload(chart_type, title, x_data, y_data=None, z_data=None, ca
             "y": y_data if y_data else x_data,
             "marker": {"color": "#F59E0B"},
             "boxpoints": "outliers"
+        })
+        layout["xaxis"] = {"title": x_label, "gridcolor": "#334155"}
+        layout["yaxis"] = {"title": y_label, "gridcolor": "#334155"}
+
+    elif chart_type == "violin":
+        plotly_data.append({
+            "type": "violin",
+            "x": categories if categories else None,
+            "y": y_data if y_data else x_data,
+            "marker": {"color": "#06B6D4"},
+            "box": {"visible": True},
+            "meanline": {"visible": True},
+            "points": "outliers"
         })
         layout["xaxis"] = {"title": x_label, "gridcolor": "#334155"}
         layout["yaxis"] = {"title": y_label, "gridcolor": "#334155"}
@@ -332,23 +412,33 @@ def generate_automatic_charts(df, semantic_types, max_charts=10):
         valid_types = ["measure", "currency", "percentage"]
         m_cols = [c for c, t in semantic_types.items() if t in valid_types and c in plot_df.columns]
         num_df = plot_df[m_cols].copy().dropna()
-        corr_matrix = num_df.corr() if not num_df.empty and len(num_df.columns) >= 2 else None
-        plotly_corr = None
-        if corr_matrix is not None:
+        if not num_df.empty and len(num_df.columns) >= 2:
+            full_corr = num_df.corr()
+            if len(full_corr.columns) > 10:
+                corr_scores = (full_corr.abs() - np.eye(len(full_corr))).max(axis=0)
+                top_cols = corr_scores.sort_values(ascending=False).head(10).index.tolist()
+                corr_matrix = full_corr.loc[top_cols, top_cols]
+                title = f'Key Correlations Heatmap (Top {len(top_cols)} Metrics)'
+                desc = f'Focuses on top {len(top_cols)} high-impact metrics with strongest relationships (filtered from {len(m_cols)} metrics for maximum clarity).'
+            else:
+                corr_matrix = full_corr
+                title = 'Correlation Matrix Heatmap'
+                desc = 'Evaluates pairwise linear relationships across numerical measure columns.'
+
             plotly_corr = build_plotly_payload(
-                "heatmap", "Correlation Matrix Heatmap",
+                "heatmap", title,
                 x_data=corr_matrix.columns.tolist(),
                 y_data=corr_matrix.index.tolist(),
                 z_data=corr_matrix.values.round(2).tolist()
             )
-        charts.append({
-            'title': 'Correlation Matrix Heatmap',
-            'description': 'Evaluates pairwise linear relationships across numerical measure columns.',
-            'plot': corr_plot,
-            'plotly_json': plotly_corr,
-            'chart_type': 'heatmap',
-            'is_3d': False
-        })
+            charts.append({
+                'title': title,
+                'description': desc,
+                'plot': corr_plot,
+                'plotly_json': plotly_corr,
+                'chart_type': 'heatmap',
+                'is_3d': False
+            })
 
     # 3. Datetime + Measure (Line Chart)
     if date_cols and measure_cols:
@@ -457,11 +547,17 @@ def generate_automatic_charts(df, semantic_types, max_charts=10):
     # 6. Categorical Composition (Pie / Donut Chart)
     if good_cat_cols:
         cat_col = good_cat_cols[0]
-        top_cats = plot_df[cat_col].value_counts().head(5)
+        cat_counts = plot_df[cat_col].value_counts()
+        if len(cat_counts) > 5:
+            top_cats = cat_counts.head(5).copy()
+            top_cats['Other'] = cat_counts.iloc[5:].sum()
+        else:
+            top_cats = cat_counts
+
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.pie(top_cats.values, labels=top_cats.index, autopct='%1.1f%%',
-               colors=[PRIMARY_COLOR, VIOLET_COLOR, CYAN_COLOR, GREEN_COLOR, '#F59E0B'], startangle=140)
-        ax.set_title(f'Category Share: {cat_col}', fontsize=12, fontweight='bold')
+               colors=[PRIMARY_COLOR, VIOLET_COLOR, CYAN_COLOR, GREEN_COLOR, '#F59E0B', '#94A3B8'], startangle=140)
+        ax.set_title(f'Composition Share: {cat_col}', fontsize=12, fontweight='bold')
 
         plotly_pie = build_plotly_payload(
             "pie", f"Composition Share: {cat_col}",
@@ -471,7 +567,7 @@ def generate_automatic_charts(df, semantic_types, max_charts=10):
 
         charts.append({
             'title': f'Composition Share: {cat_col}',
-            'description': f'Percentage distribution of top categories in "{cat_col}".',
+            'description': f'Percentage distribution of categories in "{cat_col}".',
             'plot': fig_to_base64(fig),
             'plotly_json': plotly_pie,
             'chart_type': 'pie',
@@ -547,11 +643,25 @@ def generate_custom_chart(df, x_col, y_col=None, chart_type="bar", agg_func="sum
     """
     Generates a user-requested custom chart using cleaned dataframe, returning base64 plot and Plotly JSON structure.
     """
+    if df is None or df.empty:
+        raise ValueError("Dataset is empty or invalid.")
+
     if x_col not in df.columns:
         raise ValueError(f"Column '{x_col}' does not exist in dataset.")
 
+    # Normalize optional columns if empty or invalid
+    if y_col and (y_col not in df.columns or (isinstance(y_col, str) and y_col.lower() in ('none', 'null', 'select', 'optional', ''))):
+        y_col = None
+    if z_col and (z_col not in df.columns or (isinstance(z_col, str) and z_col.lower() in ('none', 'null', 'select', 'optional', ''))):
+        z_col = None
+
+    valid_aggs = ['sum', 'mean', 'count', 'min', 'max', 'median', 'std']
+    if not agg_func or str(agg_func).lower() not in valid_aggs:
+        agg_func = "sum"
+    else:
+        agg_func = str(agg_func).lower()
+
     plot_df = visualization_sample(df)
-    fig, ax = plt.subplots(figsize=(8, 4.5))
 
     if y_col and y_col in plot_df.columns:
         plot_df[y_col] = pd.to_numeric(convert_percentage(convert_currency(plot_df[y_col])), errors="coerce")
@@ -562,84 +672,187 @@ def generate_custom_chart(df, x_col, y_col=None, chart_type="bar", agg_func="sum
     plotly_payload = None
 
     if chart_type == "scatter3d":
+        fig = plt.figure(figsize=(9, 5.5))
+        ax = fig.add_subplot(111, projection='3d')
+
         if not y_col or not z_col:
-            # Pick a default third numeric column if available
             num_cols = [c for c in plot_df.columns if pd.api.types.is_numeric_dtype(plot_df[c]) and c not in [x_col, y_col]]
             if num_cols and not z_col:
                 z_col = num_cols[0]
             elif not y_col and len(num_cols) >= 2:
                 y_col, z_col = num_cols[0], num_cols[1]
+            elif len(num_cols) >= 1 and not y_col:
+                y_col = num_cols[0]
+                if len(num_cols) >= 2:
+                    z_col = num_cols[1]
+                else:
+                    z_col = x_col
             else:
-                raise ValueError("3D Scatter Plot requires 3 numerical columns (X, Y, Z).")
+                z_col = y_col or x_col
 
         sub_3d = plot_df[[x_col, y_col, z_col]].dropna()
         if sub_3d.empty:
             raise ValueError("No valid data points for 3D scatter plot.")
+
+        p = ax.scatter(sub_3d[x_col], sub_3d[y_col], sub_3d[z_col], c=sub_3d[z_col], cmap='plasma', alpha=0.85, s=35)
+        ax.set_xlabel(str(x_col), labelpad=8)
+        ax.set_ylabel(str(y_col), labelpad=8)
+        ax.set_zlabel(str(z_col), labelpad=8)
+        ax.set_title(f'3D Scatter Projection: {x_col} vs {y_col} vs {z_col}', fontsize=12, fontweight='bold', pad=12)
 
         plotly_payload = build_plotly_payload(
             "scatter3d", f"3D Custom Scatter Plot: {x_col} vs {y_col} vs {z_col}",
             sub_3d[x_col].tolist(), sub_3d[y_col].tolist(), sub_3d[z_col].tolist(),
             x_label=x_col, y_label=y_col, z_label=z_col
         )
-        ax.scatter(sub_3d[x_col], sub_3d[y_col], c=sub_3d[z_col], cmap='plasma', alpha=0.8)
-        ax.set_title(f'3D Scatter Projection: {x_col} vs {y_col} vs {z_col}', fontsize=12, fontweight='bold')
-
-    elif chart_type == "bar":
-        if y_col and y_col in plot_df.columns:
-            grouped = plot_df.groupby(x_col)[y_col].agg(agg_func).reset_index().head(20)
-            sns.barplot(data=grouped, x=x_col, y=y_col, ax=ax, palette="Blues_d", hue=x_col, legend=False)
-            ax.set_title(f'Custom Bar Chart: {agg_func.capitalize()} of {y_col} by {x_col}', fontsize=12, fontweight='bold')
-            plotly_payload = build_plotly_payload("bar", f"{agg_func.capitalize()} of {y_col} by {x_col}", grouped[x_col].astype(str).tolist(), grouped[y_col].tolist(), x_label=x_col, y_label=y_col)
-        else:
-            top_cats = plot_df[x_col].value_counts().head(15).reset_index()
-            top_cats.columns = [x_col, 'count']
-            sns.barplot(data=top_cats, x=x_col, y='count', ax=ax, palette="Blues_d", hue=x_col, legend=False)
-            ax.set_title(f'Custom Bar Chart: Frequency of {x_col}', fontsize=12, fontweight='bold')
-            plotly_payload = build_plotly_payload("bar", f"Frequency of {x_col}", top_cats[x_col].astype(str).tolist(), top_cats['count'].tolist(), x_label=x_col, y_label="Count")
-        ax.tick_params(axis='x', rotation=35)
-
-    elif chart_type == "line":
-        if y_col and y_col in plot_df.columns:
-            sns.lineplot(data=plot_df, x=x_col, y=y_col, ax=ax, color=PRIMARY_COLOR, marker='o')
-            ax.set_title(f'Custom Line Chart: {y_col} vs {x_col}', fontsize=12, fontweight='bold')
-            plotly_payload = build_plotly_payload("line", f"{y_col} vs {x_col}", plot_df[x_col].astype(str).tolist(), plot_df[y_col].tolist(), x_label=x_col, y_label=y_col)
-        else:
-            val_counts = plot_df[x_col].value_counts().sort_index().reset_index()
-            val_counts.columns = [x_col, 'count']
-            sns.lineplot(data=val_counts, x=x_col, y='count', ax=ax, color=PRIMARY_COLOR, marker='o')
-            ax.set_title(f'Custom Line Chart: Trend of {x_col}', fontsize=12, fontweight='bold')
-            plotly_payload = build_plotly_payload("line", f"Trend of {x_col}", val_counts[x_col].astype(str).tolist(), val_counts['count'].tolist(), x_label=x_col, y_label="Count")
-
-    elif chart_type == "scatter":
-        if not y_col or y_col not in plot_df.columns:
-            raise ValueError("Scatter plot requires both X-Axis and Y-Axis columns.")
-        scatter_data = plot_df[[x_col, y_col]].dropna()
-        if scatter_data.empty:
-            raise ValueError("No valid data points after removing missing values.")
-        sns.scatterplot(data=scatter_data, x=x_col, y=y_col, ax=ax, color=VIOLET_COLOR, alpha=0.7)
-        ax.set_title(f'Custom Scatter Plot: {y_col} vs {x_col}', fontsize=12, fontweight='bold')
-        plotly_payload = build_plotly_payload("scatter", f"{y_col} vs {x_col}", scatter_data[x_col].tolist(), scatter_data[y_col].tolist(), x_label=x_col, y_label=y_col)
-
-    elif chart_type == "histogram":
-        num_x = pd.to_numeric(convert_percentage(convert_currency(plot_df[x_col])), errors="coerce").dropna()
-        if num_x.empty:
-            raise ValueError(f"Column '{x_col}' contains no numeric data for histogram.")
-        sns.histplot(num_x, kde=True, ax=ax, color=CYAN_COLOR)
-        ax.set_title(f'Custom Distribution Histogram: {x_col}', fontsize=12, fontweight='bold')
-        plotly_payload = build_plotly_payload("histogram", f"Distribution of {x_col}", num_x.tolist(), x_label=x_col)
-
-    elif chart_type == "pie":
-        top_cats = plot_df[x_col].value_counts().head(6)
-        if top_cats.empty:
-            raise ValueError(f"Column '{x_col}' has no categories for pie chart.")
-        ax.pie(top_cats.values, labels=top_cats.index, autopct='%1.1f%%', colors=sns.color_palette("pastel"))
-        ax.set_title(f'Custom Pie Chart: Share of {x_col}', fontsize=12, fontweight='bold')
-        plotly_payload = build_plotly_payload("pie", f"Share of {x_col}", top_cats.index.astype(str).tolist(), top_cats.values.tolist())
-
     else:
-        raise ValueError(f"Unsupported chart type '{chart_type}'.")
+        fig, ax = plt.subplots(figsize=(8, 4.5))
 
-    ax.grid(True, linestyle='--', alpha=0.5)
+        if chart_type == "bar":
+            if y_col and y_col in plot_df.columns:
+                sub = plot_df[[x_col, y_col]].dropna(subset=[x_col, y_col])
+                if not sub.empty:
+                    grouped = sub.groupby(x_col)[y_col].agg(agg_func).reset_index().sort_values(by=y_col, ascending=False).head(20)
+                    sns.barplot(data=grouped, x=x_col, y=y_col, ax=ax, palette="Blues_d", hue=x_col, legend=False)
+                    ax.set_title(f'Custom Bar Chart: {agg_func.capitalize()} of {y_col} by {x_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("bar", f"{agg_func.capitalize()} of {y_col} by {x_col}", grouped[x_col].astype(str).tolist(), grouped[y_col].tolist(), x_label=x_col, y_label=y_col)
+                else:
+                    top_cats = plot_df[x_col].dropna().value_counts().head(15).reset_index()
+                    top_cats.columns = [x_col, 'count']
+                    if top_cats.empty:
+                        raise ValueError(f"No valid data available to render bar chart for column '{x_col}'.")
+                    sns.barplot(data=top_cats, x=x_col, y='count', ax=ax, palette="Blues_d", hue=x_col, legend=False)
+                    ax.set_title(f'Custom Bar Chart: Frequency of {x_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("bar", f"Frequency of {x_col}", top_cats[x_col].astype(str).tolist(), top_cats['count'].tolist(), x_label=x_col, y_label="Count")
+            else:
+                top_cats = plot_df[x_col].dropna().value_counts().head(15).reset_index()
+                top_cats.columns = [x_col, 'count']
+                if top_cats.empty:
+                    raise ValueError(f"No valid data available to render bar chart for column '{x_col}'.")
+                sns.barplot(data=top_cats, x=x_col, y='count', ax=ax, palette="Blues_d", hue=x_col, legend=False)
+                ax.set_title(f'Custom Bar Chart: Frequency of {x_col}', fontsize=12, fontweight='bold')
+                plotly_payload = build_plotly_payload("bar", f"Frequency of {x_col}", top_cats[x_col].astype(str).tolist(), top_cats['count'].tolist(), x_label=x_col, y_label="Count")
+            ax.tick_params(axis='x', rotation=35)
+            plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
+
+        elif chart_type == "line":
+            if y_col and y_col in plot_df.columns:
+                sub = plot_df[[x_col, y_col]].dropna(subset=[x_col, y_col])
+                if not sub.empty:
+                    grouped = sub.groupby(x_col)[y_col].agg(agg_func).reset_index().sort_values(by=x_col).head(50)
+                    sns.lineplot(data=grouped, x=x_col, y=y_col, ax=ax, color=PRIMARY_COLOR, marker='o')
+                    ax.set_title(f'Custom Line Chart: {y_col} vs {x_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("line", f"{y_col} vs {x_col}", grouped[x_col].astype(str).tolist(), grouped[y_col].tolist(), x_label=x_col, y_label=y_col)
+                else:
+                    val_counts = plot_df[x_col].dropna().value_counts().sort_index().reset_index()
+                    val_counts.columns = [x_col, 'count']
+                    if val_counts.empty:
+                        raise ValueError(f"No valid data available to render line chart for column '{x_col}'.")
+                    sns.lineplot(data=val_counts, x=x_col, y='count', ax=ax, color=PRIMARY_COLOR, marker='o')
+                    ax.set_title(f'Custom Line Chart: Trend of {x_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("line", f"Trend of {x_col}", val_counts[x_col].astype(str).tolist(), val_counts['count'].tolist(), x_label=x_col, y_label="Count")
+            else:
+                val_counts = plot_df[x_col].dropna().value_counts().sort_index().reset_index()
+                val_counts.columns = [x_col, 'count']
+                if val_counts.empty:
+                    raise ValueError(f"No valid data available to render line chart for column '{x_col}'.")
+                sns.lineplot(data=val_counts, x=x_col, y='count', ax=ax, color=PRIMARY_COLOR, marker='o')
+                ax.set_title(f'Custom Line Chart: Trend of {x_col}', fontsize=12, fontweight='bold')
+                plotly_payload = build_plotly_payload("line", f"Trend of {x_col}", val_counts[x_col].astype(str).tolist(), val_counts['count'].tolist(), x_label=x_col, y_label="Count")
+            ax.tick_params(axis='x', rotation=35)
+            plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
+
+        elif chart_type == "scatter":
+            if not y_col or y_col not in plot_df.columns:
+                raise ValueError("Scatter plot requires both X-Axis and Y-Axis columns.")
+            scatter_data = plot_df[[x_col, y_col]].dropna()
+            if scatter_data.empty:
+                raise ValueError("No valid data points after removing missing values.")
+            sns.scatterplot(data=scatter_data, x=x_col, y=y_col, ax=ax, color=VIOLET_COLOR, alpha=0.7)
+            ax.set_title(f'Custom Scatter Plot: {y_col} vs {x_col}', fontsize=12, fontweight='bold')
+            plotly_payload = build_plotly_payload("scatter", f"{y_col} vs {x_col}", scatter_data[x_col].tolist(), scatter_data[y_col].tolist(), x_label=x_col, y_label=y_col)
+
+        elif chart_type == "histogram":
+            num_x = pd.to_numeric(convert_percentage(convert_currency(plot_df[x_col])), errors="coerce").dropna()
+            if num_x.empty:
+                raise ValueError(f"Column '{x_col}' contains no numeric data for histogram.")
+            sns.histplot(num_x, kde=True, ax=ax, color=CYAN_COLOR)
+            ax.set_title(f'Custom Distribution Histogram: {x_col}', fontsize=12, fontweight='bold')
+            plotly_payload = build_plotly_payload("histogram", f"Distribution of {x_col}", num_x.tolist(), x_label=x_col)
+
+        elif chart_type == "boxplot":
+            if y_col and y_col in plot_df.columns:
+                if pd.api.types.is_numeric_dtype(plot_df[y_col]):
+                    top_cats = plot_df[x_col].value_counts().head(10).index
+                    sub_box = plot_df[plot_df[x_col].isin(top_cats)].dropna(subset=[x_col, y_col])
+                    if sub_box.empty:
+                        raise ValueError("No valid data for box plot.")
+                    sns.boxplot(data=sub_box, x=x_col, y=y_col, ax=ax, palette="Blues_d", hue=x_col, legend=False)
+                    ax.set_title(f'Custom Box Plot: {y_col} by {x_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("boxplot", f"Box Plot: {y_col} by {x_col}", sub_box[y_col].tolist(), categories=sub_box[x_col].astype(str).tolist(), x_label=x_col, y_label=y_col)
+                elif pd.api.types.is_numeric_dtype(plot_df[x_col]):
+                    top_cats = plot_df[y_col].value_counts().head(10).index
+                    sub_box = plot_df[plot_df[y_col].isin(top_cats)].dropna(subset=[x_col, y_col])
+                    if sub_box.empty:
+                        raise ValueError("No valid data for box plot.")
+                    sns.boxplot(data=sub_box, x=y_col, y=x_col, ax=ax, palette="Blues_d", hue=y_col, legend=False)
+                    ax.set_title(f'Custom Box Plot: {x_col} by {y_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("boxplot", f"Box Plot: {x_col} by {y_col}", sub_box[x_col].tolist(), categories=sub_box[y_col].astype(str).tolist(), x_label=y_col, y_label=x_col)
+                else:
+                    raise ValueError("At least one column must be numeric for a 2-variable Box Plot.")
+            else:
+                num_x = pd.to_numeric(convert_percentage(convert_currency(plot_df[x_col])), errors="coerce").dropna()
+                if num_x.empty:
+                    raise ValueError(f"Column '{x_col}' contains no numeric data for Box Plot.")
+                sns.boxplot(y=num_x, ax=ax, color=PRIMARY_COLOR)
+                ax.set_title(f'Custom Box Plot: {x_col}', fontsize=12, fontweight='bold')
+                plotly_payload = build_plotly_payload("boxplot", f"Box Plot: {x_col}", num_x.tolist(), x_label=x_col, y_label=x_col)
+            ax.tick_params(axis='x', rotation=35)
+            plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
+
+        elif chart_type == "violin":
+            if y_col and y_col in plot_df.columns:
+                if pd.api.types.is_numeric_dtype(plot_df[y_col]):
+                    top_cats = plot_df[x_col].value_counts().head(10).index
+                    sub_v = plot_df[plot_df[x_col].isin(top_cats)].dropna(subset=[x_col, y_col])
+                    if sub_v.empty:
+                        raise ValueError("No valid data for violin plot.")
+                    sns.violinplot(data=sub_v, x=x_col, y=y_col, ax=ax, palette="Blues_d", hue=x_col, legend=False, inner="quartile")
+                    ax.set_title(f'Custom Violin Plot: {y_col} by {x_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("violin", f"Violin Plot: {y_col} by {x_col}", sub_v[y_col].tolist(), categories=sub_v[x_col].astype(str).tolist(), x_label=x_col, y_label=y_col)
+                elif pd.api.types.is_numeric_dtype(plot_df[x_col]):
+                    top_cats = plot_df[y_col].value_counts().head(10).index
+                    sub_v = plot_df[plot_df[y_col].isin(top_cats)].dropna(subset=[x_col, y_col])
+                    if sub_v.empty:
+                        raise ValueError("No valid data for violin plot.")
+                    sns.violinplot(data=sub_v, x=y_col, y=x_col, ax=ax, palette="Blues_d", hue=y_col, legend=False, inner="quartile")
+                    ax.set_title(f'Custom Violin Plot: {x_col} by {y_col}', fontsize=12, fontweight='bold')
+                    plotly_payload = build_plotly_payload("violin", f"Violin Plot: {x_col} by {y_col}", sub_v[x_col].tolist(), categories=sub_v[y_col].astype(str).tolist(), x_label=y_col, y_label=x_col)
+                else:
+                    raise ValueError("At least one column must be numeric for a 2-variable Violin Plot.")
+            else:
+                num_x = pd.to_numeric(convert_percentage(convert_currency(plot_df[x_col])), errors="coerce").dropna()
+                if num_x.empty:
+                    raise ValueError(f"Column '{x_col}' contains no numeric data for Violin Plot.")
+                sns.violinplot(y=num_x, ax=ax, color=CYAN_COLOR, inner="quartile")
+                ax.set_title(f'Custom Violin Plot: {x_col}', fontsize=12, fontweight='bold')
+                plotly_payload = build_plotly_payload("violin", f"Violin Plot: {x_col}", num_x.tolist(), x_label=x_col, y_label=x_col)
+            ax.tick_params(axis='x', rotation=35)
+            plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
+
+        elif chart_type == "pie":
+            top_cats = plot_df[x_col].dropna().value_counts().head(6)
+            if top_cats.empty:
+                raise ValueError(f"Column '{x_col}' has no categories for pie chart.")
+            ax.pie(top_cats.values, labels=top_cats.index, autopct='%1.1f%%', colors=sns.color_palette("pastel"))
+            ax.set_title(f'Custom Pie Chart: Share of {x_col}', fontsize=12, fontweight='bold')
+            plotly_payload = build_plotly_payload("pie", f"Share of {x_col}", top_cats.index.astype(str).tolist(), top_cats.values.tolist())
+
+        else:
+            raise ValueError(f"Unsupported chart type '{chart_type}'.")
+
+        ax.grid(True, linestyle='--', alpha=0.5)
+
     return {
         "plot": fig_to_base64(fig),
         "plotly_json": plotly_payload,

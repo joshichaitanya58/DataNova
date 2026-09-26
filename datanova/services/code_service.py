@@ -19,6 +19,7 @@ import signal
 import sys
 import time
 import traceback
+import os
 from typing import Any
 
 import numpy as np
@@ -64,7 +65,7 @@ DANGEROUS_DUNDERS = {
 
 MAX_CODE_LENGTH = 50_000  # characters
 MAX_STDOUT_LENGTH = 200_000  # characters
-EXECUTION_TIMEOUT_SECONDS = 25
+EXECUTION_TIMEOUT_SECONDS = 40
 
 
 class _ExecutionTimeout(Exception):
@@ -87,15 +88,19 @@ def _safe_import(name: str, globals_dict=None, locals_dict=None, fromlist=(), le
 def _time_limit(seconds: int):
     """
     Cross-platform execution timeout using sys.settrace combined with SIGALRM
-    fallback where available. Works reliably on Windows, macOS, and Linux.
+    fallback where available. Works reliably on Windows, macOS, and Linux without
+    per-instruction time.time() bottleneck.
     """
     deadline = time.time() + seconds
     timed_out = [False]
+    step_count = [0]
 
     def _trace_dispatch(frame, event, arg):
-        if time.time() > deadline:
-            timed_out[0] = True
-            raise _ExecutionTimeout(f"Execution exceeded {seconds}s time limit.")
+        step_count[0] += 1
+        if step_count[0] % 128 == 0:
+            if time.time() > deadline:
+                timed_out[0] = True
+                raise _ExecutionTimeout(f"Execution exceeded {seconds}s time limit.")
         return _trace_dispatch
 
     def _sig_handler(signum, frame):
@@ -218,9 +223,11 @@ except (NameError, UnboundLocalError):
             df = pd.read_excel(data_file)
         else:
             df = pd.read_csv(data_file, encoding="utf-8")
-    except UnicodeDecodeError:
-        df = pd.read_csv(data_file, encoding="latin1")
-    except (FileNotFoundError, Exception):
+    except FileNotFoundError:
+        print(f"[DATANOVA WARNING] Dataset file not found: {{data_file}}")
+        df = pd.DataFrame()
+    except Exception as exc:
+        print(f"[DATANOVA WARNING] Could not parse dataset '{{data_file}}': {{exc}}")
         df = pd.DataFrame()
 
 n_rows, n_cols = df.shape
@@ -467,8 +474,9 @@ if {ref} in df.columns and pd.api.types.is_numeric_dtype(df[{ref}]):
 if {x_ref} in df.columns and {y_ref} in df.columns:
     plt.figure(figsize=(9, 4.8))
     has_cluster = "Cluster_Segment" in df.columns
+    scatter_sample = df.sample(n=min(len(df), 5000), random_state=42) if len(df) > 5000 else df
     sns.scatterplot(
-        data=df, x={x_ref}, y={y_ref},
+        data=scatter_sample, x={x_ref}, y={y_ref},
         hue="Cluster_Segment" if has_cluster else None,
         palette="tab10" if has_cluster else None,
         alpha=0.85,
@@ -477,12 +485,36 @@ if {x_ref} in df.columns and {y_ref} in df.columns:
     plt.tight_layout()
     plt.show()
 
-# C. Correlation Matrix Heatmap
+# C. Key Correlations Heatmap
 num_df_corr = df.select_dtypes(include=[np.number])
 if num_df_corr.shape[1] >= 2:
-    plt.figure(figsize=(9.5, 6))
-    sns.heatmap(num_df_corr.corr(), annot=True, cmap="Blues", fmt=".2f", linewidths=0.5, cbar=True)
-    plt.title("Correlation Matrix Heatmap", fontsize=14, fontweight="bold")
+    full_corr = num_df_corr.corr()
+    if len(full_corr.columns) > 10:
+        corr_scores = (full_corr.abs() - np.eye(len(full_corr))).max(axis=0)
+        top_cols = corr_scores.sort_values(ascending=False).head(10).index.tolist()
+        corr_matrix = full_corr.loc[top_cols, top_cols]
+        title_txt = f"Key Correlation Heatmap (Top {{len(top_cols)}} Metrics)"
+    else:
+        corr_matrix = full_corr
+        title_txt = "Correlation Matrix Heatmap"
+
+    plt.figure(figsize=(8.5, 6.5))
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+    sns.heatmap(
+        corr_matrix,
+        mask=mask,
+        annot=True,
+        cmap="coolwarm",
+        fmt=".2f",
+        linewidths=1.2,
+        linecolor="white",
+        cbar=True,
+        annot_kws={{"size": 9.5, "weight": "bold"}},
+        cbar_kws={{"shrink": 0.75, "label": "Correlation"}}
+    )
+    plt.xticks(rotation=40, ha='right')
+    plt.yticks(rotation=0)
+    plt.title(title_txt, fontsize=13, fontweight="bold", pad=14)
     plt.tight_layout()
     plt.show()
 ''')
@@ -770,13 +802,26 @@ def execute_custom_python_code(
     safe_builtins = builtins.__dict__.copy()
     safe_builtins["__import__"] = _safe_import
 
-    def _blocked_open(*args, **kwargs):
-        raise PermissionError("Direct open() is restricted in the sandbox. Use pandas read/write functions instead.")
+    import tempfile
+
+    def _safe_open(file, mode="r", *args, **kwargs):
+        """Allows safe file writing/reading in sandbox without directory traversal."""
+        if isinstance(file, str):
+            base = os.path.basename(file)
+            if ".." in file or (len(file) > 1 and file[1] == ":") or file.startswith("/"):
+                # Redirect to temp directory safely
+                temp_dir = tempfile.gettempdir()
+                safe_path = os.path.join(temp_dir, base)
+                return open(safe_path, mode, *args, **kwargs)
+            temp_dir = tempfile.gettempdir()
+            safe_path = os.path.join(temp_dir, base)
+            return open(safe_path, mode, *args, **kwargs)
+        return open(file, mode, *args, **kwargs)
 
     def _blocked_exit(*args, **kwargs):
         raise SystemExit("exit() is not permitted in the sandbox.")
 
-    safe_builtins["open"] = _blocked_open
+    safe_builtins["open"] = _safe_open
     safe_builtins["exit"] = _blocked_exit
     safe_builtins["quit"] = _blocked_exit
 

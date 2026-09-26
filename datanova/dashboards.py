@@ -155,10 +155,7 @@ def manager_dashboard():
             with conn.cursor() as cursor:
                 active_ds_id = session.get('active_dataset_id')
                 if not active_ds_id:
-                    cursor.execute(
-                        "SELECT id FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 1",
-                        (session['id'],)
-                    )
+                    cursor.execute("SELECT id FROM datasets ORDER BY uploaded_at DESC LIMIT 1")
                     ds_row = cursor.fetchone()
                     if ds_row:
                         active_ds_id = ds_row['id']
@@ -166,8 +163,11 @@ def manager_dashboard():
 
                 if active_ds_id:
                     try:
+                        cursor.execute("SELECT user_id FROM datasets WHERE id = %s", (active_ds_id,))
+                        ds_meta = cursor.fetchone()
+                        owner_id = ds_meta['user_id'] if ds_meta else session['id']
                         from .api import load_dataframe
-                        df = load_dataframe(active_ds_id, session['id'])
+                        df = load_dataframe(active_ds_id, owner_id)
                     except Exception as ex:
                         current_app.logger.warning(f"Could not load active dataframe for manager dashboard: {ex}")
         except Exception as e:
@@ -203,13 +203,7 @@ def analyst_dashboard():
                     row = cursor.fetchone()
                     if not row:
                         active_ds_id = None
-
-                if not active_ds_id:
-                    cursor.execute("SELECT id FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 1", (user_id,))
-                    row = cursor.fetchone()
-                    if row:
-                        active_ds_id = row['id']
-                        session['active_dataset_id'] = active_ds_id
+                        session.pop('active_dataset_id', None)
 
             if active_ds_id:
                 from .api import load_dataframe

@@ -1079,6 +1079,16 @@ h4 {
 /* ==========================================================================
    Dark theme overrides
    ========================================================================== */
+[data-theme="dark"] {
+    --dn-bg: #0D0E28;
+    --dn-surface: #161837;
+    --dn-surface-2: #1D1F45;
+    --dn-ink: #F1F2FC;
+    --dn-ink-soft: #B2B4D6;
+    --dn-ink-faint: #7C7EA3;
+    --dn-border: rgba(255, 255, 255, 0.08);
+}
+
 [data-theme="dark"] .dn-navbar {
     background: rgba(13, 14, 40, 0.85);
 }
@@ -1168,6 +1178,15 @@ h4 {
    Responsive tweaks
    ========================================================================== */
 @media (max-width: 991.98px) {
+    .dn-navbar .navbar-collapse {
+        background: var(--dn-surface);
+        border: 1px solid var(--dn-border);
+        border-radius: var(--dn-radius-md);
+        padding: 16px;
+        margin-top: 12px;
+        box-shadow: var(--dn-shadow-md);
+    }
+
     .dn-hero {
         padding: 130px 0 70px;
     }

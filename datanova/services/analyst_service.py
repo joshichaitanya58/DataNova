@@ -35,23 +35,25 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
                 cursor.execute("SELECT COUNT(*) as count FROM datasets WHERE user_id = %s", (user_id,))
                 kpi_data['total_datasets'] = (cursor.fetchone() or {}).get('count', 0)
 
-                cursor.execute("SELECT SUM(row_count) as total_rows FROM datasets WHERE user_id = %s", (user_id,))
-                kpi_data['rows_analyzed'] = (cursor.fetchone() or {}).get('total_rows') or 0
-
-                cursor.execute("SELECT SUM(missing_values_count) as total_missing FROM datasets WHERE user_id = %s", (user_id,))
-                kpi_data['missing_values'] = (cursor.fetchone() or {}).get('total_missing') or 0
-
-                cursor.execute("SELECT SUM(duplicate_rows_count) as total_duplicates FROM datasets WHERE user_id = %s", (user_id,))
-                kpi_data['duplicates_found'] = (cursor.fetchone() or {}).get('total_duplicates') or 0
-
                 cursor.execute("SELECT COUNT(*) as count FROM reports WHERE user_id = %s", (user_id,))
                 kpi_data['reports_generated'] = (cursor.fetchone() or {}).get('count', 0)
 
-                cursor.execute("SELECT SUM(row_count * column_count) as total_cells FROM datasets WHERE user_id = %s", (user_id,))
-                total_cells = (cursor.fetchone() or {}).get('total_cells') or 0
-                if total_cells > 0:
-                    quality_score = max(0, (1 - (kpi_data['missing_values'] / total_cells)) * 100)
-                    kpi_data['data_quality'] = f"{quality_score:.1f}%"
+                # Active Dataset Profile KPI calculations (bind to active df if present, otherwise clean defaults)
+                if df is not None and not df.empty:
+                    kpi_data['rows_analyzed'] = len(df)
+                    kpi_data['missing_values'] = int(df.isnull().sum().sum())
+                    kpi_data['duplicates_found'] = int(df.duplicated().sum())
+                    total_cells = len(df) * len(df.columns)
+                    if total_cells > 0:
+                        quality_score = max(0, (1 - (kpi_data['missing_values'] / total_cells)) * 100)
+                        kpi_data['data_quality'] = f"{quality_score:.1f}%"
+                    else:
+                        kpi_data['data_quality'] = 'N/A'
+                else:
+                    kpi_data['rows_analyzed'] = 0
+                    kpi_data['missing_values'] = 0
+                    kpi_data['duplicates_found'] = 0
+                    kpi_data['data_quality'] = 'N/A'
 
                 # Notifications & Assigned Manager Tasks Data Flow
                 try:
@@ -74,16 +76,27 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
                 except Exception as ex_t:
                     logger.debug(f"Manager tasks table notice: {ex_t}")
 
-                cursor.execute("SELECT file_name, uploaded_at FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 3", (user_id,))
+                cursor.execute("SELECT file_name, status, uploaded_at FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 3", (user_id,))
                 recent_ds = cursor.fetchall() or []
                 for ds in recent_ds:
                     if not isinstance(ds, dict) and cursor.description:
                         cols = [d[0] for d in cursor.description]
                         ds = dict(zip(cols, ds))
                     fn = ds.get('file_name', 'Dataset')
+                    st = (ds.get('status') or 'uploaded').lower()
+                    if st in ['ready', 'completed']:
+                        msg_str = f"Dataset '{fn}' successfully processed & ready."
+                        icon_str = 'bi-check2-circle'
+                    elif st in ['error', 'failed']:
+                        msg_str = f"Dataset '{fn}' processing encountered an issue."
+                        icon_str = 'bi-exclamation-triangle'
+                    else:
+                        msg_str = f"Dataset '{fn}' status: {st.capitalize()}."
+                        icon_str = 'bi-clock-history'
+
                     kpi_data['notifications'].append({
-                        'icon': 'bi-check2-circle',
-                        'text': f"Dataset '{fn}' successfully processed & ready.",
+                        'icon': icon_str,
+                        'text': msg_str,
                         'time': 'Recent'
                     })
         except Exception as e:
@@ -103,33 +116,70 @@ def get_analyst_dashboard_analytics(df: Optional[pd.DataFrame] = None, conn=None
 
             # Dynamic Automated Statistical Insights from df
             insights = []
-            if cat_cols:
-                primary_cat = cat_cols[0]
-                top_val = df[primary_cat].value_counts().head(1)
-                if not top_val.empty:
-                    val_name, val_count = top_val.index[0], top_val.values[0]
-                    pct = round((val_count / len(df)) * 100, 1)
-                    insights.append(f"<b>{primary_cat}</b>: '{val_name}' is the top category ({pct}% of total records).")
+            total_rows = len(df)
+            total_cols = len(df.columns)
+            total_cells = total_rows * total_cols
+            total_missing = int(df.isnull().sum().sum())
+            completeness_pct = round((1.0 - (total_missing / (total_cells or 1))) * 100, 1)
 
-            if num_cols:
-                primary_num = num_cols[0]
-                mean_val = df[primary_num].mean()
-                max_val = df[primary_num].max()
-                insights.append(f"<b>{primary_num}</b>: Average value is <b>{mean_val:,.2f}</b> with peak at <b>{max_val:,.2f}</b>.")
+            insights.append(f"Dataset Dimensions: <b>{total_rows:,} records</b> across <b>{total_cols} columns</b> ({len(num_cols)} numerical, {len(cat_cols)} categorical). Completeness: <b>{completeness_pct}%</b>.")
 
-                if len(num_cols) >= 2:
-                    sec_num = num_cols[1]
-                    corr_val = df[primary_num].corr(df[sec_num])
-                    if not np.isnan(corr_val):
-                        corr_str = "strong positive" if corr_val > 0.6 else "negative" if corr_val < -0.4 else "moderate"
-                        insights.append(f"Correlation between <b>{primary_num}</b> and <b>{sec_num}</b> is {corr_str} (r = {corr_val:.2f}).")
+            # Scan top 3 categorical columns
+            for c_col in cat_cols[:3]:
+                vc = df[c_col].dropna().value_counts()
+                if not vc.empty:
+                    top_name, top_cnt = vc.index[0], vc.values[0]
+                    pct = round((top_cnt / (total_rows or 1)) * 100, 1)
+                    insights.append(f"<b>{c_col}</b>: '{top_name}' is the top category ({pct}% of total records across {df[c_col].nunique()} distinct classes).")
 
-            total_missing = df.isnull().sum().sum()
+            # Scan top 3 numeric columns (excluding non-predictive/ID columns)
+            from .ml_service import is_id_or_non_predictive_column
+            clean_num_cols = [c for c in num_cols if not is_id_or_non_predictive_column(c, df[c])]
+            if not clean_num_cols:
+                clean_num_cols = num_cols
+
+            for n_col in clean_num_cols[:3]:
+                s = pd.to_numeric(df[n_col], errors='coerce').dropna()
+                if not s.empty:
+                    avg_val = s.mean()
+                    med_val = s.median()
+                    max_val = s.max()
+                    min_val = s.min()
+                    insights.append(f"<b>{n_col}</b>: Mean value is <b>{avg_val:,.2f}</b> (Median = {med_val:,.2f}, Range = {min_val:,.2f} to {max_val:,.2f}).")
+
+            # Highest correlation pair across ALL numeric columns
+            if len(clean_num_cols) >= 2:
+                highest_abs_corr = 0.0
+                best_pair = None
+                best_corr_val = 0.0
+
+                corr_df = df[clean_num_cols].apply(pd.to_numeric, errors='coerce').corr()
+                for i in range(len(clean_num_cols)):
+                    for j in range(i + 1, len(clean_num_cols)):
+                        c1, c2 = clean_num_cols[i], clean_num_cols[j]
+                        val = corr_df.loc[c1, c2]
+                        if not np.isnan(val) and abs(val) > highest_abs_corr:
+                            highest_abs_corr = abs(val)
+                            best_corr_val = val
+                            best_pair = (c1, c2)
+
+                if best_pair and highest_abs_corr > 0.05:
+                    direction = "positive" if best_corr_val > 0 else "negative"
+                    if highest_abs_corr >= 0.7:
+                        strength = "strong"
+                    elif highest_abs_corr >= 0.4:
+                        strength = "moderate"
+                    else:
+                        strength = "weak"
+                    corr_str = f"{strength} {direction}"
+                    insights.append(f"Strongest correlation pair: <b>{best_pair[0]}</b> and <b>{best_pair[1]}</b> show {corr_str} relationship (r = <b>{best_corr_val:+.2f}</b>).")
+
             if total_missing > 0:
-                insights.append(f"Dataset contains <b>{total_missing} missing values</b> available for smart automated cleaning.")
+                insights.append(f"Data Health: Contains <b>{total_missing:,} missing cells</b> available for automated data imputation.")
             else:
-                insights.append("Dataset is <b>100% complete</b> with 0 missing cells detected.")
+                insights.append("Data Health: Dataset is <b>100% complete</b> with 0 missing cells detected.")
 
+            kpi_data['statistical_insights'] = insights
             kpi_data['ai_insights'] = insights
 
             # Dynamic Real Data Plotly Previews from df

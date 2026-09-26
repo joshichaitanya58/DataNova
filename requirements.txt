@@ -1,17 +1,12 @@
-# ==========================================================================
-# DataNova Core Dependencies
-# ==========================================================================
 
 # Web Framework
 Flask>=3.1.0
-gunicorn>=23.0.0
 
 # Environment Configuration
 python-dotenv>=1.0.1
 
 # Database
 pymysql>=1.1.1
-cryptography>=43.0.0
 
 # Authentication
 flask-bcrypt>=1.0.1
@@ -40,9 +35,6 @@ openpyxl>=3.1.5
 # HTTP Requests (for AI fallback)
 requests>=2.32.3
 
-# ==========================================================================
-# Optional / Future Extensions
-# ==========================================================================
 
 # Time-series Forecasting (used in manager predictions)
 statsmodels>=0.14.4
@@ -59,8 +51,3 @@ python-pptx>=1.0.0
 # CSRF Protection (for production)
 Flask-WTF>=1.2.2
 
-# ==========================================================================
-# Notes:
-# - werkzeug is automatically installed with Flask.
-# - For production, consider pinning specific versions.
-# ==========================================================================

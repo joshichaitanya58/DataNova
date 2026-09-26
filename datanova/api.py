@@ -1,10 +1,78 @@
 from flask import Blueprint, request, jsonify, session, current_app, flash, redirect, url_for
 import os
+import math
+import datetime
 import pandas as pd
 import numpy as np
 import uuid
 import random
 import json
+import re
+
+def sanitize_for_json(obj):
+    """Recursively sanitizes NaN, Inf, numpy objects, and dates into JSON-safe Python primitives."""
+    if obj is None:
+        return None
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return 0.0
+        return obj
+    elif isinstance(obj, (int, str, bool)):
+        return obj
+    elif isinstance(obj, (datetime.date, datetime.datetime)):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {str(k): sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple, set)):
+        return [sanitize_for_json(x) for x in obj]
+    elif hasattr(obj, 'item'):
+        return sanitize_for_json(obj.item())
+    else:
+        return str(obj)
+
+def enhance_stats_html_with_tooltips(html_table_str):
+    if not html_table_str:
+        return html_table_str
+
+    metric_tooltips = {
+        'column': 'Column Name: Attribute or feature name in your dataset.',
+        'count': 'Count: Total number of valid (non-null) data records in this column.',
+        'unique_count': 'Unique Count: Number of distinct or unique non-null values in this column.',
+        'unique_ratio': 'Unique Ratio: Proportion of unique values to total count (Unique Count / Count). Higher values indicate higher cardinality.',
+        'mean': 'Mean: Arithmetic average value of data points in this column.',
+        'median': 'Median: Middle value when data is ordered (50th percentile).',
+        'std': 'Standard Deviation (STD): Measures average dispersion or spread of data points from the mean.',
+        'variance': 'Variance: Average of squared differences from the mean, representing overall data variability.',
+        'cv': 'Coefficient of Variation (CV = Std / |Mean|): Relative variability independent of measurement scale.',
+        'mad': 'Mean Absolute Deviation (MAD): Average distance between each data point and the column mean.',
+        'min': 'Minimum (Min): Lowest recorded value in this column.',
+        'max': 'Maximum (Max): Highest recorded value in this column.',
+        'range': 'Range: Difference between Maximum and Minimum values (Max - Min).',
+        'iqr': 'Interquartile Range (IQR = 75th% - 25th%): Range of middle 50% of data values.',
+        'skewness': 'Skewness: Measures distribution asymmetry (>0 right-skewed, <0 left-skewed).',
+        'skew': 'Skewness: Measures distribution asymmetry (>0 right-skewed, <0 left-skewed).',
+        'kurtosis': 'Kurtosis: Measures distribution peakness and tail heaviness (>3 heavy-tailed).',
+        'kurt': 'Kurtosis: Measures distribution peakness and tail heaviness (>3 heavy-tailed).',
+        '25pct': '25th Percentile (1st Quartile - Q1): 25% of values fall below this point.',
+        '50pct': '50th Percentile (Median - Q2): 50% of values fall below this point.',
+        '75pct': '75th Percentile (3rd Quartile - Q3): 75% of values fall below this point.',
+        'missing_count': 'Missing Count: Total number of null/NaN cells in this column.',
+        'missing_pct': 'Missing Percentage: Percentage of null/NaN cells in this column.'
+    }
+
+    import re
+    def replace_header(match):
+        header_text = match.group(1).strip()
+        key = header_text.lower()
+        title = metric_tooltips.get(key)
+        if not title and key.startswith('pct'):
+            title = f"{key.replace('pct', '')}% Percentile value threshold."
+        if title:
+            return f'<th title="{title}" data-bs-toggle="tooltip" data-bs-placement="top" style="cursor:help">{header_text}</th>'
+        return match.group(0)
+
+    return re.sub(r'<th>(.*?)</th>', replace_header, html_table_str)
+
 from io import BytesIO
 try:
     import matplotlib
@@ -35,7 +103,8 @@ from .services import (
     admin_service,
     analyst_service,
     report_service,
-    code_service
+    code_service,
+    ml_service
 )
 from .services import ai_helper  # Import the AI helper service
 
@@ -69,28 +138,35 @@ SAMPLING_ROW_COUNT = 100000  # Number of rows to sample for large files
 
 def clean_for_json(obj):
     """
-    Recursively replaces NaN, Infinity, -Infinity, numpy types, and datetimes
-    with JSON-compliant standard Python primitives.
+    Recursively replaces NaN, Infinity, -Infinity, numpy types, pandas types,
+    and datetimes with JSON-compliant standard Python primitives.
     """
+    if obj is None:
+        return None
+    if isinstance(obj, (np.ndarray, pd.Series)):
+        return clean_for_json(obj.tolist())
     if isinstance(obj, dict):
         return {str(k): clean_for_json(v) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple)):
+    if isinstance(obj, (list, tuple, pd.Index)):
         return [clean_for_json(v) for v in obj]
-    elif isinstance(obj, float):
-        if pd.isna(obj) or np.isinf(obj):
-            return None
-        return float(obj)
-    elif isinstance(obj, (np.integer, int)):
+    if isinstance(obj, (bool, np.bool_)):
+        return bool(obj)
+    if isinstance(obj, (np.integer, int)):
         return int(obj)
-    elif isinstance(obj, (np.floating, float)):
+    if isinstance(obj, (np.floating, float)):
         val = float(obj)
-        if pd.isna(val) or np.isinf(val):
+        if np.isnan(val) or np.isinf(val):
             return None
         return val
-    elif isinstance(obj, (np.ndarray, pd.Series)):
-        return clean_for_json(obj.tolist())
-    elif hasattr(obj, 'isoformat'):
+    try:
+        if pd.isna(obj):
+            return None
+    except Exception:
+        pass
+    if hasattr(obj, 'isoformat'):
         return obj.isoformat()
+    if isinstance(obj, (np.generic, pd.Timestamp)):
+        return str(obj)
     return obj
 
 
@@ -229,6 +305,7 @@ def build_dataset_payload(df, semantic_types, dataset_id, file_name, file_size, 
                 border=0,
                 justify='left'
             )
+        stats_summary_html = enhance_stats_html_with_tooltips(stats_summary_html)
     except Exception as e:
         current_app.logger.warning(f"Could not generate statistical summary: {e}")
 
@@ -268,6 +345,30 @@ def build_dataset_payload(df, semantic_types, dataset_id, file_name, file_size, 
         except Exception as err:
             current_app.logger.warning(f"Error checking assigned task for dataset {dataset_id}: {err}")
 
+    # Calculate KPIs & Business Insights via kpi_service & insight_service
+    numeric_kpis = {}
+    business_kpis = {}
+    try:
+        numeric_kpis = kpi_service.generate_numeric_kpis(df, semantic_types)
+        business_kpis = kpi_service.detect_business_metrics(df, business_domain)
+    except Exception as e_kpi:
+        current_app.logger.warning(f"Could not generate KPIs: {e_kpi}")
+
+    rule_insights = {}
+    automl_recs = []
+    try:
+        analytics_summary = {
+            "domain": business_domain,
+            "row_count": int(row_count),
+            "column_count": int(column_count),
+            "semantic_types": semantic_types,
+            "numeric_summary": stats_dict if 'stats_dict' in locals() else {}
+        }
+        rule_insights = insight_service.generate_rule_based_insights(analytics_summary)
+        automl_recs = insight_service.generate_automl_recommendations(analytics_summary)
+    except Exception as e_ins:
+        current_app.logger.warning(f"Could not generate insights: {e_ins}")
+
     return {
         'success': True,
         'message': message or f'Dataset "{file_name}" loaded successfully.',
@@ -288,8 +389,58 @@ def build_dataset_payload(df, semantic_types, dataset_id, file_name, file_size, 
         'quality_metrics': quality_metrics,
         'memory_summary': memory_summary,
         'business_domain': business_domain,
-        'assigned_task': assigned_task
+        'assigned_task': assigned_task,
+        'numeric_kpis': numeric_kpis,
+        'business_kpis': business_kpis,
+        'rule_insights': rule_insights,
+        'automl_recommendations': automl_recs
     }
+
+
+@bp.route('/dataset/<int:dataset_id>/kpis')
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def get_dataset_kpis_api(dataset_id):
+    """API endpoint to retrieve numeric and business KPIs for a dataset using kpi_service."""
+    try:
+        df = load_dataframe(dataset_id, session.get('id'))
+        semantic_types = semantic_service.classify_dataframe(df)
+        business_domain = semantic_service.detect_business_domain(df, semantic_types)
+        num_kpis = kpi_service.generate_numeric_kpis(df, semantic_types)
+        biz_kpis = kpi_service.detect_business_metrics(df, business_domain)
+        return jsonify({
+            'success': True,
+            'dataset_id': dataset_id,
+            'numeric_kpis': num_kpis,
+            'business_kpis': biz_kpis
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/dataset/<int:dataset_id>/insights')
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def get_dataset_insights_api(dataset_id):
+    """API endpoint to retrieve rule-based insights and AutoML recommendations using insight_service."""
+    try:
+        df = load_dataframe(dataset_id, session.get('id'))
+        semantic_types = semantic_service.classify_dataframe(df)
+        business_domain = semantic_service.detect_business_domain(df, semantic_types)
+        summary = {
+            "domain": business_domain,
+            "row_count": len(df),
+            "column_count": len(df.columns),
+            "semantic_types": semantic_types
+        }
+        insights = insight_service.generate_rule_based_insights(summary)
+        automl = insight_service.generate_automl_recommendations(summary)
+        return jsonify({
+            'success': True,
+            'dataset_id': dataset_id,
+            'insights': insights,
+            'automl_recommendations': automl
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # --- File Upload Route ---
@@ -413,6 +564,226 @@ def upload_dataset():
     return jsonify(response_payload)
 
 
+def parse_google_sheet_export_urls(url):
+    """
+    Parses any Google Sheets URL (standard share link, published link, direct export link, gviz link)
+    and returns a prioritized list of direct CSV export candidate URLs to try fetching.
+    """
+    if not url or not isinstance(url, str):
+        return [], None, '0'
+
+    url = url.strip()
+    urls_to_try = []
+
+    # If user pasted a direct CSV export or pub link, try that exact URL first
+    if 'format=csv' in url or 'output=csv' in url or 'out:csv' in url:
+        urls_to_try.append(url)
+
+    # Check for Published Web Link format: /spreadsheets/d/e/2PACX-.../
+    pub_match = re.search(r'/spreadsheets/d/e/([a-zA-Z0-9-_]+)', url)
+    gid_match = re.search(r'[#&?]gid=([0-9]+)', url)
+    gid = gid_match.group(1) if gid_match else '0'
+
+    spreadsheet_id = None
+
+    if pub_match:
+        pub_id = pub_match.group(1)
+        spreadsheet_id = pub_id
+        urls_to_try.append(f"https://docs.google.com/spreadsheets/d/e/{pub_id}/pub?output=csv&gid={gid}")
+        urls_to_try.append(f"https://docs.google.com/spreadsheets/d/e/{pub_id}/pub?output=csv")
+
+    # Standard Spreadsheet ID format: /spreadsheets/d/([a-zA-Z0-9-_]+)
+    id_match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', url)
+    if id_match:
+        sheet_id = id_match.group(1)
+        if sheet_id != 'e':
+            spreadsheet_id = spreadsheet_id or sheet_id
+            urls_to_try.append(f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}")
+            urls_to_try.append(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={gid}")
+            urls_to_try.append(f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv")
+            urls_to_try.append(f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv")
+
+    # Deduplicate while preserving order
+    seen = set()
+    deduped_urls = []
+    for u in urls_to_try:
+        if u not in seen:
+            seen.add(u)
+            deduped_urls.append(u)
+
+    return deduped_urls, spreadsheet_id, gid
+
+
+def is_valid_csv_content(content_bytes):
+    """Verifies that fetched content is actual CSV data and not Google's HTML error/login page."""
+    if not content_bytes or len(content_bytes) < 5:
+        return False
+    sample = content_bytes[:500].decode('utf-8', errors='ignore').strip().lower()
+    if sample.startswith('<!doctype html') or sample.startswith('<html') or '<head' in sample or '<body' in sample:
+        return False
+    if 'accounts.google.com' in sample or 'service login' in sample or 'sign in' in sample:
+        return False
+    return True
+
+
+@bp.route('/import_google_sheet', methods=['POST'])
+@roles_required('admin', 'manager', 'analyst')
+def import_google_sheet():
+    """Imports, parses, and analyzes data directly from a public Google Sheets URL."""
+    data = request.get_json(silent=True) or request.form
+    gsheet_url = data.get('sheet_url') or data.get('url') or data.get('google_sheet_url')
+
+    if not gsheet_url or not str(gsheet_url).strip():
+        return jsonify({'success': False, 'message': 'Please provide a valid Google Sheet URL.'}), 400
+
+    urls_to_try, spreadsheet_id, gid = parse_google_sheet_export_urls(gsheet_url)
+    if not urls_to_try or not spreadsheet_id:
+        return jsonify({
+            'success': False,
+            'message': 'Invalid Google Sheet URL format. Please paste a valid link (e.g., https://docs.google.com/spreadsheets/d/...)'
+        }), 400
+
+    import io
+    import requests
+    import urllib.request
+    import urllib.error
+
+    csv_bytes = None
+    last_error_msg = None
+    access_restricted = False
+
+    session_http = requests.Session()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/csv,text/plain,application/csv,*/*'
+    }
+
+    for export_url in urls_to_try:
+        try:
+            resp = session_http.get(export_url, headers=headers, timeout=15, allow_redirects=True)
+            if resp.status_code == 200:
+                if is_valid_csv_content(resp.content):
+                    csv_bytes = resp.content
+                    break
+                else:
+                    access_restricted = True
+                    last_error_msg = 'Google returned an HTML login page instead of CSV data.'
+            elif resp.status_code in (401, 403):
+                access_restricted = True
+                last_error_msg = f'Access denied (HTTP {resp.status_code}).'
+            elif resp.status_code == 404:
+                last_error_msg = 'Google Sheet not found (HTTP 404).'
+            else:
+                last_error_msg = f'Google returned HTTP status {resp.status_code}.'
+        except Exception as ex_req:
+            # Fallback to urllib.request if requests encounters SSL/socket issues
+            try:
+                req = urllib.request.Request(export_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=15) as u_resp:
+                    raw_b = u_resp.read()
+                    if is_valid_csv_content(raw_b):
+                        csv_bytes = raw_b
+                        break
+                    else:
+                        access_restricted = True
+            except urllib.error.HTTPError as h_err:
+                if h_err.code in (401, 403):
+                    access_restricted = True
+                    last_error_msg = 'Access denied by Google (HTTP 403).'
+                else:
+                    last_error_msg = f'HTTP Error {h_err.code}'
+            except Exception as u_err:
+                last_error_msg = str(u_err)
+
+    if not csv_bytes:
+        if access_restricted:
+            return jsonify({
+                'success': False,
+                'message': (
+                    'Access denied by Google Sheets. Please make sure link sharing is turned ON:\n'
+                    '1. Open your Google Sheet\n'
+                    '2. Click "Share" (top right)\n'
+                    '3. Under "General access", change to "Anyone with the link can view"\n'
+                    '4. Copy the link and try again.'
+                )
+            }), 403
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Could not fetch Google Sheet. Details: {last_error_msg or "Empty or invalid response from Google"}'
+            }), 400
+
+    try:
+        try:
+            df = pd.read_csv(io.BytesIO(csv_bytes), encoding='utf-8')
+        except UnicodeDecodeError:
+            df = pd.read_csv(io.BytesIO(csv_bytes), encoding='latin1')
+
+        if df.empty:
+            return jsonify({'success': False, 'message': 'The imported Google Sheet contains no records.'}), 400
+
+        df.columns = [str(c).strip() for c in df.columns]
+        original_filename = f"GSheet_{spreadsheet_id[:8]}.csv"
+
+        df = cleaning_service.normalize_missing_values(df)
+        semantic_types = semantic_service.classify_dataframe(df)
+        df, semantic_types = cleaning_service.auto_convert_dtypes(df, semantic_types)
+        df = cleaning_service.normalize_categories(df, semantic_types)
+
+        user_id = session['id']
+        user_upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], "raw", f"user_{user_id}")
+        unique_filename = f"gsheet_{uuid.uuid4().hex}.csv"
+        os.makedirs(user_upload_folder, exist_ok=True)
+        filepath = os.path.join(user_upload_folder, unique_filename)
+
+        df.to_csv(filepath, index=False, encoding='utf-8')
+
+        row_count, column_count = df.shape
+        file_size = os.path.getsize(filepath)
+        total_missing_count = int(df.isnull().sum().sum())
+        duplicate_count = int(df.duplicated().sum())
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'message': 'Database connection error.'}), 500
+
+        try:
+            with conn.cursor() as cursor:
+                sql = """
+                    INSERT INTO datasets
+                    (user_id, file_name, file_path, file_size, file_type, row_count, column_count,
+                     missing_values_count, duplicate_rows_count)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(
+                    sql,
+                    (user_id, original_filename, filepath, file_size, 'gsheet',
+                     row_count, column_count, total_missing_count, duplicate_count)
+                )
+                dataset_id = cursor.lastrowid
+            conn.commit()
+            save_dataframe(df, dataset_id, user_id)
+            session['active_dataset_id'] = dataset_id
+        finally:
+            conn.close()
+
+        response_payload = build_dataset_payload(
+            df,
+            semantic_types,
+            dataset_id,
+            original_filename,
+            file_size,
+            f'Google Sheet "{original_filename}" imported and analyzed successfully!'
+        )
+        log_api_call(request.path, 'success')
+        return jsonify(response_payload)
+
+    except Exception as e:
+        current_app.logger.exception(f"Error processing Google Sheet import: {e}")
+        log_api_call(request.path, 'failure')
+        return jsonify({'success': False, 'message': f'Error analyzing Google Sheet: {str(e)}'}), 500
+
+
 @bp.route('/current_dataset', methods=['GET'])
 @roles_required('admin', 'manager', 'analyst')
 def current_dataset():
@@ -429,13 +800,6 @@ def current_dataset():
                 cursor.execute(
                     "SELECT id, file_name, file_path, file_size FROM datasets WHERE id = %s AND user_id = %s",
                     (dataset_id, user_id)
-                )
-                dataset = cursor.fetchone()
-
-            if not dataset:
-                cursor.execute(
-                    "SELECT id, file_name, file_path, file_size FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 1",
-                    (user_id,)
                 )
                 dataset = cursor.fetchone()
 
@@ -529,6 +893,7 @@ def get_previous_datasets():
 
 
 @bp.route('/load_dataset/<int:dataset_id>', methods=['POST', 'GET'])
+@bp.route('/select_dataset/<int:dataset_id>', methods=['POST', 'GET'])
 @roles_required('admin', 'manager', 'analyst')
 def load_specific_dataset(dataset_id):
     user_id = session.get('id')
@@ -617,22 +982,34 @@ def clean_data():
         else:
             columns_to_fill = [target_column] if target_column != 'all_columns' else df.columns
             for col in columns_to_fill:
-                if df[col].isnull().any():
-                    col_sem = semantic_types.get(col, 'unknown')
-                    if strategy in ['fill_mean', 'fill_median']:
-                        # Protect identifiers and geographic codes from mathematical imputation
-                        if col_sem in ['identifier', 'possible_identifier', 'geographic_code']:
-                            continue
-                        df = cleaning_service.smart_clean_column(df, col, col_sem)
-                    elif strategy == 'fill_mode':
-                        mode_values = df[col].mode(dropna=True)
-                        fill_val = mode_values.iloc[0] if not mode_values.empty else "Unknown"
-                        df[col] = df[col].fillna(fill_val)
-                    elif strategy == 'fill_custom':
-                        try:
-                            df[col] = df[col].fillna(pd.to_numeric(custom_value))
-                        except (ValueError, TypeError):
-                            df[col] = df[col].fillna(custom_value)
+                if col not in df.columns:
+                    continue
+                col_sem = semantic_types.get(col, 'unknown')
+                if strategy == 'fill_mean':
+                    if col_sem in ['identifier', 'possible_identifier', 'geographic_code']:
+                        continue
+                    num_s = pd.to_numeric(df[col], errors='coerce')
+                    mean_val = float(num_s.dropna().mean()) if not num_s.dropna().empty else 0.0
+                    df[col] = num_s.fillna(mean_val)
+                elif strategy == 'fill_median':
+                    if col_sem in ['identifier', 'possible_identifier', 'geographic_code']:
+                        continue
+                    num_s = pd.to_numeric(df[col], errors='coerce')
+                    med_val = float(num_s.dropna().median()) if not num_s.dropna().empty else 0.0
+                    df[col] = num_s.fillna(med_val)
+                elif strategy == 'fill_mode':
+                    mode_values = df[col].mode(dropna=True)
+                    fill_val = mode_values.iloc[0] if not mode_values.empty else "Unknown"
+                    df[col] = df[col].fillna(fill_val)
+                elif strategy == 'ffill':
+                    df[col] = df[col].ffill()
+                elif strategy == 'bfill':
+                    df[col] = df[col].bfill()
+                elif strategy == 'fill_custom':
+                    try:
+                        df[col] = df[col].fillna(pd.to_numeric(custom_value))
+                    except (ValueError, TypeError):
+                        df[col] = df[col].fillna(custom_value)
 
         save_dataframe(df, dataset_id, session['id'])
 
@@ -640,6 +1017,20 @@ def clean_data():
         new_missing_count = int(df.isnull().sum().sum())
         filled_values = max(0, old_missing_count - new_missing_count)
         removed_rows = max(0, old_row_count - new_row_count)
+
+        # Update dataset stats in DB
+        try:
+            conn = get_db_connection()
+            if conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE datasets SET row_count = %s, column_count = %s, missing_values_count = %s WHERE id = %s",
+                        (new_row_count, new_column_count, new_missing_count, dataset_id)
+                    )
+                conn.commit()
+                conn.close()
+        except Exception as db_err:
+            current_app.logger.warning(f"Failed to update dataset metrics in DB: {db_err}")
 
         new_missing_values = df.isnull().sum()
         new_total_missing_count = int(new_missing_values.sum())
@@ -690,25 +1081,35 @@ def clean_data():
 @bp.route('/handle_duplicates', methods=['POST'])
 @roles_required('admin', 'manager', 'analyst')
 def handle_duplicates():
-    data = request.get_json()
+    data = request.get_json() or {}
     dataset_id = data.get('dataset_id')
     columns = data.get('columns')
     action = data.get('action', 'find')
     keep_strategy = data.get('keep', 'first')
 
-    if not all([dataset_id, columns]):
+    if not dataset_id:
         log_api_call(request.path, 'failure')
-        return jsonify({'success': False, 'message': 'Dataset ID and columns are required.'}), 400
+        return jsonify({'success': False, 'message': 'Dataset ID is required.'}), 400
 
     try:
         df = load_dataframe(dataset_id, session['id'])
+        if not columns or len(columns) == 0:
+            subset_cols = list(df.columns)
+        else:
+            subset_cols = [c for c in columns if c in df.columns]
+            if not subset_cols:
+                subset_cols = list(df.columns)
 
         if action == 'find':
-            duplicates_mask = df.duplicated(subset=columns, keep=False)
+            duplicates_mask = df.duplicated(subset=subset_cols, keep=False)
             duplicate_count = int(duplicates_mask.sum())
             if duplicate_count == 0:
-                return jsonify({'success': True, 'count': 0, 'message': 'No duplicates found for the selected columns.'})
-            duplicates_df = df[duplicates_mask].sort_values(by=columns)
+                return jsonify({
+                    'success': True,
+                    'count': 0,
+                    'message': 'No duplicate rows found for the selected column(s).'
+                })
+            duplicates_df = df[duplicates_mask].sort_values(by=subset_cols)
             preview_html = duplicates_df.head(10).to_html(
                 classes=['dn-table', 'dn-table-preview', 'dn-table-sm'],
                 index=False,
@@ -716,15 +1117,62 @@ def handle_duplicates():
                 justify='left'
             )
             log_api_call(request.path, 'success')
-            return jsonify({'success': True, 'count': duplicate_count, 'preview_html': preview_html})
+            return jsonify({
+                'success': True,
+                'count': duplicate_count,
+                'preview_html': preview_html,
+                'columns_checked': subset_cols
+            })
 
         elif action == 'remove':
             original_rows = len(df)
-            df.drop_duplicates(subset=columns, keep=keep_strategy, inplace=True)
+            df.drop_duplicates(subset=subset_cols, keep=keep_strategy, inplace=True)
             rows_removed = original_rows - len(df)
             save_dataframe(df, dataset_id, session['id'])
+
+            new_row_count, new_column_count = df.shape
+            current_missing_count = int(df.isnull().sum().sum())
+            current_exact_dup_count = int(df.duplicated().sum())
+
+            # Update dataset stats in DB
+            try:
+                conn = get_db_connection()
+                if conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute(
+                            "UPDATE datasets SET row_count = %s, column_count = %s, missing_values_count = %s, duplicate_rows_count = %s WHERE id = %s",
+                            (new_row_count, new_column_count, current_missing_count, current_exact_dup_count, dataset_id)
+                        )
+                    conn.commit()
+                    conn.close()
+            except Exception as db_err:
+                current_app.logger.warning(f"Failed to update dataset metrics in DB after duplicate removal: {db_err}")
+
+            semantic_types = semantic_service.classify_dataframe(df)
+            payload = build_dataset_payload(
+                df,
+                semantic_types,
+                dataset_id,
+                "Dataset",
+                0,
+                f"Successfully removed {rows_removed} duplicate row(s)."
+            )
+            payload['rows_removed'] = rows_removed
+            payload['duplicate_count'] = current_exact_dup_count
+            payload['cleaned_data'] = {
+                'preview_html': df.head(10).to_html(
+                    classes=['dn-table', 'dn-table-preview'],
+                    index=False,
+                    border=0,
+                    justify='left'
+                ),
+                'row_count': new_row_count,
+                'column_count': new_column_count,
+                'missing_count': current_missing_count,
+                'rows_removed': rows_removed
+            }
             log_api_call(request.path, 'success')
-            return jsonify({'success': True, 'message': f'Successfully removed {rows_removed} duplicate rows.', 'rows_removed': rows_removed})
+            return jsonify(payload)
 
     except FileNotFoundError:
         log_api_call(request.path, 'failure')
@@ -1010,7 +1458,12 @@ def get_processed_path(dataset_id, user_id):
 def load_dataframe(dataset_id, user_id, force_full_load=False):
     processed_path = get_processed_path(dataset_id, user_id)
     if os.path.exists(processed_path):
-        return pd.read_pickle(processed_path)
+        try:
+            return pd.read_pickle(processed_path)
+        except Exception as e:
+            current_app.logger.warning(
+                f"Error loading processed pickle for dataset #{dataset_id}: {e}. Falling back to original raw file."
+            )
 
     original_filepath = get_filepath_for_user(dataset_id, user_id)
     if not original_filepath:
@@ -1104,16 +1557,28 @@ def invalidate_cached_analysis(dataset_id):
 
 
 def record_report_generation(dataset_id, user_id, report_name, report_type):
-    """Records report generation entry in MySQL reports table."""
+    """Records report generation entry in MySQL reports table, avoiding duplicates within recent window."""
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
+                # Deduplicate: check if same report was recorded in the last 2 minutes
                 cursor.execute(
-                    "INSERT INTO reports (user_id, dataset_id, report_name, report_type) VALUES (%s, %s, %s, %s)",
-                    (user_id, dataset_id, report_name, report_type)
+                    """
+                    SELECT id FROM reports 
+                    WHERE user_id = %s AND dataset_id = %s AND report_type = %s 
+                    AND created_at >= NOW() - INTERVAL 2 MINUTE
+                    LIMIT 1
+                    """,
+                    (user_id, dataset_id, report_type)
                 )
-            conn.commit()
+                existing = cursor.fetchone()
+                if not existing:
+                    cursor.execute(
+                        "INSERT INTO reports (user_id, dataset_id, report_name, report_type) VALUES (%s, %s, %s, %s)",
+                        (user_id, dataset_id, report_name, report_type)
+                    )
+                    conn.commit()
         except Exception as e:
             current_app.logger.warning(f"Could not record report generation in DB: {e}")
         finally:
@@ -1128,11 +1593,9 @@ def get_or_create_analysis(df, dataset_id, generate_ai=True, force_refresh=False
     """
     if not force_refresh:
         cached = load_cached_analysis(dataset_id)
-        if cached and isinstance(cached, dict):
-            # Check if cached analysis has AI explanation if generate_ai is required
-            if not generate_ai or cached.get("ai_explanation"):
-                current_app.logger.info(f"[Cache Hit] Reusing saved report analysis for dataset {dataset_id}. Zero AI calls made.")
-                return cached
+        if cached and isinstance(cached, dict) and (cached.get("recommended_charts") or cached.get("business_domain") or cached.get("quality") or cached.get("correlations") or cached.get("kpis")):
+            current_app.logger.info(f"[Cache Hit] Reusing saved report analysis for dataset {dataset_id}. Zero AI calls made.")
+            return cached
 
     current_app.logger.info(f"[Cache Miss] Generating new analysis pipeline for dataset {dataset_id} (generate_ai={generate_ai}).")
     analysis_result = pipeline_service.analyze_dataset(df, generate_ai=generate_ai)
@@ -1484,6 +1947,121 @@ def export_excel_report(dataset_id):
         return jsonify({'success': False, 'message': f'Could not generate Excel workbook: {e}'}), 500
 
 
+@bp.route('/report/view/<int:report_id>', methods=['GET'])
+@bp.route('/report/download/<int:report_id>', methods=['GET'])
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def view_or_download_report_by_id(report_id):
+    """
+    Dynamically routes report viewing/downloading according to the report's registered type
+    (PDF, HTML, DOCX, XLSX, PPTX).
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection error.'}), 500
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT r.*, d.user_id as dataset_owner_id
+                FROM reports r
+                LEFT JOIN datasets d ON r.dataset_id = d.id
+                WHERE r.id = %s
+                """,
+                (report_id,)
+            )
+            report = cursor.fetchone()
+
+        if not report:
+            return jsonify({'success': False, 'message': 'Report not found.'}), 404
+
+        dataset_id = report['dataset_id']
+        report_type = (report.get('report_type') or 'HTML').upper().strip()
+        user_id = session.get('id')
+        owner_id = report.get('dataset_owner_id') or user_id
+
+        df = load_dataframe(dataset_id, owner_id)
+        analysis_result = get_or_create_analysis(df, dataset_id, generate_ai=True)
+
+        if 'PDF' in report_type:
+            pdf_bytes = report_service.generate_pdf_report_bytes(analysis_result)
+            return current_app.response_class(
+                pdf_bytes,
+                mimetype='application/pdf',
+                headers={"Content-disposition": f"inline; filename=DataNova_Report_{report_id}.pdf"}
+            )
+        elif any(x in report_type for x in ['DOCX', 'WORD']):
+            word_bytes = report_service.generate_word_report_bytes(analysis_result)
+            return current_app.response_class(
+                word_bytes,
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                headers={"Content-disposition": f"attachment; filename=DataNova_Report_{report_id}.docx"}
+            )
+        elif any(x in report_type for x in ['PPTX', 'PPT', 'POWERPOINT', 'PRESENTATION']):
+            ppt_bytes = report_service.generate_ppt_report_bytes(analysis_result)
+            return current_app.response_class(
+                ppt_bytes,
+                mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                headers={"Content-disposition": f"attachment; filename=DataNova_Presentation_{report_id}.pptx"}
+            )
+        elif any(x in report_type for x in ['XLSX', 'EXCEL', 'CSV', 'WORKBOOK']):
+            excel_bytes = report_service.generate_excel_report_bytes(df, analysis_result)
+            return current_app.response_class(
+                excel_bytes,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                headers={"Content-disposition": f"attachment; filename=DataNova_Workbook_{report_id}.xlsx"}
+            )
+        else:
+            # HTML default
+            report_html = report_service.generate_eda_html_report(analysis_result)
+            return current_app.response_class(
+                report_html,
+                mimetype='text/html',
+                headers={"Content-disposition": f"inline; filename=DataNova_Report_{report_id}.html"}
+            )
+
+    except Exception as e:
+        current_app.logger.exception(f"Error viewing/downloading report {report_id}: {e}")
+        return jsonify({'success': False, 'message': f'Could not generate report: {e}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@bp.route('/manager/reports', methods=['GET'])
+@roles_required('admin', 'manager', 'analyst')
+def get_manager_reports_api():
+    """Returns all platform reports for manager view."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database error.'}), 500
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT r.id, r.report_name, r.report_type, r.created_at, r.dataset_id,
+                       d.file_name as dataset_file_name, u.first_name, u.last_name, u.email, u.role
+                FROM reports r
+                LEFT JOIN datasets d ON r.dataset_id = d.id
+                LEFT JOIN users u ON r.user_id = u.id
+                ORDER BY r.created_at DESC LIMIT 100
+            """)
+            reports = cursor.fetchall() or []
+            for rep in reports:
+                fn = rep.get('first_name') or 'User'
+                ln = rep.get('last_name') or ''
+                rep['user_name'] = f"{fn} {ln}".strip()
+                c_at = rep.get('created_at')
+                rep['created_at_str'] = c_at.strftime('%d %b %Y, %H:%M') if hasattr(c_at, 'strftime') else str(c_at or '')[:16]
+        return jsonify({'success': True, 'reports': reports, 'count': len(reports)})
+    except Exception as e:
+        current_app.logger.exception(f"Error fetching manager reports: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+
 @bp.route('/rollback_dataset', methods=['POST'])
 @roles_required('admin', 'manager', 'analyst')
 def rollback_dataset():
@@ -1575,8 +2153,27 @@ def drop_columns():
             log_api_call(request.path, 'failure')
             return jsonify({'success': False, 'message': 'None of the specified columns exist in dataset.'}), 400
 
+        new_row_count, new_column_count = df.shape
+        new_missing_count = int(df.isnull().sum().sum())
         df.drop(columns=existing_drops, inplace=True)
         save_dataframe(df, dataset_id, session['id'])
+
+        final_row_count, final_column_count = df.shape
+        final_missing_count = int(df.isnull().sum().sum())
+
+        # Update dataset stats in DB
+        try:
+            conn = get_db_connection()
+            if conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE datasets SET row_count = %s, column_count = %s, missing_values_count = %s WHERE id = %s",
+                        (final_row_count, final_column_count, final_missing_count, dataset_id)
+                    )
+                conn.commit()
+                conn.close()
+        except Exception as db_err:
+            current_app.logger.warning(f"Failed to update dataset metrics in DB after drop_columns: {db_err}")
 
         semantic_types = semantic_service.classify_dataframe(df)
         payload = build_dataset_payload(
@@ -1587,6 +2184,21 @@ def drop_columns():
             0,
             f"Successfully removed {len(existing_drops)} column(s). The dataset has been updated."
         )
+
+        # Include cleaned_data preview for UI
+        payload['cleaned_data'] = {
+            'preview_html': df.head(10).to_html(
+                classes=['dn-table', 'dn-table-preview'],
+                index=False,
+                border=0,
+                justify='left'
+            ),
+            'row_count': final_row_count,
+            'column_count': final_column_count,
+            'missing_count': final_missing_count,
+            'columns_dropped': existing_drops,
+            'columns_dropped_count': len(existing_drops)
+        }
 
         # Regenerate automatic charts for cleaned data
         recommended_charts = chart_service.generate_automatic_charts(df, semantic_types)
@@ -1650,6 +2262,12 @@ def generate_custom_chart():
     y_col = data.get('y_col')
     chart_type = data.get('chart_type', 'bar')
     agg_func = data.get('agg_func', 'sum')
+    z_col = data.get('z_col')
+
+    if y_col and (not isinstance(y_col, str) or not y_col.strip() or y_col.lower() in ('none', 'null', 'select', 'optional', '')):
+        y_col = None
+    if z_col and (not isinstance(z_col, str) or not z_col.strip() or z_col.lower() in ('none', 'null', 'select', 'optional', '')):
+        z_col = None
 
     if not dataset_id or not x_col:
         log_api_call(request.path, 'failure')
@@ -1657,7 +2275,7 @@ def generate_custom_chart():
 
     try:
         df = load_dataframe(dataset_id, session['id'])
-        chart_res = chart_service.generate_custom_chart(df, x_col, y_col, chart_type, agg_func)
+        chart_res = chart_service.generate_custom_chart(df, x_col, y_col, chart_type, agg_func, z_col=z_col)
         plot_base64 = chart_res.get('plot') if isinstance(chart_res, dict) else chart_res
         plotly_json = chart_res.get('plotly_json') if isinstance(chart_res, dict) else None
 
@@ -1669,7 +2287,7 @@ def generate_custom_chart():
             'chart_type': chart_type
         }
         log_api_call(request.path, 'success')
-        return jsonify(response)
+        return jsonify(clean_for_json(response))
     except ValueError as ve:
         current_app.logger.warning(f"Validation error generating custom chart: {ve}")
         log_api_call(request.path, 'failure')
@@ -1678,6 +2296,7 @@ def generate_custom_chart():
         current_app.logger.exception(f"Error generating custom chart: {e}")
         log_api_call(request.path, 'failure')
         return jsonify({'success': False, 'message': f'Failed to generate chart: {e}'}), 500
+
 
 
 @bp.route('/ask_data', methods=['POST'])
@@ -1957,17 +2576,184 @@ def viewer_shared_dashboards():
 @bp.route('/compare_datasets', methods=['POST'])
 @roles_required('admin', 'manager', 'analyst')
 def compare_datasets():
-    """Compares two uploaded datasets side-by-side."""
-    data = request.get_json() or {}
+    """Compares two datasets side-by-side either via uploaded files (CSV/Excel) or platform dataset IDs."""
+    user_id = session.get('id')
+
+    file1 = request.files.get('file1')
+    file2 = request.files.get('file2')
+
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.form or {}
+
     dataset_id_1 = data.get('dataset_id_1')
     dataset_id_2 = data.get('dataset_id_2')
+    gsheet_url_1 = data.get('gsheet_url_1')
+    gsheet_url_2 = data.get('gsheet_url_2')
 
-    if not dataset_id_1 or not dataset_id_2:
-        return jsonify({'success': False, 'message': 'Two dataset IDs are required for comparison.'}), 400
+    name1 = "Dataset 1"
+    name2 = "Dataset 2"
+    df1 = None
+    df2 = None
+
+    def _read_uploaded_file(file_obj):
+        fname = file_obj.filename.lower()
+        if fname.endswith('.csv'):
+            try:
+                return pd.read_csv(file_obj, encoding='utf-8', low_memory=False)
+            except UnicodeDecodeError:
+                file_obj.seek(0)
+                return pd.read_csv(file_obj, encoding='latin1', low_memory=False)
+        elif fname.endswith(('.xlsx', '.xls')):
+            return pd.read_excel(file_obj)
+        elif fname.endswith('.json'):
+            return pd.read_json(file_obj)
+        else:
+            raise ValueError(f"Unsupported file format for '{file_obj.filename}'. Please upload a CSV or Excel file.")
+
+    def _load_df_from_gsheet(url_or_id):
+        url_str = str(url_or_id).strip()
+        if not url_str:
+            return None, "Empty Google Sheet URL."
+        
+        match = re.search(r'/d/([a-zA-Z0-9-_]+)', url_str)
+        if match:
+            spreadsheet_id = match.group(1)
+        elif re.match(r'^[a-zA-Z0-9-_]{20,}$', url_str):
+            spreadsheet_id = url_str
+        else:
+            return None, "Invalid Google Sheet URL format. Please paste a valid Google Sheets share link."
+
+        gid = "0"
+        gid_match = re.search(r'[#&?]gid=([0-9]+)', url_str)
+        if gid_match:
+            gid = gid_match.group(1)
+
+        export_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&gid={gid}"
+        try:
+            df = pd.read_csv(export_url, encoding='utf-8', low_memory=False)
+            return df, None
+        except Exception as e:
+            current_app.logger.warning(f"Could not load Google Sheet from {export_url}: {e}")
+            return None, f"Could not load Google Sheet. Please ensure link sharing is set to 'Anyone with the link can view'. (Error: {e})"
 
     try:
-        df1 = load_dataframe(dataset_id_1, session['id'])
-        df2 = load_dataframe(dataset_id_2, session['id'])
+        # Load Dataset 1
+        if file1 and file1.filename:
+            name1 = file1.filename
+            df1 = _read_uploaded_file(file1)
+        elif gsheet_url_1 and str(gsheet_url_1).strip():
+            name1 = "Google Sheet 1"
+            df1, err_msg = _load_df_from_gsheet(gsheet_url_1)
+            if err_msg or df1 is None:
+                return jsonify({'success': False, 'message': err_msg or "Failed to load Google Sheet 1."}), 400
+        elif dataset_id_1:
+            name1 = f"Dataset #{dataset_id_1}"
+            df1 = load_dataframe(dataset_id_1, user_id)
+            conn = get_db_connection()
+            if conn:
+                try:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT file_name FROM datasets WHERE id = %s", (dataset_id_1,))
+                        row = cursor.fetchone()
+                        if row:
+                            name1 = row.get('file_name', name1)
+                finally:
+                    conn.close()
+        else:
+            return jsonify({'success': False, 'message': 'Please provide Primary Dataset (Upload file, paste Google Sheet link, or enter Dataset ID).'}), 400
+
+        # Load Dataset 2
+        if file2 and file2.filename:
+            name2 = file2.filename
+            df2 = _read_uploaded_file(file2)
+        elif gsheet_url_2 and str(gsheet_url_2).strip():
+            name2 = "Google Sheet 2"
+            df2, err_msg = _load_df_from_gsheet(gsheet_url_2)
+            if err_msg or df2 is None:
+                return jsonify({'success': False, 'message': err_msg or "Failed to load Google Sheet 2."}), 400
+        elif dataset_id_2:
+            name2 = f"Dataset #{dataset_id_2}"
+            df2 = load_dataframe(dataset_id_2, user_id)
+            conn = get_db_connection()
+            if conn:
+                try:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT file_name FROM datasets WHERE id = %s", (dataset_id_2,))
+                        row = cursor.fetchone()
+                        if row:
+                            name2 = row.get('file_name', name2)
+                finally:
+                    conn.close()
+        else:
+            return jsonify({'success': False, 'message': 'Please provide Secondary Dataset (Upload file, paste Google Sheet link, or enter Dataset ID).'}), 400
+
+        if df1 is None or df1.empty:
+            return jsonify({'success': False, 'message': f"'{name1}' contains no records or is empty."}), 400
+        if df2 is None or df2.empty:
+            return jsonify({'success': False, 'message': f"'{name2}' contains no records or is empty."}), 400
+
+        def _clean_dataframe_for_comparison(df):
+            if df is None or df.empty:
+                return df
+            # 1. Clean column headers: strip whitespace, remove quotes, strip UTF-8 BOM
+            df.columns = [str(col).strip().replace('\ufeff', '') for col in df.columns]
+            
+            # 2. Drop columns that are completely empty / all NaN and start with 'Unnamed:'
+            unnamed_empty = [c for c in df.columns if c.startswith('Unnamed:') and (df[c].isna().all() or df[c].astype(str).str.strip().eq('').all())]
+            if unnamed_empty:
+                df = df.drop(columns=unnamed_empty)
+                
+            # 3. For any remaining Unnamed columns that are mostly (>90%) NaN, drop them
+            unnamed_mostly_empty = [c for c in df.columns if c.startswith('Unnamed:') and df[c].isna().mean() > 0.90]
+            if unnamed_mostly_empty:
+                df = df.drop(columns=unnamed_mostly_empty)
+
+            return df
+
+        df1 = _clean_dataframe_for_comparison(df1)
+        df2 = _clean_dataframe_for_comparison(df2)
+
+        def _infer_logical_dtype(series):
+            """Infer true semantic data type, correctly identifying nullable ints that pandas upcasts to float64."""
+            dtype_str = str(series.dtype).lower()
+            
+            # If already integer
+            if 'int' in dtype_str:
+                return 'int64'
+            
+            # If float, check if all non-null values are exact whole numbers
+            if 'float' in dtype_str:
+                valid = series.dropna()
+                if not valid.empty:
+                    try:
+                        valid_finite = valid[np.isfinite(valid)]
+                        if not valid_finite.empty and np.all(np.isclose(valid_finite, np.round(valid_finite), atol=1e-5)):
+                            return 'int64'
+                    except Exception:
+                        pass
+                return 'float64'
+                
+            # If bool
+            if 'bool' in dtype_str:
+                return 'bool'
+                
+            # If datetime
+            if 'datetime' in dtype_str:
+                return 'datetime'
+                
+            # If object / string
+            if 'object' in dtype_str or 'string' in dtype_str or 'category' in dtype_str:
+                valid = series.dropna().astype(str).str.strip()
+                if not valid.empty:
+                    if valid.str.match(r'^-?\d+$').all():
+                        return 'int64'
+                    if valid.str.match(r'^-?\d+(\.\d+)?$').all():
+                        return 'float64'
+                return 'string'
+                
+            return dtype_str
 
         sem1 = semantic_service.classify_dataframe(df1)
         sem2 = semantic_service.classify_dataframe(df2)
@@ -1975,32 +2761,81 @@ def compare_datasets():
         q1 = quality_service.calculate_quality_score(df1, sem1)
         q2 = quality_service.calculate_quality_score(df2, sem2)
 
-        common_cols = list(set(df1.columns).intersection(set(df2.columns)))
+        cols1 = list(df1.columns)
+        cols2 = list(df2.columns)
+        common_cols = sorted(list(set(cols1).intersection(set(cols2))))
+        only_in_1 = sorted(list(set(cols1) - set(cols2)))
+        only_in_2 = sorted(list(set(cols2) - set(cols1)))
+
+        schema_comparison = []
+        for c in common_cols:
+            type1 = _infer_logical_dtype(df1[c])
+            type2 = _infer_logical_dtype(df2[c])
+            is_match = (type1 == type2)
+            is_compatible = is_match or (
+                ('int' in type1 and 'float' in type2) or
+                ('float' in type1 and 'int' in type2) or
+                ('string' in type1 and 'object' in type2) or
+                ('object' in type1 and 'string' in type2)
+            )
+            schema_comparison.append({
+                'column': str(c),
+                'type1': type1,
+                'type2': type2,
+                'match': is_match,
+                'compatible': is_compatible
+            })
+
+        def _format_mem(df):
+            b = df.memory_usage(deep=True).sum()
+            if b < 1024 * 1024:
+                return f"{b / 1024:.1f} KB"
+            return f"{b / (1024 * 1024):.2f} MB"
 
         comparison = {
             'dataset1': {
-                'id': dataset_id_1,
+                'name': name1,
+                'id': dataset_id_1 or 'Uploaded File',
                 'rows': len(df1),
                 'columns': len(df1.columns),
-                'quality_score': q1.get('score', 0),
-                'grade': q1.get('grade', 'N/A'),
-                'missing_cells': q1.get('missing_cells', 0)
+                'columns_list': [str(c) for c in cols1],
+                'memory': _format_mem(df1),
+                'quality_score': q1.get('score', 100),
+                'grade': q1.get('grade', 'A+'),
+                'missing': int(df1.isnull().sum().sum()),
+                'duplicates': int(df1.duplicated().sum())
             },
             'dataset2': {
-                'id': dataset_id_2,
+                'name': name2,
+                'id': dataset_id_2 or 'Uploaded File',
                 'rows': len(df2),
                 'columns': len(df2.columns),
-                'quality_score': q2.get('score', 0),
-                'grade': q2.get('grade', 'N/A'),
-                'missing_cells': q2.get('missing_cells', 0)
+                'columns_list': [str(c) for c in cols2],
+                'memory': _format_mem(df2),
+                'quality_score': q2.get('score', 100),
+                'grade': q2.get('grade', 'A+'),
+                'missing': int(df2.isnull().sum().sum()),
+                'duplicates': int(df2.duplicated().sum())
             },
             'common_columns': common_cols,
-            'common_columns_count': len(common_cols)
+            'common_columns_count': len(common_cols),
+            'only_in_1': only_in_1,
+            'only_in_1_count': len(only_in_1),
+            'only_in_2': only_in_2,
+            'only_in_2_count': len(only_in_2),
+            'schema_comparison': schema_comparison
         }
 
-        return jsonify({'success': True, 'comparison': clean_for_json(comparison)})
+        return jsonify({
+            'success': True,
+            'comparison': clean_for_json(comparison),
+            'dataset1': comparison['dataset1'],
+            'dataset2': comparison['dataset2'],
+            'common_columns_count': len(common_cols)
+        })
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Dataset comparison failed: {e}'}), 500
+        current_app.logger.error(f"Error in compare_datasets: {e}")
+        return jsonify({'success': False, 'message': f'Dataset comparison failed: {str(e)}'}), 500
 
 
 @bp.route('/manager/dashboard_data', methods=['GET'])
@@ -2169,9 +3004,9 @@ def get_admin_users_api():
 
             # Get distinct list of organizations
             cursor.execute("""
-                SELECT DISTINCT COALESCE(organization, 'General') as org, COUNT(*) as user_count
+                SELECT COALESCE(NULLIF(TRIM(organization), ''), 'General') as org, COUNT(*) as user_count
                 FROM users
-                GROUP BY COALESCE(organization, 'General')
+                GROUP BY COALESCE(NULLIF(TRIM(organization), ''), 'General')
                 ORDER BY org ASC
             """)
             org_rows = cursor.fetchall()
@@ -2180,7 +3015,12 @@ def get_admin_users_api():
                 if not isinstance(og, dict) and cursor.description:
                     cols = [d[0] for d in cursor.description]
                     og = dict(zip(cols, og))
-                organizations.append({'name': og.get('org', 'General'), 'count': og.get('user_count', 0)})
+                org_name = og.get('org', 'General')
+                organizations.append({
+                    'name': org_name,
+                    'organization': org_name,
+                    'count': og.get('user_count', 0)
+                })
 
         log_api_call('/api/admin/users', 'success')
         return jsonify({'success': True, 'users': users, 'organizations': organizations, 'total': len(users)})
@@ -2488,6 +3328,222 @@ def delete_user_api():
     except Exception as e:
         log_api_call('/api/admin/delete_user', 'failure')
         return jsonify({'success': False, 'message': f'Failed to delete user: {e}'}), 500
+    finally:
+        conn.close()
+
+
+@bp.route('/admin/database/tables', methods=['GET'])
+@roles_required('admin')
+def get_admin_database_tables():
+    """Returns a list of all tables in the database with their columns and metadata."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        tables_info = []
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT TABLE_NAME, TABLE_ROWS, DATA_LENGTH, INDEX_LENGTH
+                FROM information_schema.TABLES
+                WHERE TABLE_SCHEMA = DATABASE()
+                ORDER BY TABLE_NAME ASC
+            """)
+            raw_tables = cursor.fetchall() or []
+
+            for tbl in raw_tables:
+                t_name = tbl.get('TABLE_NAME') if isinstance(tbl, dict) else tbl[0]
+                if not t_name:
+                    continue
+
+                cursor.execute("""
+                    SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY
+                    FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s
+                    ORDER BY ORDINAL_POSITION ASC
+                """, (t_name,))
+                raw_cols = cursor.fetchall() or []
+
+                columns = []
+                for c in raw_cols:
+                    if isinstance(c, dict):
+                        col_name = c.get('COLUMN_NAME')
+                        col_type = c.get('DATA_TYPE')
+                        col_key = c.get('COLUMN_KEY')
+                        is_null = c.get('IS_NULLABLE') == 'YES'
+                    else:
+                        col_name = c[0]
+                        col_type = c[1]
+                        is_null = c[2] == 'YES'
+                        col_key = c[3]
+
+                    columns.append({
+                        'name': col_name,
+                        'type': col_type,
+                        'is_primary': col_key == 'PRI',
+                        'is_nullable': is_null
+                    })
+
+                try:
+                    cursor.execute(f"SELECT COUNT(*) as cnt FROM `{t_name}`")
+                    row_cnt_res = cursor.fetchone()
+                    total_cnt = row_cnt_res.get('cnt', 0) if isinstance(row_cnt_res, dict) else row_cnt_res[0]
+                except Exception:
+                    total_cnt = tbl.get('TABLE_ROWS', 0) if isinstance(tbl, dict) else (tbl[1] or 0)
+
+                data_len = (tbl.get('DATA_LENGTH', 0) or 0) if isinstance(tbl, dict) else (tbl[2] or 0)
+                if data_len < 1024:
+                    size_str = f"{data_len} B"
+                elif data_len < 1024 * 1024:
+                    size_str = f"{data_len / 1024:.1f} KB"
+                else:
+                    size_str = f"{data_len / (1024 * 1024):.2f} MB"
+
+                tables_info.append({
+                    'name': t_name,
+                    'rows': total_cnt,
+                    'size': size_str,
+                    'columns': columns,
+                    'column_names': [c['name'] for c in columns]
+                })
+
+        return jsonify({'success': True, 'tables': tables_info})
+    except Exception as e:
+        current_app.logger.error(f"Error fetching database tables: {e}")
+        return jsonify({'success': False, 'message': f'Failed to fetch tables: {str(e)}'}), 500
+    finally:
+        conn.close()
+
+
+@bp.route('/admin/database/table_data', methods=['POST'])
+@roles_required('admin')
+def get_admin_database_table_data():
+    """
+    Safely queries a specific database table in Read-Only mode.
+    Validates table and column names strictly against the database schema to eliminate SQL injection.
+    """
+    import datetime
+    req_data = request.get_json() or {}
+    table_name = req_data.get('table', '').strip()
+    selected_columns = req_data.get('columns', [])
+    search = req_data.get('search', '').strip()
+    limit = max(1, min(int(req_data.get('limit', 50)), 2000))
+    offset = max(0, int(req_data.get('offset', 0)))
+
+    if not table_name:
+        return jsonify({'success': False, 'message': 'Table name is required.'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection failed.'}), 500
+
+    try:
+        with conn.cursor() as cursor:
+            # 1. Strictly validate table existence in DATABASE()
+            cursor.execute("""
+                SELECT TABLE_NAME FROM information_schema.TABLES
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s
+            """, (table_name,))
+            if not cursor.fetchone():
+                return jsonify({'success': False, 'message': f'Table `{table_name}` not found in database.'}), 404
+
+            # 2. Fetch valid column list for this table
+            cursor.execute("""
+                SELECT COLUMN_NAME, DATA_TYPE, COLUMN_KEY
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s
+                ORDER BY ORDINAL_POSITION ASC
+            """, (table_name,))
+            raw_columns = cursor.fetchall() or []
+            valid_col_dict = {}
+            for col in raw_columns:
+                cname = col.get('COLUMN_NAME') if isinstance(col, dict) else col[0]
+                ctype = col.get('DATA_TYPE') if isinstance(col, dict) else col[1]
+                ckey = col.get('COLUMN_KEY') if isinstance(col, dict) else col[2]
+                valid_col_dict[cname] = {'type': ctype, 'is_primary': ckey == 'PRI'}
+
+            valid_col_names = list(valid_col_dict.keys())
+
+            # 3. Filter requested columns against whitelist
+            if selected_columns and isinstance(selected_columns, list):
+                cols_to_query = [c for c in selected_columns if c in valid_col_dict]
+            else:
+                cols_to_query = valid_col_names
+
+            if not cols_to_query:
+                cols_to_query = valid_col_names
+
+            # 4. Construct safe read-only SELECT query
+            col_sql = ", ".join([f"`{c}`" for c in cols_to_query])
+            where_clauses = []
+            params = []
+
+            if search:
+                search_terms = []
+                for c in cols_to_query:
+                    search_terms.append(f"CAST(`{c}` AS CHAR) LIKE %s")
+                    params.append(f"%{search}%")
+                if search_terms:
+                    where_clauses.append(f"({' OR '.join(search_terms)})")
+
+            where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+            # Count total matching rows
+            count_query = f"SELECT COUNT(*) as total FROM `{table_name}` {where_sql}"
+            cursor.execute(count_query, tuple(params))
+            cnt_row = cursor.fetchone()
+            total_matching = cnt_row.get('total', 0) if isinstance(cnt_row, dict) else cnt_row[0]
+
+            # Primary key or first column for deterministic sorting
+            pk_col = next((c for c in cols_to_query if valid_col_dict[c]['is_primary']), cols_to_query[0])
+            order_sql = f"ORDER BY `{pk_col}` DESC"
+
+            query_sql = f"SELECT {col_sql} FROM `{table_name}` {where_sql} {order_sql} LIMIT %s OFFSET %s"
+            full_params = params + [limit, offset]
+            cursor.execute(query_sql, tuple(full_params))
+            rows = cursor.fetchall() or []
+
+            formatted_rows = []
+            for r in rows:
+                if isinstance(r, dict):
+                    row_dict = r
+                else:
+                    row_dict = dict(zip(cols_to_query, r))
+
+                clean_row = {}
+                for col in cols_to_query:
+                    val = row_dict.get(col)
+                    if 'password' in col.lower() or 'secret' in col.lower():
+                        clean_row[col] = '••••••••••••' if val else None
+                    elif isinstance(val, (datetime.datetime, datetime.date)):
+                        clean_row[col] = val.strftime('%Y-%m-%d %H:%M:%S')
+                    elif isinstance(val, (bytes, bytearray)):
+                        clean_row[col] = f"<BLOB {len(val)} bytes>"
+                    elif hasattr(val, '__float__') and not isinstance(val, (int, bool)):
+                        clean_row[col] = float(val)
+                    else:
+                        clean_row[col] = val
+                formatted_rows.append(clean_row)
+
+            cursor.execute(f"SELECT COUNT(*) as total FROM `{table_name}`")
+            all_cnt_row = cursor.fetchone()
+            overall_total = all_cnt_row.get('total', 0) if isinstance(all_cnt_row, dict) else all_cnt_row[0]
+
+            return jsonify({
+                'success': True,
+                'table': table_name,
+                'columns': [{'name': c, 'type': valid_col_dict[c]['type'], 'is_primary': valid_col_dict[c]['is_primary']} for c in cols_to_query],
+                'all_columns': [{'name': c, 'type': valid_col_dict[c]['type'], 'is_primary': valid_col_dict[c]['is_primary']} for c in valid_col_names],
+                'rows': formatted_rows,
+                'total_rows': overall_total,
+                'filtered_rows': total_matching,
+                'limit': limit,
+                'offset': offset,
+                'is_readonly': True
+            })
+    except Exception as e:
+        current_app.logger.error(f"Error querying table {table_name}: {e}")
+        return jsonify({'success': False, 'message': f'Failed to query table: {str(e)}'}), 500
     finally:
         conn.close()
 
@@ -3026,16 +4082,6 @@ def get_analyst_dashboard_data_api():
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    if not active_ds_id:
-                        cursor.execute(
-                            "SELECT id FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 1",
-                            (session['id'],)
-                        )
-                        ds_row = cursor.fetchone()
-                        if ds_row:
-                            active_ds_id = ds_row['id']
-                            session['active_dataset_id'] = active_ds_id
-
                     if active_ds_id:
                         try:
                             df = load_dataframe(active_ds_id, session['id'])
@@ -3075,6 +4121,28 @@ def get_manager_team_api():
     except Exception as e:
         log_api_call('/api/manager/team', 'failure')
         return jsonify({'success': False, 'message': f'Failed to fetch team data: {e}'}), 500
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+@bp.route('/manager/dataset_revenue_breakdown', methods=['GET'])
+@roles_required('admin', 'manager')
+def get_manager_dataset_revenue_breakdown_api():
+    """Fetches breakdown of all datasets analyzed by analysts and individual dataset revenues."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection error.'}), 500
+    try:
+        res_data = manager_service.get_dataset_revenue_breakdown(conn, session.get('id'))
+        log_api_call('/api/manager/dataset_revenue_breakdown', 'success')
+        return jsonify(res_data)
+    except Exception as e:
+        log_api_call('/api/manager/dataset_revenue_breakdown', 'failure')
+        return jsonify({'success': False, 'message': f'Failed to fetch dataset revenue breakdown: {e}'}), 500
     finally:
         if conn:
             try:
@@ -3197,40 +4265,6 @@ def remove_team_member_api():
                 pass
 
 
-@bp.route('/manager/available_users', methods=['GET'])
-@roles_required('admin', 'manager')
-def api_manager_available_users():
-    """Fetches all active platform users available to be added to manager's team."""
-    conn = get_db_connection()
-    manager_id = session.get('id')
-    try:
-        users = manager_service.get_available_platform_users(conn, manager_id)
-        return jsonify({'success': True, 'users': users, 'count': len(users)})
-    finally:
-        if conn:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-
-@bp.route('/manager/team', methods=['GET'])
-@roles_required('admin', 'manager')
-def api_manager_team():
-    """Fetches manager team data, available users, tasks, and KPI statistics for AJAX refresh."""
-    conn = get_db_connection()
-    manager_id = session.get('id')
-    try:
-        data = manager_service.get_manager_team_api_data(conn, manager_id)
-        return jsonify(data)
-    finally:
-        if conn:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-
 @bp.route('/user/assigned_tasks', methods=['GET'])
 @roles_required('admin', 'manager', 'analyst', 'viewer')
 def get_user_assigned_tasks_api():
@@ -3311,6 +4345,249 @@ def get_global_system_state_api():
     except Exception as e:
         log_api_call('/api/system/global_state', 'failure')
         return jsonify({'success': False, 'message': f'Failed to fetch global state: {e}'}), 500
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+# ==============================================================================
+# MACHINE LEARNING & PREDICTIVE ANALYTICS API ENDPOINTS
+# ==============================================================================
+
+@bp.route('/ml/options', methods=['GET', 'POST'])
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def api_ml_options():
+    """Returns dataset column lists and recommended targets/features for all 5 ML models."""
+    dataset_id = request.args.get('dataset_id') or (request.get_json(silent=True) or {}).get('dataset_id') or session.get('active_dataset_id')
+    user_id = session.get('id') or session.get('user_id')
+    if not dataset_id:
+        return jsonify({'success': False, 'message': 'Active dataset ID required.'}), 400
+
+    conn = get_db_connection()
+    ds_row = None
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, file_name, file_path, user_id FROM datasets WHERE id = %s", (dataset_id,))
+                ds_row = cursor.fetchone()
+        finally:
+            conn.close()
+
+    df = load_dataframe(dataset_id, (ds_row.get('user_id') if ds_row else user_id), force_full_load=False)
+    if df is None or df.empty:
+        return jsonify({'success': False, 'message': 'Dataset could not be loaded.'}), 404
+
+    sem_types = semantic_service.classify_dataframe(df)
+    recs = ml_service.get_ml_column_recommendations(df, sem_types)
+    log_api_call('/api/ml/options', 'success')
+    return jsonify({
+        'success': True,
+        'dataset_id': dataset_id,
+        'numeric_cols': recs.get('numeric_cols', []),
+        'cat_cols': recs.get('cat_cols', []),
+        'date_cols': recs.get('date_cols', []),
+        'recommendations': recs.get('recommendations', {}),
+        'data': recs
+    })
+
+
+@bp.route('/ml/run', methods=['POST'])
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def api_ml_run():
+    """Executes selected ML algorithm (regression, classification, clustering, forecasting, anomaly)."""
+    data = request.get_json(silent=True) or {}
+    dataset_id = data.get('dataset_id') or session.get('active_dataset_id')
+    model_type = str(data.get('modality') or data.get('model_type') or 'regression').lower().strip()
+    target_col = data.get('target_col')
+    feature_cols = data.get('feature_cols')
+    date_col = data.get('date_col')
+    value_col = data.get('value_col') or target_col
+    params = data.get('params') or {}
+    user_id = session.get('id') or session.get('user_id')
+
+    if not dataset_id:
+        return jsonify({'success': False, 'message': 'Active dataset ID required.'}), 400
+
+    conn = get_db_connection()
+    ds_row = None
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, file_name, file_path, user_id FROM datasets WHERE id = %s", (dataset_id,))
+                ds_row = cursor.fetchone()
+        finally:
+            conn.close()
+
+    df = load_dataframe(dataset_id, (ds_row.get('user_id') if ds_row else user_id), force_full_load=False)
+    if df is None or df.empty:
+        return jsonify({'success': False, 'message': 'Dataset could not be loaded.'}), 404
+
+    result = None
+    if model_type == 'regression':
+        result = ml_service.run_ml_regression(df, target_col=target_col, feature_cols=feature_cols)
+    elif model_type == 'classification':
+        result = ml_service.run_ml_classification(df, target_col=target_col, feature_cols=feature_cols)
+    elif model_type == 'clustering':
+        n_clusters = int(data.get('n_clusters') or params.get('n_clusters', 3))
+        result = ml_service.run_ml_clustering(df, feature_cols=feature_cols, n_clusters=n_clusters)
+    elif model_type == 'forecasting':
+        horizon = int(data.get('horizon') or params.get('horizon', 14))
+        result = ml_service.run_ml_forecasting(df, date_col=date_col, value_col=value_col, horizon=horizon)
+    elif model_type in ('anomaly', 'anomaly_detection', 'outlier'):
+        contam = float(data.get('contamination') or params.get('contamination', 0.05))
+        result = ml_service.run_ml_anomaly_detection(df, feature_cols=feature_cols, contamination=contam)
+    else:
+        return jsonify({'success': False, 'message': f"Unsupported model type '{model_type}'."}), 400
+
+    log_api_call(f'/api/ml/run/{model_type}', 'success' if result and result.get('success') else 'failure')
+    return jsonify(clean_for_json(result))
+
+
+@bp.route('/ml/save_model', methods=['POST'])
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def api_ml_save_model():
+    """Saves a trained ML model for persistence and re-use without re-training."""
+    data = request.get_json(silent=True) or {}
+    user_id = session.get('id') or session.get('user_id')
+    dataset_id = data.get('dataset_id') or session.get('active_dataset_id')
+    model_data = data.get('model_data') or {}
+    custom_name = data.get('model_name')
+
+    if not user_id or not dataset_id or not model_data:
+        return jsonify({'success': False, 'message': 'Missing user_id, dataset_id or model payload.'}), 400
+
+    res = ml_service.save_trained_model(user_id=user_id, dataset_id=dataset_id, model_data=model_data, custom_name=custom_name)
+    log_api_call('/api/ml/save_model', 'success' if res.get('success') else 'failure')
+    return jsonify(clean_for_json(res))
+
+
+@bp.route('/ml/saved_models', methods=['GET'])
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def api_ml_saved_models():
+    """Fetches list of all saved models for active dataset and user."""
+    user_id = session.get('id') or session.get('user_id')
+    dataset_id = request.args.get('dataset_id', type=int) or session.get('active_dataset_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Authentication required.'}), 401
+
+    models = ml_service.get_saved_models(user_id=user_id, dataset_id=dataset_id)
+    log_api_call('/api/ml/saved_models', 'success')
+    return jsonify({'success': True, 'models': models, 'count': len(models)})
+
+
+@bp.route('/ml/predict_saved', methods=['POST'])
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def api_ml_predict_saved():
+    """Executes instant prediction using a saved model without needing re-training."""
+    data = request.get_json(silent=True) or {}
+    user_id = session.get('id') or session.get('user_id')
+    model_id = data.get('model_id')
+    input_features = data.get('input_features') or {}
+
+    if not user_id or not model_id:
+        return jsonify({'success': False, 'message': 'Model ID and authentication required.'}), 400
+
+    res = ml_service.predict_with_saved_model(model_id=int(model_id), user_id=user_id, input_features=input_features)
+    log_api_call('/api/ml/predict_saved', 'success' if res.get('success') else 'failure')
+    return jsonify(clean_for_json(res))
+
+
+@bp.route('/ml/saved_models/<int:model_id>', methods=['DELETE'])
+@roles_required('admin', 'manager', 'analyst', 'viewer')
+def api_ml_delete_saved_model(model_id: int):
+    """Deletes a saved model."""
+    user_id = session.get('id') or session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Authentication required.'}), 401
+
+    res = ml_service.delete_saved_model(model_id=model_id, user_id=user_id)
+    log_api_call('/api/ml/saved_models/delete', 'success' if res.get('success') else 'failure')
+    return jsonify(clean_for_json(res))
+
+
+
+# ==============================================================================
+# REAL-TIME LIVE SYNCHRONIZATION API ENDPOINT
+# ==============================================================================
+
+@bp.route('/system/live_sync', methods=['GET'])
+def api_system_live_sync():
+    """Universal real-time live synchronization heartbeat across all dashboards."""
+    user_id = session.get('id') or session.get('user_id')
+    user_role = session.get('role', 'analyst')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'message': 'Database connection error.'}), 500
+
+    try:
+        assigned_tasks = []
+        notifications = []
+        pending_tasks_count = 0
+        shared_count = 0
+        total_tasks_count = 0
+        pending_approvals_count = 0
+
+        with conn.cursor() as cursor:
+            # 1. Assigned tasks for active user
+            manager_service.ensure_manager_tables_exist(conn)
+            assigned_tasks = manager_service.get_user_assigned_tasks(conn, user_id)
+            pending_tasks_count = sum(1 for t in assigned_tasks if t.get('status') in ['Pending', 'In Progress', 'Reopened'])
+
+            # 2. Dynamic topbar notifications from DB events
+            for t in assigned_tasks[:5]:
+                t_stat = t.get('status', 'Pending')
+                icon = 'bi-bell-fill text-warning' if t_stat == 'Pending' else ('bi-arrow-repeat text-primary' if t_stat == 'In Progress' else 'bi-check-circle-fill text-success')
+                notifications.append({
+                    'id': f"task_{t.get('id')}",
+                    'text': f"Task: {t.get('task_title')} ({t_stat})",
+                    'title': t.get('task_title', 'Task Update'),
+                    'message': f"Status: {t_stat} | Due: {t.get('due_date') or 'No deadline'}",
+                    'time': str(t.get('due_date') or 'Active'),
+                    'is_read': False,
+                    'icon': icon
+                })
+
+            # 3. Shared dashboards count
+            cursor.execute("SELECT COUNT(*) as count FROM shared_dashboards WHERE owner_id = %s OR shared_with_user_id = %s OR shared_with_role = %s OR shared_with_role = 'all'", (user_id, user_id, user_role))
+            shared_count = (cursor.fetchone() or {}).get('count', 0)
+
+            # 4. Manager / Admin specific live metrics
+            cursor.execute("SELECT COUNT(*) as count FROM manager_tasks")
+            total_tasks_count = (cursor.fetchone() or {}).get('count', 0)
+
+            cursor.execute("SELECT COUNT(*) as count FROM manager_tasks WHERE status = 'Completed'")
+            pending_approvals_count = (cursor.fetchone() or {}).get('count', 0)
+
+        # Generate lightweight state hash
+        state_hash = f"{len(assigned_tasks)}_{pending_tasks_count}_{shared_count}_{total_tasks_count}_{pending_approvals_count}"
+        tasks_version = f"{len(assigned_tasks)}_{pending_tasks_count}_{total_tasks_count}"
+        team_version = f"team_{total_tasks_count}"
+        dashboards_version = f"dash_{shared_count}"
+
+        return jsonify({
+            'success': True,
+            'state_hash': state_hash,
+            'user_id': user_id,
+            'role': user_role,
+            'pending_tasks_count': pending_tasks_count,
+            'unread_notifications_count': pending_tasks_count,
+            'assigned_tasks': assigned_tasks,
+            'notifications': notifications,
+            'latest_notifications': notifications,
+            'shared_dashboards_count': shared_count,
+            'pending_approvals_count': pending_approvals_count,
+            'tasks_version': tasks_version,
+            'team_version': team_version,
+            'dashboards_version': dashboards_version
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Live sync error: {e}'}), 500
     finally:
         if conn:
             try:
@@ -3511,14 +4788,10 @@ def admin_settings_api():
 
         current_app.config['SYSTEM_SETTINGS'] = new_settings
 
-        # Persist to instance/system_settings.json
-        import json
-        settings_file = os.path.join(current_app.instance_path, 'system_settings.json')
-        try:
-            with open(settings_file, 'w', encoding='utf-8') as f:
-                json.dump(new_settings, f, indent=2)
-        except Exception as e:
-            current_app.logger.error(f"Failed to persist system_settings.json: {e}")
+        # Persist to MySQL Database (and backup to instance/system_settings.json)
+        from .services.system_settings_service import save_system_settings_to_db
+        save_system_settings_to_db(new_settings, current_app.instance_path)
+
 
         # Hide SMTP password when sending back response
         response_settings = new_settings.copy()
@@ -3654,13 +4927,9 @@ def admin_settings_reset():
     }
     current_app.config['SYSTEM_SETTINGS'] = default_settings_dict.copy()
 
-    import json
-    settings_file = os.path.join(current_app.instance_path, 'system_settings.json')
-    try:
-        with open(settings_file, 'w', encoding='utf-8') as f:
-            json.dump(default_settings_dict, f, indent=2)
-    except Exception as e:
-        current_app.logger.error(f"Failed to reset system_settings.json: {e}")
+    from .services.system_settings_service import save_system_settings_to_db
+    save_system_settings_to_db(default_settings_dict, current_app.instance_path)
+
 
     log_api_call('/api/admin/settings/reset', 'success')
     return jsonify({
@@ -3713,12 +4982,10 @@ def admin_settings_import():
             current_cfg[k] = v
 
     current_app.config['SYSTEM_SETTINGS'] = current_cfg
-    settings_file = os.path.join(current_app.instance_path, 'system_settings.json')
-    try:
-        with open(settings_file, 'w', encoding='utf-8') as f:
-            json.dump(current_cfg, f, indent=2)
-    except Exception as e:
-        current_app.logger.error(f"Failed to persist imported settings: {e}")
+
+    from .services.system_settings_service import save_system_settings_to_db
+    save_system_settings_to_db(current_cfg, current_app.instance_path)
+
 
     log_api_call('/api/admin/settings/import', 'success')
     return jsonify({
@@ -4036,22 +5303,6 @@ def api_manager_update_team_member():
     )
     log_api_call('/api/manager/update_team_member', 'success' if res.get('success') else 'error')
     return jsonify(res)
-
-
-@bp.route('/user/assigned_tasks', methods=['GET'])
-@roles_required('admin', 'manager', 'analyst', 'viewer')
-def api_user_assigned_tasks():
-    """Fetches assigned tasks for the currently authenticated user."""
-    user_id = session.get('id')
-    if not user_id:
-        return jsonify({'success': False, 'tasks': []}), 401
-    conn = get_db_connection()
-    tasks = manager_service.get_user_assigned_tasks(conn, user_id)
-    return jsonify({
-        'success': True,
-        'tasks': tasks,
-        'count': len(tasks)
-    })
 
 
 # ==============================================================================
@@ -4647,12 +5898,24 @@ def api_shared_dashboards_list():
             conn.close()
 
 
+_SHARED_DASHBOARD_PAYLOAD_CACHE = {}
+
+
 @bp.route('/shared_dashboard/view/<int:shared_id>', methods=['GET'])
 @roles_required('admin', 'manager', 'analyst', 'viewer')
 def api_shared_dashboard_view(shared_id):
-    """Returns complete rich analytical payload for viewing a shared dashboard."""
+    """Returns complete rich analytical payload for viewing a shared dashboard with instant caching."""
     user_id = session.get('id')
     user_role = session.get('role', 'viewer')
+
+    # 1. Fast Memory Cache check
+    if shared_id in _SHARED_DASHBOARD_PAYLOAD_CACHE:
+        cached_dash = dict(_SHARED_DASHBOARD_PAYLOAD_CACHE[shared_id])
+        cached_dash['is_manager'] = (user_role in ['manager', 'admin'])
+        cached_dash['is_owner'] = (cached_dash.get('owner_id') == user_id)
+        current_app.logger.info(f"[Shared Cache Hit] Returning cached dashboard payload for shared_id {shared_id}")
+        return jsonify({'success': True, 'dashboard': cached_dash, 'from_cache': True})
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
@@ -4736,6 +5999,8 @@ def api_shared_dashboard_view(shared_id):
         ai_explanation = {}
         top_positive_corrs = []
         top_negative_corrs = []
+        df = None
+        analysis_result = None
 
         if dataset_id and owner_id:
             try:
@@ -4767,8 +6032,8 @@ def api_shared_dashboard_view(shared_id):
                     except Exception as e_raw:
                         current_app.logger.warning(f"Could not load raw dataframe: {e_raw}")
 
-                    # Run/load full analysis
-                    analysis_result = get_or_create_analysis(df, dataset_id, generate_ai=True)
+                    # Run/load full analysis using cached data without re-calling external AI
+                    analysis_result = get_or_create_analysis(df, dataset_id, generate_ai=False)
 
                     if isinstance(analysis_result, dict):
                         domain = analysis_result.get('business_domain', 'General Analytics')
@@ -4818,43 +6083,51 @@ def api_shared_dashboard_view(shared_id):
             except Exception as e_code:
                 current_app.logger.warning(f"Could not generate code for shared dashboard: {e_code}")
 
+        dashboard_payload = {
+            'id': sd.get('id'),
+            'title': sd.get('title'),
+            'description': sd.get('description') or '',
+            'remark': sd.get('remark') or '',
+            'status': sd.get('status') or 'Shared',
+            'owner_id': sd.get('owner_id'),
+            'owner_name': owner_name,
+            'owner_email': sd.get('owner_email') or '',
+            'owner_role': (sd.get('owner_role') or 'analyst').capitalize(),
+            'created_at_str': dt_str,
+            'dataset_id': dataset_id,
+            'dataset_name': dataset_name,
+            'business_domain': domain,
+            'row_count': rows,
+            'column_count': cols,
+            'memory_usage': memory_str,
+            'missing_count': missing,
+            'duplicate_count': duplicates,
+            'duplicates_removed': duplicates_removed,
+            'quality_score': quality_score,
+            'quality_grade': quality_grade,
+            'preview_html': preview_html,
+            'shared_with_users': shared_with_users,
+            'dropped_columns': dropped_columns,
+            'imputation_details': imputation_details,
+            'charts_showcase': charts_showcase,
+            'top_positive_corrs': top_positive_corrs,
+            'top_negative_corrs': top_negative_corrs,
+            'ai_explanation': ai_explanation,
+            'dataset_qa': dataset_qa,
+            'pipeline_code': pipeline_code,
+            'is_manager': (user_role in ['manager', 'admin']),
+            'is_owner': (sd.get('owner_id') == user_id)
+        }
+
+        # Sanitize payload for clean JSON serialization without NaN/Inf crashes
+        dashboard_payload = sanitize_for_json(dashboard_payload)
+
+        # Cache payload in server memory
+        _SHARED_DASHBOARD_PAYLOAD_CACHE[shared_id] = dashboard_payload
+
         return jsonify({
             'success': True,
-            'dashboard': {
-                'id': sd.get('id'),
-                'title': sd.get('title'),
-                'description': sd.get('description') or '',
-                'remark': sd.get('remark') or '',
-                'status': sd.get('status') or 'Shared',
-                'owner_id': sd.get('owner_id'),
-                'owner_name': owner_name,
-                'owner_email': sd.get('owner_email') or '',
-                'owner_role': (sd.get('owner_role') or 'analyst').capitalize(),
-                'created_at_str': dt_str,
-                'dataset_id': dataset_id,
-                'dataset_name': dataset_name,
-                'business_domain': domain,
-                'row_count': rows,
-                'column_count': cols,
-                'memory_usage': memory_str,
-                'missing_count': missing,
-                'duplicate_count': duplicates,
-                'duplicates_removed': duplicates_removed,
-                'quality_score': quality_score,
-                'quality_grade': quality_grade,
-                'preview_html': preview_html,
-                'shared_with_users': shared_with_users,
-                'dropped_columns': dropped_columns,
-                'imputation_details': imputation_details,
-                'charts_showcase': charts_showcase,
-                'top_positive_corrs': top_positive_corrs,
-                'top_negative_corrs': top_negative_corrs,
-                'ai_explanation': ai_explanation,
-                'dataset_qa': dataset_qa,
-                'pipeline_code': pipeline_code,
-                'is_manager': (user_role in ['manager', 'admin']),
-                'is_owner': (sd.get('owner_id') == user_id)
-            }
+            'dashboard': dashboard_payload
         })
     except Exception as e:
         current_app.logger.error(f"Error viewing shared dashboard: {e}")
@@ -4902,6 +6175,8 @@ def api_shared_dashboard_manager_review():
                     WHERE id = %s
                 """, (remark if remark else None, new_status, shared_id))
             conn.commit()
+
+        _SHARED_DASHBOARD_PAYLOAD_CACHE.pop(shared_id, None)
 
         log_api_call('/api/shared_dashboard/manager_review', 'success')
         return jsonify({

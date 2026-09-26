@@ -58,7 +58,7 @@ def detect_business_metrics(df, business_domain="General Analytics"):
     }
 
     sales_col = lower_map.get("sales") or lower_map.get("revenue") or lower_map.get("amount") or lower_map.get("total_sales")
-    profit_col = lower_map.get("profit") or lower_map.get("net_profit") or lower_map.get("margin")
+    profit_col = lower_map.get("profit") or lower_map.get("net_profit") or lower_map.get("total_profit")
     qty_col = lower_map.get("quantity") or lower_map.get("qty") or lower_map.get("volume") or lower_map.get("units")
     disc_col = lower_map.get("discount") or lower_map.get("discount_pct") or lower_map.get("disc")
     order_col = lower_map.get("order_id") or lower_map.get("order_num") or lower_map.get("invoice_no") or lower_map.get("id")
@@ -93,8 +93,7 @@ def detect_business_metrics(df, business_domain="General Analytics"):
             metrics["profit_margin_pct"] = round(float(margin), 2)
 
     if qty_col:
-        q_series = convert_currency(df[qty_col])
-        qty_val = float(pd.to_numeric(q_series, errors="coerce").sum())
+        qty_val = float(pd.to_numeric(df[qty_col], errors="coerce").sum())
         metrics["total_quantity"] = round(qty_val, 2)
 
     if disc_col:

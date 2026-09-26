@@ -101,56 +101,269 @@ def get_manager_business_overview(df: Optional[pd.DataFrame]) -> Dict[str, Any]:
 
 def generate_predictions_preview(df: Optional[pd.DataFrame]) -> Dict[str, str]:
     """
-    Generates trend forecasting / prediction values based on numerical dataset linear trend.
+    Generates dynamic, highly accurate trend forecasting and predictive metrics based on 
+    dataset time-series linear regression and numerical growth velocity.
 
     Args:
-        df (pd.DataFrame, optional): Input dataset. If None or empty, returns fallback values.
+        df (pd.DataFrame, optional): Input dataset. If None or empty, returns baseline estimates.
 
     Returns:
-        dict: Predicted sales, revenue (in ₹), demand, and growth forecast.
+        dict: Predicted sales count, predicted revenue (in ₹), expected demand %, and growth forecast %.
     """
     if df is None or df.empty:
-        logger.info("No dataset provided for predictions. Returning fallback values.")
+        logger.info("No dataset provided for predictions. Returning baseline fallback values.")
         return {
             'predicted_sales': '0',
             'predicted_revenue': '₹0',
-            'expected_demand': '0%',
+            'expected_demand': '0.0%',
             'growth_forecast': '0.0%'
         }
 
-    row_count = len(df)
-    pred_sales = int(row_count * 1.15)
+    df_proc = df.copy()
+    cols_lower = {c.lower(): c for c in df_proc.columns}
 
-    # Find revenue column for prediction
-    rev_col = next((c for c in df.columns if any(x in c.lower() for x in ['revenue', 'sales', 'amount', 'profit', 'price'])), None)
-    pred_rev_str = "₹0"
+    # Detect Date Column for Chronological Sorting
+    date_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['date', 'timestamp', 'created', 'order_date', 'year', 'month', 'day'])), None)
+    if date_col:
+        try:
+            parsed_dates = pd.to_datetime(df_proc[date_col], errors='coerce')
+            if parsed_dates.notna().sum() > 0:
+                df_proc['_parsed_date'] = parsed_dates
+                df_proc = df_proc.sort_values(by='_parsed_date').drop(columns=['_parsed_date'])
+        except Exception as e:
+            logger.warning(f"Could not sort dataset by date column {date_col}: {e}")
 
+    row_count = len(df_proc)
+    rev_keywords = ['revenue', 'sales', 'amount', 'total', 'price', 'profit', 'net_amount', 'grand_total', 'val', 'cost']
+    qty_keywords = ['quantity', 'qty', 'volume', 'count', 'units', 'items', 'order_count']
+
+    rev_col = next((c for k, c in cols_lower.items() if any(x in k for x in rev_keywords)), None)
+    qty_col = next((c for k, c in cols_lower.items() if any(x in k for x in qty_keywords)), None)
+
+    # 1. Clean Revenue Series
+    total_rev = 0.0
+    rev_series = None
+    if rev_col:
+        try:
+            if pd.api.types.is_numeric_dtype(df_proc[rev_col]):
+                rev_series = df_proc[rev_col].fillna(0)
+            else:
+                cleaned = df_proc[rev_col].astype(str).str.replace(r'[$,₹,€,£,Rs,rs]', '', regex=True).str.replace(',', '', regex=False)
+                rev_series = pd.to_numeric(cleaned, errors='coerce').fillna(0)
+            total_rev = float(rev_series.sum())
+        except Exception as e:
+            logger.warning(f"Error extracting revenue series for prediction: {e}")
+
+    # 2. Linear Trend & Growth Velocity Modeling
+    growth_rate_pct = 0.0
+
+    if rev_series is not None and len(rev_series) > 1 and total_rev > 0:
+        try:
+            # Chunk dataset chronologically into sequential periods (4 to 10 chunks)
+            n_chunks = min(10, max(4, len(rev_series) // 5))
+            chunks = np.array_split(rev_series.values, n_chunks)
+            chunk_sums = np.array([float(c.sum()) for c in chunks])
+            
+            x = np.arange(len(chunk_sums))
+            if len(chunk_sums) >= 2:
+                slope, intercept = np.polyfit(x, chunk_sums, 1)
+                next_period_val = max(0.0, slope * len(chunk_sums) + intercept)
+                last_val = chunk_sums[-1] if chunk_sums[-1] > 0 else (np.mean(chunk_sums) if np.mean(chunk_sums) > 0 else 1.0)
+                
+                if last_val > 0:
+                    pct_diff = ((next_period_val - last_val) / last_val) * 100.0
+                    growth_rate_pct = max(-30.0, min(50.0, pct_diff))
+                else:
+                    growth_rate_pct = 5.0
+            else:
+                growth_rate_pct = 5.0
+        except Exception as e:
+            logger.warning(f"Error running linear regression for predictions: {e}")
+            growth_rate_pct = 5.0
+    elif total_rev > 0:
+        growth_rate_pct = 5.0
+    else:
+        growth_rate_pct = 0.0
+
+    # Calculate Predicted Revenue for upcoming period
+    if total_rev > 0:
+        predicted_rev_val = total_rev * (1.0 + (growth_rate_pct / 100.0))
+        pred_rev_str = format_currency_inr(predicted_rev_val)
+    else:
+        pred_rev_str = "₹0"
+
+    # 3. Demand & Sales Volume Forecast
+    demand_growth_pct = growth_rate_pct
+    if qty_col:
+        try:
+            if pd.api.types.is_numeric_dtype(df_proc[qty_col]):
+                qty_vals = df_proc[qty_col].fillna(0)
+            else:
+                cleaned_q = df_proc[qty_col].astype(str).str.replace(',', '', regex=False)
+                qty_vals = pd.to_numeric(cleaned_q, errors='coerce').fillna(0)
+
+            if len(qty_vals) > 1 and qty_vals.sum() > 0:
+                n_chunks = min(10, max(4, len(qty_vals) // 5))
+                q_chunks = np.array_split(qty_vals.values, n_chunks)
+                q_sums = np.array([float(c.sum()) for c in q_chunks])
+                if len(q_sums) >= 2 and q_sums[-1] > 0:
+                    q_slope, q_intercept = np.polyfit(np.arange(len(q_sums)), q_sums, 1)
+                    next_q = max(0.0, q_slope * len(q_sums) + q_intercept)
+                    demand_growth_pct = ((next_q - q_sums[-1]) / q_sums[-1]) * 100.0
+                    demand_growth_pct = max(-30.0, min(50.0, demand_growth_pct))
+        except Exception as e:
+            logger.warning(f"Error calculating quantity demand trend: {e}")
+
+    pred_sales_count = max(0, int(round(row_count * (1.0 + (demand_growth_pct / 100.0))))) if row_count > 0 else 0
+
+    expected_demand_str = f"{demand_growth_pct:+.1f}%" if demand_growth_pct != 0 else "0.0%"
+    growth_forecast_str = f"{growth_rate_pct:+.1f}%" if growth_rate_pct != 0 else "0.0%"
+
+    return {
+        'predicted_sales': f"{pred_sales_count:,}",
+        'predicted_revenue': pred_rev_str,
+        'expected_demand': expected_demand_str,
+        'growth_forecast': growth_forecast_str
+    }
+
+
+def generate_business_recommendations(
+    df: Optional[pd.DataFrame],
+    overview: Dict[str, Any],
+    predictions: Dict[str, str],
+    task_completion_rate: str = "0.0%"
+) -> list:
+    """
+    Generates high-impact, dynamic, actionable business recommendations based on real dataset analysis,
+    revenue breakdown, category concentration, pricing margins, and operational team performance.
+
+    Returns:
+        list of str: Business recommendations designed for executive and manager decision-making.
+    """
+    recommendations = []
+
+    if df is None or df.empty:
+        return [
+            "Upload active business datasets in the Workbench to generate real-time automated revenue and demand forecasts.",
+            "Establish baseline inventory targets and assign analytical reporting tasks to team members.",
+            "Monitor team activity logs to ensure timely quarterly executive summary delivery."
+        ]
+
+    cols_lower = {c.lower(): c for c in df.columns}
+    cat_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['category', 'product', 'type', 'segment', 'department'])), None)
+    rev_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['revenue', 'sales', 'amount', 'total', 'price', 'profit'])), None)
+    reg_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['region', 'location', 'city', 'state', 'country', 'zone'])), None)
+
+    top_cat = overview.get('top_category', 'General')
+    exp_demand = predictions.get('expected_demand', '0.0%')
+    growth_fc = predictions.get('growth_forecast', '0.0%')
+    total_sales_count = len(df)
+
+    # Clean revenue series for deep statistical insights
+    rev_series = None
+    total_rev = 0.0
     if rev_col:
         try:
             if pd.api.types.is_numeric_dtype(df[rev_col]):
-                curr_sum = df[rev_col].sum()
+                rev_series = df[rev_col].fillna(0)
             else:
                 cleaned = df[rev_col].astype(str).str.replace(r'[$,₹,€,£,Rs,rs]', '', regex=True).str.replace(',', '', regex=False)
-                curr_sum = pd.to_numeric(cleaned, errors='coerce').fillna(0).sum()
+                rev_series = pd.to_numeric(cleaned, errors='coerce').fillna(0)
+            total_rev = float(rev_series.sum())
+        except Exception:
+            pass
 
-            if curr_sum > 0:
-                pred_rev = curr_sum * 1.14
-                pred_rev_str = format_currency_inr(pred_rev)
-            else:
-                pred_rev_str = "₹1,50,000"
+    # Recommendation 1: Inventory & Supply Chain Optimization
+    if top_cat and top_cat != 'General':
+        recommendations.append(
+            f"Optimize inventory allocation for top segment '{top_cat}' with a +15% stock buffer to capture projected demand surge of {exp_demand} without stockouts."
+        )
+    else:
+        recommendations.append(
+            f"Align supply chain inventory buffer with expected demand surge of {exp_demand} for upcoming operational period."
+        )
+
+    # Recommendation 2: Category Concentration & Diversification
+    if cat_col and total_rev > 0 and rev_series is not None:
+        try:
+            cat_sums = df.groupby(cat_col)[rev_col if rev_col in df.columns else cat_col].apply(
+                lambda x: rev_series.loc[x.index].sum() if rev_col else len(x)
+            ).sort_values(ascending=False)
+            
+            if not cat_sums.empty:
+                top_cat_name = str(cat_sums.index[0])
+                top_cat_rev = float(cat_sums.iloc[0])
+                top_pct = round((top_cat_rev / total_rev) * 100, 1) if total_rev > 0 else 0
+                
+                if top_pct >= 35.0:
+                    second_cat = str(cat_sums.index[1]) if len(cat_sums) > 1 else "secondary product lines"
+                    recommendations.append(
+                        f"High Concentration Risk: '{top_cat_name}' generates {top_pct}% of total revenue. Expand promotional spending on '{second_cat}' to diversify revenue streams."
+                    )
+                else:
+                    recommendations.append(
+                        f"Balanced Portfolio: Top category '{top_cat_name}' contributes {top_pct}% of revenue. Leverage cross-selling bundles to boost multi-product orders."
+                    )
         except Exception as e:
-            logger.warning(f"Error calculating predicted revenue: {e}")
-            pred_rev_str = "₹0"
+            logger.warning(f"Error computing category concentration recommendation: {e}")
 
-    expected_demand = "+14.5%" if row_count > 0 else "0%"
-    growth_forecast = "16.8%" if row_count > 0 else "0.0%"
+    # Recommendation 3: Average Order Value (AOV) & Margin Strategy
+    if total_rev > 0 and total_sales_count > 0:
+        aov = total_rev / total_sales_count
+        upsell_target = aov * 1.25
+        recommendations.append(
+            f"Pricing & Margin Target: Current Average Transaction Value (AOV) is {format_currency_inr(aov)}. Introduce product bundles at {format_currency_inr(upsell_target)} to elevate unit margins by 10-12%."
+        )
 
-    return {
-        'predicted_sales': f"{pred_sales:,}",
-        'predicted_revenue': pred_rev_str,
-        'expected_demand': expected_demand,
-        'growth_forecast': growth_forecast
-    }
+    # Recommendation 4: Growth Velocity & Marketing Strategy
+    try:
+        growth_val = float(growth_fc.replace('%', '').replace('+', ''))
+        if growth_val >= 5.0:
+            recommendations.append(
+                f"Revenue Momentum: Forecasted revenue velocity is tracking at {growth_fc}. Increase digital acquisition spending in high-converting segments to sustain compounding growth."
+            )
+        elif growth_val < 0:
+            recommendations.append(
+                f"Revenue Risk Warning: Projected trajectory indicates a {growth_fc} shift. Implement targeted customer retention campaigns and promotional pricing on slow-moving items."
+            )
+        else:
+            recommendations.append(
+                f"Stable Revenue Baseline: Projected growth is holding steady at {growth_fc}. Focus on operational cost reduction and customer lifetime value (LTV) optimization."
+            )
+    except Exception:
+        recommendations.append(
+            f"Capitalize on top-performing product segments to sustain steady revenue momentum across active operational channels."
+        )
+
+    # Recommendation 5: Regional Territory Optimization
+    if reg_col:
+        try:
+            reg_counts = df[reg_col].astype(str).value_counts()
+            if not reg_counts.empty:
+                top_reg = reg_counts.index[0]
+                reg_pct = round((reg_counts.iloc[0] / len(df)) * 100, 1)
+                recommendations.append(
+                    f"Territory Expansion: '{top_reg}' is your leading region ({reg_pct}% market volume). Scale regional distribution hubs and localized campaigns in '{top_reg}'."
+                )
+        except Exception as e:
+            logger.warning(f"Error computing regional recommendation: {e}")
+
+    # Recommendation 6: Team Execution & Task Alignment
+    try:
+        comp_rate = float(task_completion_rate.replace('%', ''))
+        if comp_rate < 70.0:
+            recommendations.append(
+                f"Operational Alignment: Team task completion is at {task_completion_rate}. Reassign pending high-priority analytics tasks to prevent bottlenecking report deliverables."
+            )
+        else:
+            recommendations.append(
+                f"Team Execution: Operational completion velocity is optimal at {task_completion_rate}. Empower team analysts with automated time-series pipelines for next sprint."
+            )
+    except Exception:
+        pass
+
+    return recommendations[:6]
+
 
 
 def _fetchone_dict(cursor):
@@ -449,10 +662,37 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
         datasets_list = []
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT id, file_name, row_count, column_count, uploaded_at FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 25", (user_id,))
+                cursor.execute("""
+                    SELECT d.id, d.file_name, d.row_count, d.column_count, d.uploaded_at, d.user_id,
+                           u.first_name, u.last_name, u.role
+                    FROM datasets d
+                    JOIN users u ON d.user_id = u.id
+                    ORDER BY d.uploaded_at DESC LIMIT 50
+                """)
                 datasets_list = _fetchall_dict(cursor)
         except Exception as e:
             logger.warning(f"Could not load datasets for manager: {e}")
+
+        platform_reports = []
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT r.id, r.report_name, r.report_type, r.created_at, r.dataset_id,
+                           d.file_name as dataset_file_name, u.first_name, u.last_name, u.role
+                    FROM reports r
+                    LEFT JOIN datasets d ON r.dataset_id = d.id
+                    LEFT JOIN users u ON r.user_id = u.id
+                    ORDER BY r.created_at DESC LIMIT 25
+                """)
+                rows_rep = _fetchall_dict(cursor)
+                for r_item in rows_rep:
+                    fn = r_item.get('first_name', 'User')
+                    ln = r_item.get('last_name', '')
+                    r_item['user_name'] = f"{fn} {ln}".strip()
+                    r_item['created_at_str'] = str(r_item.get('created_at') or '')[:16]
+                    platform_reports.append(r_item)
+        except Exception as e:
+            logger.warning(f"Could not load platform reports for manager: {e}")
 
     # Calculate Team KPI metrics
     team_members_count = len(team_members)
@@ -471,44 +711,37 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
             {'user_name': 'Priya M.', 'action': 'Shared executive dashboard with team', 'time_ago': '1d ago'}
         ]
 
-    # Calculate Chart Data
-    revenue_trend = {'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'], 'values': [120000, 145000, 160000, 195000, 210000, 250000, 290000]}
-    category_perf = {'labels': ['Electronics', 'Apparel', 'Home & Kitchen', 'Grocery', 'Services'], 'values': [45, 25, 15, 10, 5]}
-    sales_perf = {'labels': ['Q1 W1', 'Q1 W2', 'Q1 W3', 'Q1 W4', 'Q2 W1', 'Q2 W2'], 'values': [320, 410, 390, 520, 610, 700]}
-    regional_perf = [
-        {'region': 'West India', 'percentage': 88, 'color': 'var(--dn-primary)'},
-        {'region': 'North India', 'percentage': 64, 'color': 'var(--dn-violet)'},
-        {'region': 'South India', 'percentage': 52, 'color': 'var(--dn-cyan)'},
-        {'region': 'East India', 'percentage': 41, 'color': 'var(--dn-amber)'}
-    ]
+    # Calculate dataset-wise cumulative revenue breakdown across analyst datasets
+    breakdown_data = get_dataset_revenue_breakdown(conn, user_id) if conn else {'total_revenue_raw': 0, 'datasets': []}
+    if breakdown_data and breakdown_data.get('total_revenue_raw', 0) > 0:
+        overview['total_revenue'] = breakdown_data['total_revenue']
 
-    ai_insights = [
-        f"Total revenue generated is {overview['total_revenue']} across {overview['total_sales']} transaction records.",
-        f"Best performing category is '{overview['top_category']}', showing strong market demand.",
-        f"Overall business revenue growth velocity is tracking at {overview['growth_rate']}.",
-        f"Forecasted next period revenue is projected at {predictions['predicted_revenue']} ({predictions['growth_forecast']} growth)."
-    ]
+    # Initialize dynamic chart data containers (empty default states, no hardcoded mock numbers)
+    revenue_trend = {'labels': [], 'values': []}
+    category_perf = {'labels': [], 'values': []}
+    sales_perf = {'labels': [], 'values': []}
+    regional_perf = []
 
-    trends = [
-        f"Revenue Growth: Consistently increasing with dynamic rate of {overview['growth_rate']}.",
-        f"Category Leader: '{overview['top_category']}' maintains highest volume contribution.",
-        f"Demand Acceleration: Expected demand growth projected at {predictions['expected_demand']}.",
-        "Operational Efficiency: Dataset processing error rate maintained under 0.5%."
-    ]
-
-    recommendations = [
-        f"Focus inventory allocation and promotional budget on '{overview['top_category']}' to maximize ROI.",
-        f"Capitalize on high growth velocity in West & North regions to sustain revenue momentum.",
-        "Implement predictive replenishment to match expected demand increase of " + predictions['expected_demand'] + "."
-    ]
+    # If df is None, attempt to load the most recent dataset from platform if available
+    if (df is None or df.empty) and conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, user_id FROM datasets ORDER BY uploaded_at DESC LIMIT 1")
+                latest_ds = cursor.fetchone()
+                if latest_ds:
+                    from ..api import load_dataframe
+                    df = load_dataframe(latest_ds['id'], latest_ds['user_id'])
+        except Exception as ex:
+            logger.warning(f"Could not load fallback dataset for charts: {ex}")
 
     if df is not None and not df.empty:
         cols_lower = {c.lower(): c for c in df.columns}
         rev_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['revenue', 'sales', 'amount', 'total', 'price', 'profit'])), None)
-        cat_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['category', 'product', 'type', 'region', 'segment', 'department'])), None)
+        cat_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['category', 'product', 'type', 'segment', 'department', 'class'])), None)
         reg_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['region', 'location', 'city', 'state', 'country', 'zone'])), None)
+        qty_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['quantity', 'qty', 'volume', 'count', 'units'])), None)
 
-        # Revenue Trend Chart from Dataset
+        # 1. Revenue Trend Chart from Dataset (Numeric revenue divided over sequential chunks)
         if rev_col:
             try:
                 if pd.api.types.is_numeric_dtype(df[rev_col]):
@@ -516,8 +749,8 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
                 else:
                     rev_vals = pd.to_numeric(df[rev_col].astype(str).str.replace(r'[$,₹,€,£,Rs,rs]', '', regex=True).str.replace(',', '', regex=False), errors='coerce').fillna(0)
 
-                # Divide into 7 sequential buckets
-                chunks = np.array_split(rev_vals.values, min(7, len(rev_vals)))
+                n_chunks = min(7, max(1, len(rev_vals)))
+                chunks = np.array_split(rev_vals.values, n_chunks)
                 b_labels = [f"P{i+1}" for i in range(len(chunks))]
                 b_values = [round(float(chunk.sum()), 2) for chunk in chunks]
                 if sum(b_values) > 0:
@@ -525,7 +758,7 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
             except Exception as e:
                 logger.warning(f"Error computing dataset revenue trend: {e}")
 
-        # Category Performance Chart from Dataset
+        # 2. Category Performance Chart from Dataset
         if cat_col:
             try:
                 top_cats = df[cat_col].astype(str).value_counts().head(5)
@@ -537,10 +770,26 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
             except Exception as e:
                 logger.warning(f"Error computing dataset category performance: {e}")
 
-        # Regional Performance from Dataset
-        if reg_col:
+        # 3. Sales Performance Chart from Dataset (Quantity or transaction counts)
+        try:
+            if qty_col and pd.api.types.is_numeric_dtype(df[qty_col]):
+                qty_vals = df[qty_col].fillna(0)
+            else:
+                qty_vals = pd.Series([1] * len(df))
+
+            n_chunks = min(6, max(1, len(qty_vals)))
+            qty_chunks = np.array_split(qty_vals.values, n_chunks)
+            sales_labels = [f"Period {i+1}" for i in range(len(qty_chunks))]
+            sales_values = [int(chunk.sum()) for chunk in qty_chunks]
+            sales_perf = {'labels': sales_labels, 'values': sales_values}
+        except Exception as e:
+            logger.warning(f"Error computing sales performance: {e}")
+
+        # 4. Regional Performance from Dataset
+        target_dim_col = reg_col or cat_col
+        if target_dim_col:
             try:
-                reg_counts = df[reg_col].astype(str).value_counts().head(4)
+                reg_counts = df[target_dim_col].astype(str).value_counts().head(4)
                 tot_reg = reg_counts.sum()
                 if tot_reg > 0:
                     colors = ['var(--dn-primary)', 'var(--dn-violet)', 'var(--dn-cyan)', 'var(--dn-amber)']
@@ -554,6 +803,22 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
                         })
             except Exception as e:
                 logger.warning(f"Error computing dataset regional performance: {e}")
+
+    ai_insights = [
+        f"Total revenue generated is {overview['total_revenue']} across {overview['total_sales']} transaction records.",
+        f"Best performing category is '{overview['top_category']}', showing strong market demand.",
+        f"Overall business revenue growth velocity is tracking at {overview['growth_rate']}.",
+        f"Forecasted next period revenue is projected at {predictions['predicted_revenue']} ({predictions['growth_forecast']} growth)."
+    ]
+
+    trends = [
+        f"Revenue Growth: Consistently tracking with dynamic rate of {overview['growth_rate']}.",
+        f"Category Leader: '{overview['top_category']}' maintains highest volume contribution.",
+        f"Demand Acceleration: Expected demand growth projected at {predictions['expected_demand']}.",
+        "Operational Efficiency: Dataset processing monitored in real-time."
+    ]
+
+    recommendations = generate_business_recommendations(df, overview, predictions, task_completion_rate)
 
     return {
         'active_datasets': active_datasets_count,
@@ -580,7 +845,8 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
         'ai_insights': ai_insights,
         'trends': trends,
         'recommendations': recommendations,
-        'team_activity': team_activity
+        'team_activity': team_activity,
+        'reports': platform_reports if 'platform_reports' in locals() else []
     }
 
 
@@ -826,4 +1092,94 @@ def get_manager_team_api_data(conn, manager_id: int) -> Dict[str, Any]:
             'pending_tasks': pending_tasks,
             'completion_rate': f"{completion_rate_val:.1f}%"
         }
+    }
+
+
+def get_dataset_revenue_breakdown(conn, manager_id: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Retrieves breakdown of datasets analyzed by analysts and team members,
+    calculating individual revenue generated by each dataset and total cumulative revenue.
+    """
+    if not conn:
+        return {'success': False, 'message': 'No database connection', 'datasets': [], 'total_revenue': '₹0', 'total_revenue_raw': 0.0, 'count': 0, 'analysts_count': 0}
+
+    ensure_manager_tables_exist(conn)
+    datasets_info = []
+    total_cum_revenue = 0.0
+
+    try:
+        from ..api import load_dataframe
+    except Exception:
+        load_dataframe = None
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT d.id, d.user_id, d.file_name, d.file_path, d.row_count, d.column_count, d.uploaded_at,
+                       u.first_name, u.last_name, u.email, u.role
+                FROM datasets d
+                JOIN users u ON d.user_id = u.id
+                ORDER BY d.uploaded_at DESC
+            """)
+            rows = _fetchall_dict(cursor)
+
+        for r in rows:
+            ds_id = r['id']
+            u_id = r['user_id']
+            fn = r.get('first_name', 'User')
+            ln = r.get('last_name', '')
+            user_full = f"{fn} {ln}".strip()
+            user_email = r.get('email', '')
+            user_role = (r.get('role') or 'analyst').capitalize()
+
+            ds_rev = 0.0
+            rev_col_name = "N/A"
+
+            if load_dataframe:
+                try:
+                    df_item = load_dataframe(ds_id, u_id)
+                    if df_item is not None and not df_item.empty:
+                        cols_lower = {c.lower(): c for c in df_item.columns}
+                        rev_col = next((c for k, c in cols_lower.items() if any(x in k for x in ['revenue', 'sales', 'amount', 'total', 'price', 'profit'])), None)
+                        if rev_col:
+                            rev_col_name = rev_col
+                            if pd.api.types.is_numeric_dtype(df_item[rev_col]):
+                                rev_vals = df_item[rev_col].fillna(0)
+                            else:
+                                cleaned = df_item[rev_col].astype(str).str.replace(r'[$,₹,€,£,Rs,rs]', '', regex=True).str.replace(',', '', regex=False)
+                                rev_vals = pd.to_numeric(cleaned, errors='coerce').fillna(0)
+                            ds_rev = float(rev_vals.sum())
+                except Exception as ex:
+                    logger.warning(f"Could not compute dataset #{ds_id} revenue: {ex}")
+
+            total_cum_revenue += ds_rev
+            formatted_rev = format_currency_inr(ds_rev) if ds_rev > 0 else "₹0"
+
+            datasets_info.append({
+                'id': ds_id,
+                'file_name': r.get('file_name'),
+                'analyst_name': user_full,
+                'analyst_email': user_email,
+                'analyst_role': user_role,
+                'row_count': r.get('row_count') or 0,
+                'column_count': r.get('column_count') or 0,
+                'revenue_raw': ds_rev,
+                'revenue': formatted_rev,
+                'revenue_column': rev_col_name,
+                'uploaded_at': str(r.get('uploaded_at') or '')[:16]
+            })
+
+    except Exception as e:
+        logger.error(f"Error compiling dataset revenue breakdown: {e}")
+
+    total_formatted = format_currency_inr(total_cum_revenue) if total_cum_revenue > 0 else "₹0"
+    analysts_count = len(set(d['analyst_email'] for d in datasets_info if d['analyst_email']))
+
+    return {
+        'success': True,
+        'datasets': datasets_info,
+        'total_revenue': total_formatted,
+        'total_revenue_raw': total_cum_revenue,
+        'count': len(datasets_info),
+        'analysts_count': analysts_count
     }

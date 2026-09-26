@@ -50,26 +50,35 @@ def time_series_analysis(df, date_column, value_column):
 
     temp = df[[date_column, value_column]].copy()
 
-    # Convert date column
+    # Convert date column safely from string to prevent CategoricalIndex issues
     try:
-        temp[date_column] = pd.to_datetime(temp[date_column], errors="coerce", format="mixed")
+        temp[date_column] = pd.to_datetime(temp[date_column].astype(str), errors="coerce", format="mixed")
     except Exception as e:
         logger.warning(f"Date conversion failed for column '{date_column}': {e}. Trying fallback.")
-        temp[date_column] = pd.to_datetime(temp[date_column], errors="coerce")
+        temp[date_column] = pd.to_datetime(temp[date_column].astype(str), errors="coerce")
 
     # Convert value column
     temp[value_column] = pd.to_numeric(
         convert_percentage(convert_currency(temp[value_column])),
         errors="coerce"
     )
-    temp.dropna(inplace=True)
+    temp.dropna(subset=[date_column, value_column], inplace=True)
 
     if temp.empty:
         logger.warning(f"No valid data points after cleaning for time series analysis.")
         return None
 
     temp.set_index(date_column, inplace=True)
+
+    # Ensure index is strictly DatetimeIndex to avoid CategoricalIndex errors in resample
+    if not isinstance(temp.index, pd.DatetimeIndex):
+        temp.index = pd.to_datetime(temp.index.astype(str), errors='coerce')
+    temp = temp[temp.index.notnull()]
     temp.sort_index(inplace=True)
+
+    if temp.empty:
+        logger.warning(f"No valid DatetimeIndex records for time series analysis.")
+        return None
 
     # 1. Daily Aggregation & Trend
     daily = temp[value_column].resample('D').sum().round(2)

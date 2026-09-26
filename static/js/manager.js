@@ -194,44 +194,172 @@ document.addEventListener('DOMContentLoaded', function () {
     if (compareForm) {
         compareForm.addEventListener('submit', function (e) {
             e.preventDefault();
-            const ds1 = (document.getElementById('compareDs1Input').value || '').trim();
-            const ds2 = (document.getElementById('compareDs2Input').value || '').trim();
             const alertEl = document.getElementById('compareDatasetsAlert');
             const btnSubmit = document.getElementById('btnSubmitCompare');
+            const resContainer = document.getElementById('compareResultsContainer');
 
-            if (!ds1 || !ds2) {
-                showFormAlert(alertEl, "Please enter two dataset IDs to compare.");
+            if (alertEl) alertEl.classList.add('d-none');
+            if (resContainer) resContainer.classList.add('d-none');
+
+            const file1Input = document.getElementById('compareFile1Input');
+            const file2Input = document.getElementById('compareFile2Input');
+            const ds1Input = document.getElementById('compareDs1Input');
+            const ds2Input = document.getElementById('compareDs2Input');
+            const gsheet1Input = document.getElementById('compareGSheet1Input');
+            const gsheet2Input = document.getElementById('compareGSheet2Input');
+
+            const file1 = file1Input && file1Input.files ? file1Input.files[0] : null;
+            const file2 = file2Input && file2Input.files ? file2Input.files[0] : null;
+            const ds1 = ds1Input ? ds1Input.value.trim() : '';
+            const ds2 = ds2Input ? ds2Input.value.trim() : '';
+            const gsheet1 = gsheet1Input ? gsheet1Input.value.trim() : '';
+            const gsheet2 = gsheet2Input ? gsheet2Input.value.trim() : '';
+
+            // Validation: Ensure either 2 files, 2 GSheets, or 2 IDs provided (or mix)
+            const hasFirst = Boolean(file1 || ds1 || gsheet1);
+            const hasSecond = Boolean(file2 || ds2 || gsheet2);
+
+            if (!hasFirst || !hasSecond) {
+                showFormAlert(alertEl, "Please provide two datasets to compare (upload files, paste Google Sheet URLs, or enter dataset IDs).");
                 return;
             }
 
+            const formData = new FormData();
+            if (file1) formData.append('file1', file1);
+            else if (gsheet1) formData.append('gsheet_url_1', gsheet1);
+            else if (ds1) formData.append('dataset_id_1', ds1);
+
+            if (file2) formData.append('file2', file2);
+            else if (gsheet2) formData.append('gsheet_url_2', gsheet2);
+            else if (ds2) formData.append('dataset_id_2', ds2);
+
             if (btnSubmit) {
                 btnSubmit.disabled = true;
-                btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Comparing...';
+                btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Comparing...';
             }
 
             fetch('/api/compare_datasets', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dataset_id_1: ds1, dataset_id_2: ds2 })
+                body: formData
             })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.success) {
-                        const resContainer = document.getElementById('compareResultsContainer');
+                    if (data.success && data.comparison) {
+                        const comp = data.comparison;
+                        const d1 = comp.dataset1 || {};
+                        const d2 = comp.dataset2 || {};
+
                         if (resContainer) {
                             resContainer.classList.remove('d-none');
-                            document.getElementById('compHeadDs1').textContent = data.dataset1.name || `Dataset #${ds1}`;
-                            document.getElementById('compHeadDs2').textContent = data.dataset2.name || `Dataset #${ds2}`;
-                            document.getElementById('compRows1').textContent = (data.dataset1.rows || 0).toLocaleString();
-                            document.getElementById('compRows2').textContent = (data.dataset2.rows || 0).toLocaleString();
-                            document.getElementById('compCols1').textContent = (data.dataset1.cols || 0).toLocaleString();
-                            document.getElementById('compCols2').textContent = (data.dataset2.cols || 0).toLocaleString();
-                            document.getElementById('compMiss1').textContent = (data.dataset1.missing || 0).toLocaleString();
-                            document.getElementById('compMiss2').textContent = (data.dataset2.missing || 0).toLocaleString();
 
-                            const commonTxt = document.getElementById('compCommonColsText');
-                            if (commonTxt) {
-                                commonTxt.textContent = `Common overlapping columns count: ${data.common_columns_count || 0}`;
+                            // Header names
+                            const head1 = document.getElementById('compHeadDs1');
+                            const head2 = document.getElementById('compHeadDs2');
+                            if (head1) head1.textContent = d1.name || 'Dataset 1';
+                            if (head2) head2.textContent = d2.name || 'Dataset 2';
+
+                            // Metrics table
+                            const r1 = document.getElementById('compRows1');
+                            const r2 = document.getElementById('compRows2');
+                            if (r1) r1.textContent = (d1.rows || 0).toLocaleString();
+                            if (r2) r2.textContent = (d2.rows || 0).toLocaleString();
+
+                            const c1 = document.getElementById('compCols1');
+                            const c2 = document.getElementById('compCols2');
+                            if (c1) c1.textContent = (d1.columns || 0).toLocaleString();
+                            if (c2) c2.textContent = (d2.columns || 0).toLocaleString();
+
+                            const m1 = document.getElementById('compMem1');
+                            const m2 = document.getElementById('compMem2');
+                            if (m1) m1.textContent = d1.memory || '0 KB';
+                            if (m2) m2.textContent = d2.memory || '0 KB';
+
+                            const miss1 = document.getElementById('compMiss1');
+                            const miss2 = document.getElementById('compMiss2');
+                            if (miss1) miss1.textContent = (d1.missing || 0).toLocaleString();
+                            if (miss2) miss2.textContent = (d2.missing || 0).toLocaleString();
+
+                            const dup1 = document.getElementById('compDup1');
+                            const dup2 = document.getElementById('compDup2');
+                            if (dup1) dup1.textContent = (d1.duplicates || 0).toLocaleString();
+                            if (dup2) dup2.textContent = (d2.duplicates || 0).toLocaleString();
+
+                            const gr1 = document.getElementById('compGrade1');
+                            const gr2 = document.getElementById('compGrade2');
+                            if (gr1) gr1.innerHTML = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${escapeHtml(d1.grade || 'A+')} (${d1.quality_score || 100}/100)</span>`;
+                            if (gr2) gr2.innerHTML = `<span class="badge bg-info-subtle text-info border border-info-subtle">${escapeHtml(d2.grade || 'A+')} (${d2.quality_score || 100}/100)</span>`;
+
+                            // Common columns
+                            const comCountEl = document.getElementById('compCommonCount');
+                            const comPillsEl = document.getElementById('compCommonPills');
+                            const commonCols = comp.common_columns || [];
+                            if (comCountEl) comCountEl.textContent = commonCols.length;
+                            if (comPillsEl) {
+                                if (commonCols.length > 0) {
+                                    comPillsEl.innerHTML = commonCols.map(col =>
+                                        `<span class="badge bg-success-subtle text-success border border-success-subtle font-monospace py-1 px-2">${escapeHtml(col)}</span>`
+                                    ).join(' ');
+                                } else {
+                                    comPillsEl.innerHTML = '<span class="text-muted small">No overlapping columns found.</span>';
+                                }
+                            }
+
+                            // Unique columns in Dataset 1
+                            const onlyName1 = document.getElementById('compOnlyName1');
+                            const onlyCount1 = document.getElementById('compOnlyCount1');
+                            const onlyPills1 = document.getElementById('compOnly1Pills');
+                            const only1 = comp.only_in_1 || [];
+                            if (onlyName1) onlyName1.textContent = d1.name || 'Dataset 1';
+                            if (onlyCount1) onlyCount1.textContent = only1.length;
+                            if (onlyPills1) {
+                                if (only1.length > 0) {
+                                    onlyPills1.innerHTML = only1.map(col =>
+                                        `<span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace py-1 px-2">${escapeHtml(col)}</span>`
+                                    ).join(' ');
+                                } else {
+                                    onlyPills1.innerHTML = '<span class="text-muted small">No unique columns.</span>';
+                                }
+                            }
+
+                            // Unique columns in Dataset 2
+                            const onlyName2 = document.getElementById('compOnlyName2');
+                            const onlyCount2 = document.getElementById('compOnlyCount2');
+                            const onlyPills2 = document.getElementById('compOnly2Pills');
+                            const only2 = comp.only_in_2 || [];
+                            if (onlyName2) onlyName2.textContent = d2.name || 'Dataset 2';
+                            if (onlyCount2) onlyCount2.textContent = only2.length;
+                            if (onlyPills2) {
+                                if (only2.length > 0) {
+                                    onlyPills2.innerHTML = only2.map(col =>
+                                        `<span class="badge bg-info-subtle text-info border border-info-subtle font-monospace py-1 px-2">${escapeHtml(col)}</span>`
+                                    ).join(' ');
+                                } else {
+                                    onlyPills2.innerHTML = '<span class="text-muted small">No unique columns.</span>';
+                                }
+                            }
+
+                            // Schema / Data Type Compatibility Table
+                            const schemaTbody = document.getElementById('compSchemaTableBody');
+                            const schemaList = comp.schema_comparison || [];
+                            if (schemaTbody) {
+                                if (schemaList.length > 0) {
+                                    schemaTbody.innerHTML = schemaList.map(s => `
+                                        <tr>
+                                            <td class="font-monospace fw-semibold">${escapeHtml(s.column)}</td>
+                                            <td><span class="badge bg-secondary-subtle text-body border">${escapeHtml(s.type1)}</span></td>
+                                            <td><span class="badge bg-secondary-subtle text-body border">${escapeHtml(s.type2)}</span></td>
+                                            <td>
+                                                ${s.match
+                                                    ? '<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>Match</span>'
+                                                    : (s.compatible
+                                                        ? '<span class="badge bg-info-subtle text-info border border-info-subtle"><i class="bi bi-arrow-left-right me-1"></i>Compatible</span>'
+                                                        : '<span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-exclamation-triangle me-1"></i>Type Diff</span>')}
+                                            </td>
+                                        </tr>
+                                    `).join('');
+                                } else {
+                                    schemaTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted small py-2">No overlapping schema to compare.</td></tr>';
+                                }
                             }
                         }
                         if (alertEl) alertEl.classList.add('d-none');
@@ -241,7 +369,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 })
                 .catch(err => {
-                    showFormAlert(alertEl, "Network error during comparison.");
+                    console.error("Comparison error:", err);
+                    showFormAlert(alertEl, "Network error or invalid file during dataset comparison.");
                 })
                 .finally(() => {
                     if (btnSubmit) {
@@ -538,7 +667,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!userId) return;
         if (btnElement) {
             btnElement.disabled = true;
-            btnElement.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Adding...';
+            btnElement.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Adding...';
         }
 
         fetch('/api/manager/add_team_member', {
@@ -549,11 +678,19 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
+                    if (btnElement) {
+                        btnElement.className = 'btn btn-sm btn-success text-white disabled';
+                        btnElement.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Added';
+                    }
                     showToast(`${userName || 'User'} has been added to your team squad!`, "success");
-                    refreshTeamData();
+                    // Smooth dynamic refresh of tables and badges
+                    setTimeout(() => {
+                        refreshTeamData();
+                    }, 400);
                 } else {
                     if (btnElement) {
                         btnElement.disabled = false;
+                        btnElement.className = 'btn btn-sm dn-btn-primary';
                         btnElement.innerHTML = '<i class="bi bi-person-plus-fill me-1"></i> Add in Team';
                     }
                     showToast(res.message || "Failed to add member.", "danger");
@@ -562,6 +699,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .catch(err => {
                 if (btnElement) {
                     btnElement.disabled = false;
+                    btnElement.className = 'btn btn-sm dn-btn-primary';
                     btnElement.innerHTML = '<i class="bi bi-person-plus-fill me-1"></i> Add in Team';
                 }
                 showToast("Network error adding team member.", "danger");
@@ -574,13 +712,17 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(res => res.json())
             .then(resData => {
                 if (resData.success) {
-                    renderTeamMembersTable(resData.members || []);
-                    renderAvailableUsersTable(resData.available_users || []);
-                    renderTasksTable(resData.tasks || []);
-                    updateAssignTaskSelectOptions(resData.members || []);
+                    const members = resData.members || [];
+                    const availableUsers = resData.available_users || [];
+                    const tasks = resData.tasks || [];
 
-                    const teamCount = (resData.members || []).length;
-                    const availCount = (resData.available_users || []).length;
+                    renderTeamMembersTable(members);
+                    renderAvailableUsersTable(availableUsers);
+                    renderTasksTable(tasks);
+                    updateAssignTaskSelectOptions(members);
+
+                    const teamCount = resData.stats ? resData.stats.total_members : members.length;
+                    const availCount = resData.stats ? resData.stats.total_available_users : availableUsers.length;
 
                     const tmBadge = document.getElementById('teamMembersBadge');
                     if (tmBadge) tmBadge.textContent = teamCount;
@@ -605,13 +747,17 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (curVal) dsSelect.value = curVal;
                         }
                     }
+
+                    if (typeof filterTeamTable === 'function') {
+                        filterTeamTable();
+                    }
                 }
             })
             .catch(err => console.log("Error refreshing team data: ", err));
     }
 
     function renderTeamMembersTable(members) {
-        const tbody = document.getElementById('managerTeamTableBody');
+        const tbody = document.getElementById('managerTeamTableBody') || document.getElementById('teamTableBody');
         if (!tbody) return;
 
         if (!members || members.length === 0) {
@@ -621,75 +767,82 @@ document.addEventListener('DOMContentLoaded', function () {
                         <i class="bi bi-people fs-2 d-block mb-2 text-secondary opacity-50"></i>
                         <div class="fw-semibold">No team members added yet</div>
                         <p class="small text-muted mb-2">Select from the "Available Platform Users" tab to build your team squad.</p>
-                        <button class="btn btn-sm dn-btn-primary" onclick="document.getElementById('availableUsersTabBtn').click()"><i class="bi bi-person-plus-fill me-1"></i> Browse Available Users</button>
+                        <button class="btn btn-sm dn-btn-primary" onclick="const b = document.getElementById('availableUsersTabBtn'); if(b) b.click();"><i class="bi bi-person-plus-fill me-1"></i> Browse Available Users</button>
                     </td>
                 </tr>`;
             return;
         }
 
-        tbody.innerHTML = members.map(m => `
+        tbody.innerHTML = members.map(m => {
+            const initials = ((m.first_name || 'U')[0] + ((m.last_name || '')[0] || '')).toUpperCase();
+            return `
             <tr data-member-id="${m.id}">
                 <td>
                     <div class="d-flex align-items-center gap-2">
-                        <div class="dn-user-avatar-sm" style="width:32px;height:32px;border-radius:50%;background:rgba(99,102,241,0.15);color:var(--dn-primary);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.85rem;">
-                            ${(m.first_name || 'U')[0].toUpperCase()}
-                        </div>
+                        <div class="dn-avatar-sm">${initials}</div>
                         <div>
-                            <div class="fw-semibold">${escapeHtml(m.first_name || '')} ${escapeHtml(m.last_name || '')}</div>
-                            <div class="small text-secondary">${escapeHtml(m.email || '')}</div>
+                            <div class="fw-semibold text-body">${escapeHtml(m.first_name || '')} ${escapeHtml(m.last_name || '')}</div>
+                            <div class="small text-secondary">Joined ${escapeHtml(m.joined_at || 'Recently')}</div>
                         </div>
                     </div>
                 </td>
-                <td><span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">${escapeHtml((m.role || 'user').toUpperCase())}</span></td>
-                <td><span class="badge ${m.status === 'active' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'}">${escapeHtml(m.status || 'active')}</span></td>
-                <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">${m.active_tasks || 0} active</span></td>
-                <td><span class="badge bg-success-subtle text-success border border-success-subtle">${m.completed_tasks || 0} done</span></td>
-                <td class="small text-secondary">${escapeHtml(m.joined_at || 'Recently')}</td>
+                <td class="small">${escapeHtml(m.email || '')}</td>
+                <td><span class="badge dn-role-badge dn-role-${escapeHtml(m.role || 'viewer')}">${escapeHtml((m.role || 'user').charAt(0).toUpperCase() + (m.role || 'user').slice(1))}</span></td>
+                <td>
+                    ${m.status === 'active'
+                        ? '<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill small me-1"></i>Active</span>'
+                        : '<span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-dash-circle small me-1"></i>Inactive</span>'}
+                </td>
+                <td><span class="fw-bold text-primary">${m.active_tasks || 0}</span></td>
+                <td><span class="fw-bold text-success">${m.completed_tasks || 0}</span></td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-primary me-1" data-action="assign-task-to" data-member-id="${m.id}" data-member-name="${escapeHtml(m.first_name || '')} ${escapeHtml(m.last_name || '')}"><i class="bi bi-plus-lg"></i> Task</button>
-                    <button class="btn btn-sm btn-outline-danger" data-action="remove-member" data-member-id="${m.id}" data-member-name="${escapeHtml(m.first_name || '')} ${escapeHtml(m.last_name || '')}"><i class="bi bi-person-x"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary me-1" data-action="toggle-status" data-member-id="${m.id}" data-current-status="${escapeHtml(m.status || 'active')}" title="Toggle Status"><i class="bi bi-power"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" data-action="remove-team-member" data-member-id="${m.id}" data-member-name="${escapeHtml(m.first_name || '')} ${escapeHtml(m.last_name || '')}" title="Remove Team Member"><i class="bi bi-trash"></i> Remove</button>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 
     function renderAvailableUsersTable(users) {
-        const tbody = document.getElementById('availableUsersTableBody');
+        const tbody = document.getElementById('managerAvailableUsersTableBody') || document.getElementById('availableUsersTableBody');
         if (!tbody) return;
 
         if (!users || users.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">
+                    <td colspan="6" class="text-center py-4 text-muted">
                         <i class="bi bi-check2-all fs-2 d-block mb-2 text-success opacity-50"></i>
                         <div class="fw-semibold">All active users are currently assigned to teams</div>
-                        <p class="small text-muted mb-0">Use the registration form below to create new analyst or viewer accounts.</p>
+                        <p class="small text-muted mb-2">You can register a new user account if needed.</p>
+                        <button class="btn btn-sm btn-outline-primary" data-action="add-member"><i class="bi bi-person-plus me-1"></i> Register New User</button>
                     </td>
                 </tr>`;
             return;
         }
 
-        tbody.innerHTML = users.map(u => `
+        tbody.innerHTML = users.map(u => {
+            const initials = ((u.first_name || 'U')[0] + ((u.last_name || '')[0] || '')).toUpperCase();
+            const fullName = `${escapeHtml(u.first_name || '')} ${escapeHtml(u.last_name || '')}`.trim();
+            return `
             <tr data-user-id="${u.id}">
                 <td>
                     <div class="d-flex align-items-center gap-2">
-                        <div class="dn-user-avatar-sm" style="width:32px;height:32px;border-radius:50%;background:rgba(14,165,233,0.15);color:var(--dn-cyan);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.85rem;">
-                            ${(u.first_name || 'U')[0].toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="fw-semibold">${escapeHtml(u.first_name || '')} ${escapeHtml(u.last_name || '')}</div>
-                            <div class="small text-secondary">${escapeHtml(u.email || '')}</div>
-                        </div>
+                        <div class="dn-avatar-sm">${initials}</div>
+                        <div class="fw-semibold text-body">${fullName || 'Platform User'}</div>
                     </div>
                 </td>
-                <td><span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">${escapeHtml((u.role || 'user').toUpperCase())}</span></td>
-                <td><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span></td>
+                <td class="small">${escapeHtml(u.email || '')}</td>
+                <td><span class="badge dn-role-badge dn-role-${escapeHtml(u.role || 'viewer')}">${escapeHtml((u.role || 'user').charAt(0).toUpperCase() + (u.role || 'user').slice(1))}</span></td>
+                <td><span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill small me-1"></i>Active</span></td>
                 <td class="small text-secondary">${escapeHtml(u.joined_at || 'Recently')}</td>
                 <td class="text-end">
-                    <button class="btn btn-sm dn-btn-primary btn-add-member" data-action="add-member" data-user-id="${u.id}"><i class="bi bi-person-plus-fill me-1"></i> Add in Team</button>
+                    <button class="btn btn-sm dn-btn-primary" data-action="quick-add-to-team" data-user-id="${u.id}" data-user-name="${fullName}">
+                        <i class="bi bi-person-plus-fill me-1"></i> Add in Team
+                    </button>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 
     function renderTasksTable(tasks) {
@@ -1327,7 +1480,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function openManagerSharedDetail(sharedId) {
+    const _managerSharedDetailCache = new Map();
+
+    function openManagerSharedDetail(sharedId, forceReload = false) {
         if (!sharedDetailModalInstance && sharedDetailModalEl) {
             sharedDetailModalInstance = new bootstrap.Modal(sharedDetailModalEl);
         }
@@ -1335,270 +1490,42 @@ document.addEventListener('DOMContentLoaded', function () {
         const activeIdInput = document.getElementById('activeSharedDashboardId');
         if (activeIdInput) activeIdInput.value = sharedId;
 
+        const cacheKey = 'dn_shared_dash_' + sharedId;
+
+        // 1. In-memory cache
+        if (!forceReload && _managerSharedDetailCache.has(sharedId)) {
+            renderManagerSharedDetailData(_managerSharedDetailCache.get(sharedId));
+            if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+            return;
+        }
+
+        // 2. SessionStorage cache
+        if (!forceReload) {
+            try {
+                const sessionCached = sessionStorage.getItem(cacheKey);
+                if (sessionCached) {
+                    const parsed = JSON.parse(sessionCached);
+                    if (parsed && parsed.success && parsed.dashboard) {
+                        _managerSharedDetailCache.set(sharedId, parsed.dashboard);
+                        renderManagerSharedDetailData(parsed.dashboard);
+                        if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+
         fetch(`/api/shared_dashboard/view/${sharedId}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.dashboard) {
-                    const sd = data.dashboard;
-
-                    const titleEl = document.getElementById('sharedDetailTitle');
-                    const metaEl = document.getElementById('sharedDetailMeta');
-                    const statusBadge = document.getElementById('sharedDetailStatusBadge');
-                    const domainBadge = document.getElementById('sharedDetailDomainBadge');
-                    const descContainer = document.getElementById('sharedDetailDescContainer');
-                    const descText = document.getElementById('sharedDetailDescText');
-                    const remarkBanner = document.getElementById('sharedDetailRemarkBanner');
-                    const remarkText = document.getElementById('sharedDetailRemarkText');
-                    const fileText = document.getElementById('sharedDetailDatasetFile');
-                    const remarkInput = document.getElementById('managerReviewRemarkInput');
-
-                    if (titleEl) titleEl.textContent = sd.title;
-                    if (metaEl) metaEl.textContent = `Shared by ${sd.owner_name} (${sd.owner_role}) • ${sd.created_at_str}`;
-                    if (fileText) fileText.textContent = `Dataset: ${sd.dataset_name}`;
-                    if (domainBadge) domainBadge.textContent = sd.business_domain || 'General Analytics';
-
-                    if (statusBadge) {
-                        statusBadge.textContent = sd.status;
-                        statusBadge.className = 'badge ' + (sd.status === 'Approved' ? 'bg-success' : sd.status === 'Reopened' ? 'bg-warning text-dark' : 'bg-primary');
-                    }
-
-                    // Populate Recipients list in modal
-                    const recListEl = document.getElementById('sharedDetailRecipientsList');
-                    if (recListEl) {
-                        if (sd.shared_with_users && sd.shared_with_users.length > 0) {
-                            recListEl.innerHTML = sd.shared_with_users.map(u => `
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                    <i class="bi bi-person-fill me-1"></i>${escapeHtml(u.name)} <small class="opacity-75">(${escapeHtml(u.role || 'User')})</small>
-                                </span>
-                            `).join('');
-                        } else {
-                            recListEl.innerHTML = '<span class="badge bg-secondary-subtle text-secondary">All Team Members</span>';
-                        }
-                    }
-
-                    if (descContainer && descText) {
-                        if (sd.description) {
-                            descContainer.style.display = 'flex';
-                            descText.textContent = sd.description;
-                        } else {
-                            descContainer.style.display = 'none';
-                        }
-                    }
-
-                    if (remarkBanner && remarkText) {
-                        if (sd.remark) {
-                            remarkBanner.style.display = 'flex';
-                            remarkText.textContent = sd.remark;
-                        } else {
-                            remarkBanner.style.display = 'none';
-                        }
-                    }
-
-                    if (remarkInput) {
-                        remarkInput.value = sd.remark || '';
-                    }
-
-                    // 1. KPIs & Overview
-                    const rEl = document.getElementById('sdKpiRows');
-                    const cEl = document.getElementById('sdKpiCols');
-                    const mEl = document.getElementById('sdKpiMemory');
-                    const qEl = document.getElementById('sdKpiQuality');
-                    const miEl = document.getElementById('sdKpiMissing');
-                    const dEl = document.getElementById('sdKpiDuplicates');
-
-                    if (rEl) rEl.textContent = Number(sd.row_count || 0).toLocaleString();
-                    if (cEl) cEl.textContent = Number(sd.column_count || 0).toLocaleString();
-                    if (mEl) mEl.textContent = sd.memory_usage || '0 KB';
-                    if (qEl) qEl.textContent = `${sd.quality_score || 100}% (${sd.quality_grade || 'A+'})`;
-                    if (miEl) miEl.textContent = Number(sd.missing_count || 0).toLocaleString();
-                    if (dEl) dEl.textContent = Number(sd.duplicate_count || 0).toLocaleString();
-
-                    const execSumEl = document.getElementById('sdExecSummaryText');
-                    if (execSumEl) {
-                        execSumEl.textContent = sd.ai_explanation?.executive_summary || 'Comprehensive end-to-end analytics pipeline executed across all dataset attributes.';
-                    }
-
-                    const hlListEl = document.getElementById('sdQuickHighlightsList');
-                    if (hlListEl) {
-                        const hl = [];
-                        hl.push(`<strong>Data Scale:</strong> Verified <strong>${Number(sd.row_count || 0).toLocaleString()} rows</strong> across <strong>${sd.column_count || 0} features</strong> in domain <em>${escapeHtml(sd.business_domain || 'General')}</em>.`);
-                        hl.push(`<strong>Data Hygiene:</strong> Quality grade <strong>${sd.quality_grade || 'A+'}</strong> (${sd.quality_score || 100}/100) with <strong>${sd.duplicates_removed || 0} duplicates removed</strong>.`);
-                        if (sd.imputation_details && sd.imputation_details.length > 0) {
-                            hl.push(`<strong>Imputation:</strong> Successfully resolved null values across <strong>${sd.imputation_details.length} columns</strong>.`);
-                        }
-                        if (sd.dropped_columns && sd.dropped_columns.length > 0) {
-                            hl.push(`<strong>Feature Optimization:</strong> Isolated <strong>${sd.dropped_columns.length} low-variance / redundant columns</strong>.`);
-                        }
-                        hlListEl.innerHTML = hl.map(x => `<li class="mb-1">${x}</li>`).join('');
-                    }
-
-                    // 2. Charts Showcase & Correlations
-                    const topCorrsSection = document.getElementById('sdTopCorrsSection');
-                    const posList = document.getElementById('sdTopPositiveList');
-                    const negList = document.getElementById('sdTopNegativeList');
-                    if (topCorrsSection && posList && negList) {
-                        const hasPos = sd.top_positive_corrs && sd.top_positive_corrs.length > 0;
-                        const hasNeg = sd.top_negative_corrs && sd.top_negative_corrs.length > 0;
-                        if (hasPos || hasNeg) {
-                            posList.innerHTML = (sd.top_positive_corrs || []).map(p => `
-                                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
-                                    <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">+${Number(p.correlation).toFixed(2)}</span>
-                                </li>
-                            `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong positive pairs</li>';
-
-                            negList.innerHTML = (sd.top_negative_corrs || []).map(p => `
-                                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
-                                    <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">${Number(p.correlation).toFixed(2)}</span>
-                                </li>
-                            `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong negative pairs</li>';
-                            topCorrsSection.style.display = 'block';
-                        } else {
-                            topCorrsSection.style.display = 'none';
-                        }
-                    }
-
-                    const chartsGrid = document.getElementById('sdChartsGridContainer');
-                    if (chartsGrid) {
-                        if (sd.charts_showcase && sd.charts_showcase.length > 0) {
-                            chartsGrid.innerHTML = sd.charts_showcase.map(c => `
-                                <div class="col-md-6">
-                                    <div class="border rounded p-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
-                                        <div>
-                                            <h6 class="fw-bold mb-1 text-primary">${escapeHtml(c.title || 'Analytical Visualization')}</h6>
-                                            <p class="small text-muted mb-2">${escapeHtml(c.description || '')}</p>
-                                        </div>
-                                        <div class="text-center my-auto">
-                                            <img src="data:image/png;base64,${c.plot}" alt="${escapeHtml(c.title || 'Chart')}" class="img-fluid rounded border bg-white shadow-sm" style="max-height: 280px; width: 100%; object-fit: contain;">
-                                        </div>
-                                    </div>
-                                </div>
-                            `).join('');
-                        } else {
-                            chartsGrid.innerHTML = '<div class="col-12"><div class="alert alert-info small mb-0">Visualizations are being rendered for this dataset.</div></div>';
-                        }
-                    }
-
-                    // 3. Cleaning Audit Trail
-                    const droppedTbody = document.getElementById('sdDroppedColsTbody');
-                    if (droppedTbody) {
-                        if (sd.dropped_columns && sd.dropped_columns.length > 0) {
-                            droppedTbody.innerHTML = sd.dropped_columns.map(dc => `
-                                <tr>
-                                    <td class="fw-semibold text-danger">${escapeHtml(dc.column)}</td>
-                                    <td><span class="badge bg-secondary-subtle text-secondary">${escapeHtml(dc.type)}</span></td>
-                                    <td class="small text-muted">${escapeHtml(dc.reason)}</td>
-                                    <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">${escapeHtml(dc.status)}</span></td>
-                                </tr>
-                            `).join('');
-                        } else {
-                            droppedTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted small py-3"><i class="bi bi-check-circle-fill text-success me-1"></i> No columns were dropped. All features were retained.</td></tr>';
-                        }
-                    }
-
-                    const impTbody = document.getElementById('sdImputationTbody');
-                    if (impTbody) {
-                        if (sd.imputation_details && sd.imputation_details.length > 0) {
-                            impTbody.innerHTML = sd.imputation_details.map(imp => `
-                                <tr>
-                                    <td class="fw-semibold text-primary">${escapeHtml(imp.column)}</td>
-                                    <td class="text-danger fw-bold">${Number(imp.missing_count || 0).toLocaleString()}</td>
-                                    <td><span class="badge bg-warning-subtle text-warning-emphasis">${imp.missing_percentage}%</span></td>
-                                    <td class="small">${escapeHtml(imp.strategy)}</td>
-                                    <td class="small fw-semibold text-dark">${escapeHtml(imp.replacement_value)}</td>
-                                    <td><span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check2 me-1"></i>${escapeHtml(imp.status)}</span></td>
-                                </tr>
-                            `).join('');
-                        } else {
-                            impTbody.innerHTML = '<tr><td colspan="6" class="text-center text-success small py-3"><i class="bi bi-check-circle-fill me-1"></i> 0 missing values detected in dataset. No imputation needed.</td></tr>';
-                        }
-                    }
-
-                    // 4. AI Insights & Strategic Recommendations
-                    const findingsEl = document.getElementById('sdAiFindingsList');
-                    if (findingsEl) {
-                        const findings = sd.ai_explanation?.key_findings || sd.ai_explanation?.patterns || [];
-                        if (findings.length > 0) {
-                            findingsEl.innerHTML = `<ul class="mb-0 ps-3">${findings.map(f => `<li class="mb-1">${escapeHtml(f)}</li>`).join('')}</ul>`;
-                        } else {
-                            findingsEl.innerHTML = '<span class="text-muted">Dataset features demonstrate high integrity with consistent distributions across categories.</span>';
-                        }
-                    }
-
-                    const recEl = document.getElementById('sdAiRecommendationsList');
-                    if (recEl) {
-                        const recs = sd.ai_explanation?.recommendations || [];
-                        if (recs.length > 0) {
-                            recEl.innerHTML = `<ul class="mb-0 ps-3">${recs.map(r => `<li class="mb-1">${escapeHtml(r)}</li>`).join('')}</ul>`;
-                        } else {
-                            recEl.innerHTML = '<span class="text-muted">Maintain current operational tracking and monitor high-volume categorical segments.</span>';
-                        }
-                    }
-
-                    // 5. Dataset Q&A / FAQs (5+)
-                    const qaAccordion = document.getElementById('sdQaAccordion');
-                    if (qaAccordion) {
-                        if (sd.dataset_qa && sd.dataset_qa.length > 0) {
-                            qaAccordion.innerHTML = sd.dataset_qa.map((qa, idx) => `
-                                <div class="accordion-item mb-2 border rounded overflow-hidden shadow-sm">
-                                    <h2 class="accordion-header" id="mgrSdQaHead${idx}">
-                                        <button class="accordion-button ${idx === 0 ? '' : 'collapsed'} py-2 px-3 fw-semibold small bg-body-tertiary" type="button" data-bs-toggle="collapse" data-bs-target="#mgrSdQaCollapse${idx}" aria-expanded="${idx === 0 ? 'true' : 'false'}" aria-controls="mgrSdQaCollapse${idx}">
-                                            <i class="bi ${qa.icon || 'bi-patch-question-fill'} text-primary me-2"></i>
-                                            <span class="badge bg-secondary-subtle text-secondary me-2 extra-small">${escapeHtml(qa.category || 'Analysis')}</span>
-                                            <span>${escapeHtml(qa.question)}</span>
-                                        </button>
-                                    </h2>
-                                    <div id="mgrSdQaCollapse${idx}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}" aria-labelledby="mgrSdQaHead${idx}" data-bs-parent="#sdQaAccordion">
-                                        <div class="accordion-body small bg-white text-secondary py-3 px-3 border-top" style="line-height: 1.6;">
-                                            ${qa.answer}
-                                        </div>
-                                    </div>
-                                </div>
-                            `).join('');
-                        } else {
-                            qaAccordion.innerHTML = '<div class="alert alert-info small mb-0">Dataset Q&A analysis available.</div>';
-                        }
-                    }
-
-                    // 6. Preview Table
-                    const prevContainer = document.getElementById('sharedDetailPreviewContainer');
-                    if (prevContainer) {
-                        prevContainer.innerHTML = sd.preview_html || '<div class="p-3 text-muted">No preview table available.</div>';
-                    }
-
-                    // 7. Python Pipeline Code
-                    const sdCodeContainer = document.getElementById('sdPipelineCodeContainer');
-                    if (sdCodeContainer) {
-                        sdCodeContainer.textContent = sd.pipeline_code || '# Pipeline code is generating for this shared dataset...';
-                    }
-
-                    // Copy code button in shared modal
-                    const btnCopySdCode = document.getElementById('btnCopySdCodeSnippet');
-                    if (btnCopySdCode && !btnCopySdCode._hasListener) {
-                        btnCopySdCode._hasListener = true;
-                        btnCopySdCode.addEventListener('click', function () {
-                            const codeText = sdCodeContainer ? sdCodeContainer.textContent : '';
-                            if (codeText) {
-                                navigator.clipboard.writeText(codeText).then(() => {
-                                    showToast('Pipeline code copied to clipboard!', 'success');
-                                }).catch(() => {
-                                    showToast('Could not copy code to clipboard.', 'warning');
-                                });
-                            }
-                        });
-                    }
-
-                    // Reset to overview tab
-                    const overviewTabBtn = document.getElementById('tab-sd-overview-btn');
-                    if (overviewTabBtn) {
-                        const tabTrigger = new bootstrap.Tab(overviewTabBtn);
-                        tabTrigger.show();
-                    }
-
-                    if (sharedDetailModalInstance) {
-                        sharedDetailModalInstance.show();
-                    }
+                    _managerSharedDetailCache.set(sharedId, data.dashboard);
+                    try {
+                        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                    } catch (e) {}
+                    renderManagerSharedDetailData(data.dashboard);
                 } else {
                     showToast(data.message || 'Could not load shared dashboard.', 'danger');
                 }
@@ -1607,6 +1534,267 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error('Error fetching dashboard details:', err);
                 showToast('Error loading shared dashboard details.', 'danger');
             });
+    }
+
+    function renderManagerSharedDetailData(sd) {
+        const titleEl = document.getElementById('sharedDetailTitle');
+        const metaEl = document.getElementById('sharedDetailMeta');
+        const statusBadge = document.getElementById('sharedDetailStatusBadge');
+        const domainBadge = document.getElementById('sharedDetailDomainBadge');
+        const descContainer = document.getElementById('sharedDetailDescContainer');
+        const descText = document.getElementById('sharedDetailDescText');
+        const remarkBanner = document.getElementById('sharedDetailRemarkBanner');
+        const remarkText = document.getElementById('sharedDetailRemarkText');
+        const fileText = document.getElementById('sharedDetailDatasetFile');
+        const remarkInput = document.getElementById('managerReviewRemarkInput');
+
+        if (titleEl) titleEl.textContent = sd.title;
+        if (metaEl) metaEl.textContent = `Shared by ${sd.owner_name} (${sd.owner_role}) • ${sd.created_at_str}`;
+        if (fileText) fileText.textContent = `Dataset: ${sd.dataset_name}`;
+        if (domainBadge) domainBadge.textContent = sd.business_domain || 'General Analytics';
+
+        if (statusBadge) {
+            statusBadge.textContent = sd.status;
+            statusBadge.className = 'badge ' + (sd.status === 'Approved' ? 'bg-success' : sd.status === 'Reopened' ? 'bg-warning text-dark' : 'bg-primary');
+        }
+
+        // Populate Recipients list in modal
+        const recListEl = document.getElementById('sharedDetailRecipientsList');
+        if (recListEl) {
+            if (sd.shared_with_users && sd.shared_with_users.length > 0) {
+                recListEl.innerHTML = sd.shared_with_users.map(u => `
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                        <i class="bi bi-person-fill me-1"></i>${escapeHtml(u.name)} <small class="opacity-75">(${escapeHtml(u.role || 'User')})</small>
+                    </span>
+                `).join('');
+            } else {
+                recListEl.innerHTML = '<span class="badge bg-secondary-subtle text-secondary">All Team Members</span>';
+            }
+        }
+
+        if (descContainer && descText) {
+            if (sd.description) {
+                descContainer.style.display = 'flex';
+                descText.textContent = sd.description;
+            } else {
+                descContainer.style.display = 'none';
+            }
+        }
+
+        if (remarkBanner && remarkText) {
+            if (sd.remark) {
+                remarkBanner.style.display = 'flex';
+                remarkText.textContent = sd.remark;
+            } else {
+                remarkBanner.style.display = 'none';
+            }
+        }
+
+        if (remarkInput) {
+            remarkInput.value = sd.remark || '';
+        }
+
+        // 1. KPIs & Overview
+        const rEl = document.getElementById('sdKpiRows');
+        const cEl = document.getElementById('sdKpiCols');
+        const mEl = document.getElementById('sdKpiMemory');
+        const qEl = document.getElementById('sdKpiQuality');
+        const miEl = document.getElementById('sdKpiMissing');
+        const dEl = document.getElementById('sdKpiDuplicates');
+
+        if (rEl) rEl.textContent = Number(sd.row_count || 0).toLocaleString();
+        if (cEl) cEl.textContent = Number(sd.column_count || 0).toLocaleString();
+        if (mEl) mEl.textContent = sd.memory_usage || '0 KB';
+        if (qEl) qEl.textContent = `${sd.quality_score || 100}% (${sd.quality_grade || 'A+'})`;
+        if (miEl) miEl.textContent = Number(sd.missing_count || 0).toLocaleString();
+        if (dEl) dEl.textContent = Number(sd.duplicate_count || 0).toLocaleString();
+
+        const execSumEl = document.getElementById('sdExecSummaryText');
+        if (execSumEl) {
+            execSumEl.textContent = sd.ai_explanation?.executive_summary || 'Comprehensive end-to-end analytics pipeline executed across all dataset attributes.';
+        }
+
+        const hlListEl = document.getElementById('sdQuickHighlightsList');
+        if (hlListEl) {
+            const hl = [];
+            hl.push(`<strong>Data Scale:</strong> Verified <strong>${Number(sd.row_count || 0).toLocaleString()} rows</strong> across <strong>${sd.column_count || 0} features</strong> in domain <em>${escapeHtml(sd.business_domain || 'General')}</em>.`);
+            hl.push(`<strong>Data Hygiene:</strong> Quality grade <strong>${sd.quality_grade || 'A+'}</strong> (${sd.quality_score || 100}/100) with <strong>${sd.duplicates_removed || 0} duplicates removed</strong>.`);
+            if (sd.imputation_details && sd.imputation_details.length > 0) {
+                hl.push(`<strong>Imputation:</strong> Successfully resolved null values across <strong>${sd.imputation_details.length} columns</strong>.`);
+            }
+            if (sd.dropped_columns && sd.dropped_columns.length > 0) {
+                hl.push(`<strong>Feature Optimization:</strong> Isolated <strong>${sd.dropped_columns.length} low-variance / redundant columns</strong>.`);
+            }
+            hlListEl.innerHTML = hl.map(x => `<li class="mb-1">${x}</li>`).join('');
+        }
+
+        // 2. Charts Showcase & Correlations
+        const topCorrsSection = document.getElementById('sdTopCorrsSection');
+        const posList = document.getElementById('sdTopPositiveList');
+        const negList = document.getElementById('sdTopNegativeList');
+        if (topCorrsSection && posList && negList) {
+            const hasPos = sd.top_positive_corrs && sd.top_positive_corrs.length > 0;
+            const hasNeg = sd.top_negative_corrs && sd.top_negative_corrs.length > 0;
+            if (hasPos || hasNeg) {
+                posList.innerHTML = (sd.top_positive_corrs || []).map(p => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
+                        <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">+${Number(p.correlation).toFixed(2)}</span>
+                    </li>
+                `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong positive pairs</li>';
+
+                negList.innerHTML = (sd.top_negative_corrs || []).map(p => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 bg-transparent">
+                        <span>${escapeHtml(p.var1)} &harr; ${escapeHtml(p.var2)}</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">${Number(p.correlation).toFixed(2)}</span>
+                    </li>
+                `).join('') || '<li class="list-group-item text-muted py-1 px-2 bg-transparent">No strong negative pairs</li>';
+                topCorrsSection.style.display = 'block';
+            } else {
+                topCorrsSection.style.display = 'none';
+            }
+        }
+
+        const chartsGrid = document.getElementById('sdChartsGridContainer');
+        if (chartsGrid) {
+            if (sd.charts_showcase && sd.charts_showcase.length > 0) {
+                chartsGrid.innerHTML = sd.charts_showcase.map(c => `
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <h6 class="fw-bold mb-1 text-primary">${escapeHtml(c.title || 'Analytical Visualization')}</h6>
+                                <p class="small text-muted mb-2">${escapeHtml(c.description || '')}</p>
+                            </div>
+                            <div class="text-center my-auto">
+                                <img src="data:image/png;base64,${c.plot}" alt="${escapeHtml(c.title || 'Chart')}" class="img-fluid rounded border bg-white shadow-sm" style="max-height: 280px; width: 100%; object-fit: contain;">
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                chartsGrid.innerHTML = '<div class="col-12"><div class="alert alert-info small mb-0">Visualizations are being rendered for this dataset.</div></div>';
+            }
+        }
+
+        // 3. Cleaning Audit Trail
+        const droppedTbody = document.getElementById('sdDroppedColsTbody');
+        if (droppedTbody) {
+            if (sd.dropped_columns && sd.dropped_columns.length > 0) {
+                droppedTbody.innerHTML = sd.dropped_columns.map(dc => `
+                    <tr>
+                        <td class="fw-semibold text-danger">${escapeHtml(dc.column)}</td>
+                        <td><span class="badge bg-secondary-subtle text-secondary">${escapeHtml(dc.type)}</span></td>
+                        <td class="small text-muted">${escapeHtml(dc.reason)}</td>
+                        <td><span class="badge bg-danger-subtle text-danger border border-danger-subtle">${escapeHtml(dc.status)}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                droppedTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted small py-3"><i class="bi bi-check-circle-fill text-success me-1"></i> No columns were dropped. All features were retained.</td></tr>';
+            }
+        }
+
+        const impTbody = document.getElementById('sdImputationTbody');
+        if (impTbody) {
+            if (sd.imputation_details && sd.imputation_details.length > 0) {
+                impTbody.innerHTML = sd.imputation_details.map(imp => `
+                    <tr>
+                        <td class="fw-semibold text-primary">${escapeHtml(imp.column)}</td>
+                        <td class="text-danger fw-bold">${Number(imp.missing_count || 0).toLocaleString()}</td>
+                        <td><span class="badge bg-warning-subtle text-warning-emphasis">${imp.missing_percentage}%</span></td>
+                        <td class="small">${escapeHtml(imp.strategy)}</td>
+                        <td class="small fw-semibold text-dark">${escapeHtml(imp.replacement_value)}</td>
+                        <td><span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check2 me-1"></i>${escapeHtml(imp.status)}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                impTbody.innerHTML = '<tr><td colspan="6" class="text-center text-success small py-3"><i class="bi bi-check-circle-fill me-1"></i> 0 missing values detected in dataset. No imputation needed.</td></tr>';
+            }
+        }
+
+        // 4. AI Insights & Strategic Recommendations
+        const findingsEl = document.getElementById('sdAiFindingsList');
+        if (findingsEl) {
+            const findings = sd.ai_explanation?.key_findings || sd.ai_explanation?.patterns || [];
+            if (findings.length > 0) {
+                findingsEl.innerHTML = `<ul class="mb-0 ps-3">${findings.map(f => `<li class="mb-1">${escapeHtml(f)}</li>`).join('')}</ul>`;
+            } else {
+                findingsEl.innerHTML = '<span class="text-muted">Dataset features demonstrate high integrity with consistent distributions across categories.</span>';
+            }
+        }
+
+        const recEl = document.getElementById('sdAiRecommendationsList');
+        if (recEl) {
+            const recs = sd.ai_explanation?.recommendations || [];
+            if (recs.length > 0) {
+                recEl.innerHTML = `<ul class="mb-0 ps-3">${recs.map(r => `<li class="mb-1">${escapeHtml(r)}</li>`).join('')}</ul>`;
+            } else {
+                recEl.innerHTML = '<span class="text-muted">Maintain current operational tracking and monitor high-volume categorical segments.</span>';
+            }
+        }
+
+        // 5. Dataset Q&A / FAQs (5+)
+        const qaAccordion = document.getElementById('sdQaAccordion');
+        if (qaAccordion) {
+            if (sd.dataset_qa && sd.dataset_qa.length > 0) {
+                qaAccordion.innerHTML = sd.dataset_qa.map((qa, idx) => `
+                    <div class="accordion-item mb-2 border rounded overflow-hidden shadow-sm">
+                        <h2 class="accordion-header" id="mgrSdQaHead${idx}">
+                            <button class="accordion-button ${idx === 0 ? '' : 'collapsed'} py-2 px-3 fw-semibold small bg-body-tertiary" type="button" data-bs-toggle="collapse" data-bs-target="#mgrSdQaCollapse${idx}" aria-expanded="${idx === 0 ? 'true' : 'false'}" aria-controls="mgrSdQaCollapse${idx}">
+                                <i class="bi ${qa.icon || 'bi-patch-question-fill'} text-primary me-2"></i>
+                                <span class="badge bg-secondary-subtle text-secondary me-2 extra-small">${escapeHtml(qa.category || 'Analysis')}</span>
+                                <span>${escapeHtml(qa.question)}</span>
+                            </button>
+                        </h2>
+                        <div id="mgrSdQaCollapse${idx}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}" aria-labelledby="mgrSdQaHead${idx}" data-bs-parent="#sdQaAccordion">
+                            <div class="accordion-body small bg-white text-secondary py-3 px-3 border-top" style="line-height: 1.6;">
+                                ${qa.answer}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                qaAccordion.innerHTML = '<div class="alert alert-info small mb-0">Dataset Q&A analysis available.</div>';
+            }
+        }
+
+        // 6. Preview Table
+        const prevContainer = document.getElementById('sharedDetailPreviewContainer');
+        if (prevContainer) {
+            prevContainer.innerHTML = sd.preview_html || '<div class="p-3 text-muted">No preview table available.</div>';
+        }
+
+        // 7. Python Pipeline Code
+        const sdCodeContainer = document.getElementById('sdPipelineCodeContainer');
+        if (sdCodeContainer) {
+            sdCodeContainer.textContent = sd.pipeline_code || '# Pipeline code is generating for this shared dataset...';
+        }
+
+        // Copy code button in shared modal
+        const btnCopySdCode = document.getElementById('btnCopySdCodeSnippet');
+        if (btnCopySdCode && !btnCopySdCode._hasListener) {
+            btnCopySdCode._hasListener = true;
+            btnCopySdCode.addEventListener('click', function () {
+                const codeText = sdCodeContainer ? sdCodeContainer.textContent : '';
+                if (codeText) {
+                    navigator.clipboard.writeText(codeText).then(() => {
+                        showToast('Pipeline code copied to clipboard!', 'success');
+                    }).catch(() => {
+                        showToast('Could not copy code to clipboard.', 'warning');
+                    });
+                }
+            });
+        }
+
+        // Reset to overview tab
+        const overviewTabBtn = document.getElementById('tab-sd-overview-btn');
+        if (overviewTabBtn) {
+            const tabTrigger = new bootstrap.Tab(overviewTabBtn);
+            tabTrigger.show();
+        }
+
+        if (sharedDetailModalInstance) {
+            sharedDetailModalInstance.show();
+        }
     }
 
     function submitManagerDashboardReview(action) {
@@ -1687,6 +1875,7 @@ document.addEventListener('DOMContentLoaded', function () {
     /* =====================================================================
        PYTHON CODE STUDIO & JUPYTER NOTEBOOK (.ipynb) SUITE (MANAGER)
        =================================================================== */
+    let currentDatasetId = window.CURRENT_DATASET_ID || null;
     const codeStudioModalEl = document.getElementById('pythonCodeStudioModal');
     let codeStudioModalInstance = null;
     if (codeStudioModalEl) {
@@ -1843,9 +2032,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (execTimeBadgeEl) execTimeBadgeEl.textContent = `${duration}s`;
 
                 if (data.success) {
+                    const plotCount = data.plots ? data.plots.length : 0;
                     if (execStatusBannerEl) {
-                        execStatusBannerEl.className = 'alert alert-success py-2 px-3 small mb-2 d-flex align-items-center justify-content-between';
-                        execStatusBannerEl.innerHTML = `<span><i class="bi bi-check-circle-fill text-success me-1"></i> Execution Succeeded!</span><span class="badge bg-success-subtle text-success font-monospace">${duration}s</span>`;
+                        execStatusBannerEl.className = 'alert alert-success py-2 px-3 small mb-2';
+                        execStatusBannerEl.innerHTML = `
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 w-100">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-check-circle-fill text-success fs-6"></i>
+                                    <span class="fw-bold text-success">Execution Succeeded (${duration}s)</span>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-sm btn-outline-primary active" onclick="const b=document.getElementById('tab-studio-plots-btn'); if(b) bootstrap.Tab.getOrCreateInstance(b).show();"><i class="bi bi-image me-1"></i>Visual Plots (${plotCount})</button>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="const b=document.getElementById('tab-studio-preview-btn'); if(b) bootstrap.Tab.getOrCreateInstance(b).show();"><i class="bi bi-table me-1"></i>Table View</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="const b=document.getElementById('tab-studio-terminal-btn'); if(b) bootstrap.Tab.getOrCreateInstance(b).show();"><i class="bi bi-terminal me-1"></i>Console Log</button>
+                                </div>
+                            </div>
+                        `;
                     }
 
                     if (terminalOutputEl) {
@@ -1853,15 +2055,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     if (plotsContainerEl) {
-                        if (data.plots && data.plots.length > 0) {
+                        if (plotCount > 0) {
                             if (plotsBadgeEl) {
-                                plotsBadgeEl.textContent = data.plots.length;
+                                plotsBadgeEl.textContent = plotCount;
                                 plotsBadgeEl.style.display = 'inline-block';
                             }
                             plotsContainerEl.innerHTML = data.plots.map((p, i) => `
-                                <div class="border rounded p-2 bg-body-tertiary text-center">
-                                    <h6 class="small fw-semibold mb-2 text-primary">Figure ${i + 1}</h6>
-                                    <img src="${p}" class="img-fluid rounded border bg-white shadow-sm" alt="Plot ${i + 1}" style="max-height:300px; width:100%; object-fit:contain;">
+                                <div class="border rounded-3 p-3 bg-body shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="small fw-bold mb-0 text-primary"><i class="bi bi-graph-up me-1"></i> Figure ${i + 1}</h6>
+                                        <a href="${p}" download="figure_${i + 1}.png" class="btn btn-xs btn-outline-secondary py-0 px-2 small" style="font-size:0.75rem;"><i class="bi bi-download me-1"></i>Save PNG</a>
+                                    </div>
+                                    <img src="${p}" class="img-fluid rounded border bg-white shadow-sm w-100" alt="Plot ${i + 1}" style="max-height:360px; object-fit:contain;">
                                 </div>
                             `).join('');
                         } else {
@@ -1872,12 +2077,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     if (previewContainerEl) {
                         previewContainerEl.innerHTML = data.preview_html || '<div class="p-3 text-muted">Preview not available.</div>';
+                        const renderedTable = previewContainerEl.querySelector('table');
+                        if (renderedTable) {
+                            renderedTable.className = 'table table-hover table-striped dn-table align-middle small mb-0 font-monospace';
+                        }
                     }
                     if (dfShapeBadgeEl) {
                         dfShapeBadgeEl.textContent = `${Number(data.row_count || 0).toLocaleString()} rows x ${data.column_count || 0} cols`;
                     }
 
-                    showToast('Python code executed and synchronized successfully!', 'success');
+                    showToast(`Python code executed successfully (${duration}s)!`, 'success');
                     if (typeof refreshManagerCharts === 'function') refreshManagerCharts();
                 } else {
                     if (execStatusBannerEl) {
@@ -1961,4 +2170,319 @@ document.addEventListener('DOMContentLoaded', function () {
             triggerManagerDownloadNotebook('py');
         });
     }
+
+    // --- Topbar Global Search Activation for Manager Dashboard ---
+    function initManagerGlobalSearch() {
+        const searchInput = document.getElementById('managerGlobalSearch');
+        const searchDropdown = document.getElementById('managerSearchDropdown');
+        const searchDropdownContent = document.getElementById('managerSearchDropdownContent');
+        const searchMatchCount = document.getElementById('managerSearchMatchCount');
+        const searchClearBtn = document.getElementById('managerSearchClearBtn');
+
+        if (!searchInput || !searchDropdown || !searchDropdownContent) return;
+
+        const defaultSearchIndex = [
+            { title: 'Executive Overview', subtitle: 'High-level business KPIs, regional performance, and revenue trends.', tag: 'Overview', icon: 'bi-speedometer2', target: '#dashboardOverviewSection' },
+            { title: 'Team Members & Roster', subtitle: 'Manage platform analysts, assign roles, view active capacity.', tag: 'Team', icon: 'bi-people-fill', target: '#teamSection' },
+            { title: 'Task Allocation & Workload', subtitle: 'Track task statuses, assign new deliverables, inspect remarks.', tag: 'Tasks', icon: 'bi-check2-square', target: '#tasksSection' },
+            { title: 'Shared Dashboards & Reports', subtitle: 'Review team collaborator dashboards, dataset shares, permissions.', tag: 'Collaboration', icon: 'bi-share-fill', target: '#sharedDashboardsSection' },
+            { title: 'Dataset Comparison Studio', subtitle: 'Side-by-side schema, statistical drift, and variance analysis.', tag: 'Studio', icon: 'bi-intersect', target: '#datasetComparisonSection' },
+            { title: 'Python Code Studio (.ipynb)', subtitle: 'Run automated Python pipelines, Jupyter notebooks, visual sync.', tag: 'Studio', icon: 'bi-filetype-py', action: 'open_studio' },
+            { title: 'Assign New Task', subtitle: 'Open workload allocation modal to assign tasks to team members.', tag: 'Action', icon: 'bi-plus-circle-fill', action: 'assign_task' },
+            { title: 'Add Team Member', subtitle: 'Open team member modal to enroll active platform analysts.', tag: 'Action', icon: 'bi-person-plus-fill', action: 'add_member' }
+        ];
+
+        let activeIndex = -1;
+
+        function renderResults(query) {
+            query = (query || '').toLowerCase().trim();
+            if (!query) {
+                searchDropdown.classList.add('d-none');
+                if (searchClearBtn) searchClearBtn.classList.add('d-none');
+                return;
+            }
+
+            if (searchClearBtn) searchClearBtn.classList.remove('d-none');
+            searchDropdown.classList.remove('d-none');
+
+            let items = [...defaultSearchIndex];
+
+            // Dynamically index team member rows if present
+            const teamRows = document.querySelectorAll('#managerTeamTableBody tr[data-user-id]');
+            teamRows.forEach(r => {
+                const name = r.querySelector('.fw-semibold')?.textContent?.trim() || 'Team Member';
+                const email = r.querySelector('.small')?.textContent?.trim() || '';
+                items.push({
+                    title: `Member: ${name}`,
+                    subtitle: `${email} &mdash; Click to view in Team roster`,
+                    tag: 'Team Member',
+                    icon: 'bi-person-badge',
+                    target: '#teamSection'
+                });
+            });
+
+            // Dynamically index task rows if present
+            const taskRows = document.querySelectorAll('#managerTaskTableBody tr[data-task-id]');
+            taskRows.forEach(r => {
+                const title = r.querySelector('.fw-semibold')?.textContent?.trim() || 'Task';
+                const assignee = r.querySelector('td:nth-child(2) .fw-semibold')?.textContent?.trim() || '';
+                items.push({
+                    title: `Task: ${title}`,
+                    subtitle: `Assigned to ${assignee} &mdash; Click to view in Task Board`,
+                    tag: 'Task',
+                    icon: 'bi-clipboard-check',
+                    target: '#tasksSection'
+                });
+            });
+
+            const matches = items.filter(item => {
+                return item.title.toLowerCase().includes(query) ||
+                    item.subtitle.toLowerCase().includes(query) ||
+                    item.tag.toLowerCase().includes(query);
+            });
+
+            if (searchMatchCount) {
+                searchMatchCount.textContent = `${matches.length} match${matches.length === 1 ? '' : 'es'}`;
+            }
+
+            if (matches.length === 0) {
+                searchDropdownContent.innerHTML = `
+                    <div class="text-center py-3 text-muted">
+                        <i class="bi bi-search fs-4 d-block mb-1 opacity-50"></i>
+                        <small>No matches found for "<strong>${escapeHtml(query)}</strong>"</small>
+                    </div>`;
+                activeIndex = -1;
+                return;
+            }
+
+            searchDropdownContent.innerHTML = matches.map((m, idx) => `
+                <div class="dn-search-result-item d-flex align-items-center gap-2 p-2 rounded mb-1 text-decoration-none text-body" 
+                     data-index="${idx}" 
+                     data-target="${m.target || ''}" 
+                     data-action="${m.action || ''}" 
+                     style="cursor: pointer; transition: background 0.15s ease;">
+                    <div class="p-2 rounded bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.95rem;">
+                        <i class="bi ${m.icon}"></i>
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <strong class="small text-truncate">${escapeHtml(m.title)}</strong>
+                            <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.65rem;">${m.tag}</span>
+                        </div>
+                        <div class="text-muted text-truncate" style="font-size: 0.75rem;">${m.subtitle}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            activeIndex = -1;
+
+            searchDropdownContent.querySelectorAll('.dn-search-result-item').forEach(el => {
+                el.addEventListener('click', function () {
+                    executeSearchAction(this.getAttribute('data-target'), this.getAttribute('data-action'));
+                });
+                el.addEventListener('mouseenter', function () {
+                    searchDropdownContent.querySelectorAll('.dn-search-result-item').forEach(r => r.classList.remove('bg-body-secondary'));
+                    this.classList.add('bg-body-secondary');
+                    activeIndex = parseInt(this.getAttribute('data-index'), 10);
+                });
+            });
+        }
+
+        function executeSearchAction(target, action) {
+            searchDropdown.classList.add('d-none');
+            searchInput.value = '';
+            if (searchClearBtn) searchClearBtn.classList.add('d-none');
+
+            if (action === 'assign_task') {
+                const btn = document.querySelector('button[data-action="assign-task"]');
+                if (btn) btn.click();
+                return;
+            }
+
+            if (action === 'add_member') {
+                const btn = document.querySelector('button[data-action="add-member"]');
+                if (btn) btn.click();
+                return;
+            }
+
+            if (action === 'open_studio') {
+                if (typeof openManagerPythonCodeStudio === 'function') {
+                    openManagerPythonCodeStudio(currentDatasetId);
+                }
+                return;
+            }
+
+            if (target) {
+                const navLink = document.querySelector(`.dn-sidebar-scroll a[href="${target}"]`);
+                if (navLink) {
+                    navLink.click();
+                } else {
+                    const el = document.querySelector(target);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            }
+        }
+
+        searchInput.addEventListener('input', function () {
+            renderResults(this.value);
+        });
+
+        searchInput.addEventListener('focus', function () {
+            if (this.value.trim()) renderResults(this.value);
+        });
+
+        if (searchClearBtn) {
+            searchClearBtn.addEventListener('click', function () {
+                searchInput.value = '';
+                searchDropdown.classList.add('d-none');
+                searchClearBtn.classList.add('d-none');
+                searchInput.focus();
+            });
+        }
+
+        searchInput.addEventListener('keydown', function (e) {
+            const items = searchDropdownContent.querySelectorAll('.dn-search-result-item');
+            if (items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % items.length;
+                updateActiveResult(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                updateActiveResult(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (activeIndex >= 0 && activeIndex < items.length) {
+                    items[activeIndex].click();
+                } else if (items.length > 0) {
+                    items[0].click();
+                }
+            } else if (e.key === 'Escape') {
+                searchDropdown.classList.add('d-none');
+            }
+        });
+
+        function updateActiveResult(items) {
+            items.forEach((item, idx) => {
+                if (idx === activeIndex) {
+                    item.classList.add('bg-body-secondary');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('bg-body-secondary');
+                }
+            });
+        }
+
+        document.addEventListener('click', function (e) {
+            if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                searchDropdown.classList.add('d-none');
+            }
+        });
+    }
+
+    initManagerGlobalSearch();
 });
+
+// --- View All Reports Modal Controller (Manager) ---
+window.showViewReportsModal = function () {
+    const modalEl = document.getElementById('managerViewReportsModal');
+    if (!modalEl) return;
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInstance.show();
+
+    const tbody = document.getElementById('managerReportsModalTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-secondary">Loading platform reports...</div></td></tr>`;
+
+    fetch('/api/manager/reports', { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && Array.isArray(res.reports)) {
+                if (document.getElementById('managerReportsModalCount')) {
+                    document.getElementById('managerReportsModalCount').textContent = `Total Platform Reports: ${res.count}`;
+                }
+                if (res.reports.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-secondary">No reports generated yet.</td></tr>`;
+                    return;
+                }
+                window._allManagerReportsData = res.reports;
+                renderManagerReportsTable(res.reports);
+            } else {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-danger">Failed to load reports.</td></tr>`;
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching manager reports:', err);
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-danger">Error loading reports.</td></tr>`;
+        });
+};
+
+function renderManagerReportsTable(reports) {
+    const tbody = document.getElementById('managerReportsModalTableBody');
+    if (!tbody) return;
+    if (!reports || reports.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-secondary">No matching reports found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = reports.map((rep, idx) => {
+        const rType = (rep.report_type || 'HTML').toUpperCase();
+        let iconClass = 'bi-filetype-html text-info';
+        let badgeClass = 'bg-info-subtle text-info border border-info-subtle';
+        if (rType.includes('PDF')) {
+            iconClass = 'bi-file-earmark-pdf text-danger';
+            badgeClass = 'bg-danger-subtle text-danger border border-danger-subtle';
+        } else if (rType.includes('DOCX') || rType.includes('WORD')) {
+            iconClass = 'bi-file-earmark-word text-primary';
+            badgeClass = 'bg-primary-subtle text-primary border border-primary-subtle';
+        } else if (rType.includes('XLSX') || rType.includes('EXCEL') || rType.includes('CSV')) {
+            iconClass = 'bi-file-earmark-excel text-success';
+            badgeClass = 'bg-success-subtle text-success border border-success-subtle';
+        } else if (rType.includes('PPTX') || rType.includes('PPT') || rType.includes('POWERPOINT')) {
+            iconClass = 'bi-file-earmark-ppt text-warning';
+            badgeClass = 'bg-warning-subtle text-warning border border-warning-subtle';
+        }
+
+        return `
+            <tr>
+                <td>${idx + 1}</td>
+                <td class="fw-semibold">
+                    <i class="bi ${iconClass} fs-5 me-2 align-middle"></i>
+                    ${rep.report_name || 'Report'}
+                </td>
+                <td>
+                    <div class="fw-medium">${rep.user_name || 'User'}</div>
+                    <small class="text-muted" style="font-size:11px;">${(rep.role || 'Analyst').toUpperCase()}</small>
+                </td>
+                <td><span class="badge bg-secondary-subtle text-dark border">${rep.dataset_file_name || 'Platform Dataset'}</span></td>
+                <td><span class="badge ${badgeClass}">${rType}</span></td>
+                <td><small class="text-muted">${rep.created_at_str || 'N/A'}</small></td>
+                <td class="text-end">
+                    <a href="/api/report/view/${rep.id}" class="btn btn-sm btn-outline-primary py-1 px-2" target="_blank" title="Open ${rType} Report">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Open ${rType}
+                    </a>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.filterManagerReportsTable = function () {
+    if (!window._allManagerReportsData) return;
+    const query = (document.getElementById('managerReportsModalSearch')?.value || '').toLowerCase();
+    const typeFilter = (document.getElementById('managerReportsModalTypeFilter')?.value || 'all').toUpperCase();
+
+    const filtered = window._allManagerReportsData.filter(rep => {
+        const nameMatch = (rep.report_name || '').toLowerCase().includes(query) ||
+                          (rep.user_name || '').toLowerCase().includes(query) ||
+                          (rep.dataset_file_name || '').toLowerCase().includes(query);
+        const rType = (rep.report_type || 'HTML').toUpperCase();
+        const typeMatch = typeFilter === 'ALL' || rType.includes(typeFilter);
+        return nameMatch && typeMatch;
+    });
+    renderManagerReportsTable(filtered);
+};

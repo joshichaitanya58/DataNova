@@ -154,29 +154,11 @@ def get_admin_dashboard_analytics(conn=None) -> Dict[str, Any]:
             except Exception:
                 kpi_data['inactive_users'] = max(0, kpi_data['total_users'] - kpi_data['active_users'])
 
-            # Datasets: total count MUST reflect every DB record, regardless of
-            # whether the underlying file still exists on disk. Storage usage is
-            # computed separately and falls back to the stored `file_size` column
-            # whenever the file can't be found on disk, instead of silently
-            # dropping the dataset from every count (the previous behavior, which
-            # also relied on a hardcoded, machine-specific path-fix hack that
-            # could never match on a different install/deployment).
-            cursor.execute("SELECT id, user_id, file_name, file_type, file_path, file_size, status, uploaded_at FROM datasets")
-            all_datasets = _fetchall_dict(cursor)
-
-            kpi_data['total_datasets'] = len(all_datasets)
-
-            total_storage_bytes = 0
-            for ds in all_datasets:
-                p = ds.get('file_path') or ''
-                actual_sz = ds.get('file_size') or 0
-                if p:
-                    try:
-                        if os.path.exists(p):
-                            actual_sz = os.path.getsize(p)
-                    except OSError:
-                        pass  # keep the DB-stored file_size as a safe fallback
-                total_storage_bytes += actual_sz
+            # Datasets & Storage: compute aggregates in database
+            cursor.execute("SELECT COUNT(*) as cnt, COALESCE(SUM(file_size), 0) as total_bytes FROM datasets")
+            ds_agg = _fetchone_dict(cursor)
+            kpi_data['total_datasets'] = int(ds_agg.get('cnt', 0))
+            total_storage_bytes = int(ds_agg.get('total_bytes', 0))
 
             # Total Reports
             try:
@@ -212,7 +194,7 @@ def get_admin_dashboard_analytics(conn=None) -> Dict[str, Any]:
 
             # Recent Users (limit 5)
             cursor.execute("""
-                SELECT id, first_name, last_name, email, role, status, created_at
+                SELECT id, first_name, last_name, email, COALESCE(organization, 'General') as organization, role, status, created_at
                 FROM users ORDER BY created_at DESC LIMIT 5
             """)
             recent_u_rows = _fetchall_dict(cursor)
@@ -220,8 +202,7 @@ def get_admin_dashboard_analytics(conn=None) -> Dict[str, Any]:
                 u['status'] = (u.get('status') or 'active').lower()
             kpi_data['recent_users'] = recent_u_rows
 
-            # Recent Datasets (limit 5) — LEFT JOIN so a dataset never disappears
-            # from the list just because its owning user account was removed.
+            # Recent Datasets (limit 5)
             cursor.execute("""
                 SELECT d.id, d.file_name, d.file_type, d.uploaded_at, d.file_size, d.status,
                        COALESCE(u.first_name, 'Unknown') as first_name,

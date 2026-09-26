@@ -541,6 +541,10 @@ document.addEventListener('DOMContentLoaded', function () {
     let fullColumnInfo = []; // To store the complete list of columns
     let missingColumnInfo = []; // To store info about columns with missing values
 
+    if (uploadAnotherBtn) {
+        uploadAnotherBtn.style.display = activeDatasetId ? 'inline-flex' : 'none';
+    }
+
     // Small shared helper so every fetch failure produces a visible message
     // instead of dying silently in the console.
     function showFetchError(context, err) {
@@ -645,6 +649,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         activeDatasetId = response.dataset_id;
+        if (uploadAnotherBtn) {
+            uploadAnotherBtn.style.display = 'inline-flex';
+        }
         if (uploadForm) uploadForm.style.display = 'none';
         if (uploadProgress) uploadProgress.style.display = 'none';
 
@@ -698,6 +705,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (overviewPanel) overviewPanel.style.display = 'block';
 
+        // Refresh dynamic AI insights & dashboard analytics for newly populated dataset
+        fetchAnalystAnalytics();
+
         fullColumnInfo = response.column_info || [];
         if (columnInfoContent) columnInfoContent.innerHTML = '';
         if (fullColumnInfo.length > 0 && columnInfoPanel && columnInfoContent) {
@@ -725,14 +735,21 @@ document.addEventListener('DOMContentLoaded', function () {
             if (duplicateColumnSelect) {
                 duplicateColumnSelect.innerHTML = '';
                 fullColumnInfo.forEach(function (col) {
-                    const checkboxHtml = `
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="${col.name}" id="dup-check-${col.name}">
-                            <label class="form-check-label" for="dup-check-${col.name}">
-                                ${col.name}
-                            </label>
-                        </div>`;
-                    duplicateColumnSelect.insertAdjacentHTML('beforeend', checkboxHtml);
+                    const badgeHtml = `
+                        <label class="dn-dup-col-pill d-inline-flex align-items-center gap-1 px-2 py-1 border rounded bg-white small" style="cursor: pointer; user-select: none; font-size: 0.8rem;">
+                            <input class="form-check-input mt-0 dn-dup-check" type="checkbox" value="${col.name}" id="dup-check-${col.name}">
+                            <span class="dn-dup-col-name text-truncate" style="max-width: 170px;" title="${col.name}">${col.name}</span>
+                        </label>`;
+                    duplicateColumnSelect.insertAdjacentHTML('beforeend', badgeHtml);
+                });
+
+                const countBadge = document.getElementById('dnDupSelectedColsCount');
+                if (countBadge) countBadge.textContent = `0 columns selected`;
+                duplicateColumnSelect.querySelectorAll('.dn-dup-check').forEach(chk => {
+                    chk.addEventListener('change', () => {
+                        const checkedCount = duplicateColumnSelect.querySelectorAll('.dn-dup-check:checked').length;
+                        if (countBadge) countBadge.textContent = `${checkedCount} column(s) selected`;
+                    });
                 });
             }
 
@@ -907,6 +924,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             missingValuePanel.style.display = 'block';
             if (missingValueActions) missingValueActions.style.display = 'block';
+            const nextStepBanner = document.getElementById('dnMissingValueNextStepBanner');
+            if (nextStepBanner) nextStepBanner.style.display = 'none';
         } else {
             if (missingValuePanel) {
                 missingValuePanel.style.display = 'block';
@@ -917,6 +936,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (missingValueContent) missingValueContent.innerHTML = '<tr><td colspan="5" class="text-center text-success py-3"><i class="bi bi-check-circle-fill me-1"></i> No missing values detected in dataset.</td></tr>';
             }
             if (missingValueActions) missingValueActions.style.display = 'none';
+            const nextStepBanner = document.getElementById('dnMissingValueNextStepBanner');
+            if (nextStepBanner) nextStepBanner.style.display = 'block';
         }
 
         if (duplicatePreviewContent) {
@@ -946,6 +967,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (response.stats_summary_html && statsPanel && statsContent) {
             statsContent.innerHTML = response.stats_summary_html;
             statsPanel.style.display = 'block';
+            addTooltipsToStatsTable();
         } else if (statsPanel) {
             statsPanel.style.display = 'none';
         }
@@ -1085,81 +1107,259 @@ document.addEventListener('DOMContentLoaded', function () {
         // Handle "Upload Another" button click
         if (uploadAnotherBtn) {
             uploadAnotherBtn.addEventListener('click', function () {
-                previewPanel.style.display = 'none';
-                previewContent.innerHTML = '';
-                overviewPanel.style.display = 'none'; // Hide overview as well
-                columnInfoPanel.style.display = 'none'; // Hide column info
-                columnInfoFooter.style.display = 'none'; // Hide button footer
-                columnInfoContent.innerHTML = ''; // Clear the table body
-                missingValuePanel.style.display = 'none'; // Hide missing values panel
-                missingValueActions.style.display = 'none'; // Hide missing value actions
-                missingValueContent.innerHTML = '';
-                duplicatePanel.style.display = 'none'; // Hide duplicate panel
-                if (subDuplicatesContainer) {
-                    subDuplicatesContainer.style.display = 'none'; // Also hide the advanced section
+                // 1. Raw Preview & Schema Panels
+                if (previewPanel) previewPanel.style.display = 'none';
+                if (previewContent) previewContent.innerHTML = '';
+                if (previewFilename) previewFilename.textContent = '';
+                if (overviewPanel) overviewPanel.style.display = 'none';
+                if (columnInfoPanel) columnInfoPanel.style.display = 'none';
+                if (columnInfoFooter) columnInfoFooter.style.display = 'none';
+                if (columnInfoContent) columnInfoContent.innerHTML = '';
+
+                // 2. Data Cleaning Pipeline Panels
+                if (missingValuePanel) missingValuePanel.style.display = 'none';
+                if (missingValueActions) missingValueActions.style.display = 'none';
+                if (missingValueContent) missingValueContent.innerHTML = '';
+                const missingNextBanner = document.getElementById('dnMissingValueNextStepBanner');
+                if (missingNextBanner) missingNextBanner.style.display = 'none';
+
+                if (duplicatePanel) duplicatePanel.style.display = 'none';
+                if (subDuplicatesContainer) subDuplicatesContainer.style.display = 'none';
+                if (subDuplicateResult) {
+                    subDuplicateResult.style.display = 'none';
+                    subDuplicateResult.innerHTML = '';
                 }
-                subDuplicateResult.style.display = 'none'; // Hide subset results
                 if (duplicatePreviewContent) {
                     duplicatePreviewContent.style.display = 'none';
                     duplicatePreviewContent.innerHTML = '';
                 }
-                if (statsPanel) {
-                    statsPanel.style.display = 'none';
+                if (duplicateColumnSelect) duplicateColumnSelect.innerHTML = '';
+
+                const dropColumnsPanel = document.getElementById('dnDropColumnsPanel');
+                if (dropColumnsPanel) dropColumnsPanel.style.display = 'none';
+                const dropColumnsGrid = document.getElementById('dnDropColumnsGrid');
+                if (dropColumnsGrid) dropColumnsGrid.innerHTML = '';
+
+                if (cleanedPreviewPanel) {
+                    cleanedPreviewPanel.style.display = 'none';
+                    if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = '';
+                    const downloadBtn = cleanedPreviewPanel.querySelector('#dnDownloadCleanedBtn');
+                    if (downloadBtn) downloadBtn.remove();
                 }
-                // Clear and hide AI suggestions panel
+
+                // 3. Statistical EDA & AI Suggestions Panels
+                if (statsPanel) statsPanel.style.display = 'none';
+                if (statsContent) statsContent.innerHTML = '';
+
                 if (aiSuggestionsPanel) {
                     aiSuggestionsPanel.style.display = 'none';
-                    aiSuggestionsResult.style.display = 'none';
-                    aiUnwantedColumnsList.innerHTML = '';
-                    applyAIRemovalBtn.style.display = 'none';
-                    aiLoadingSpinner.style.display = 'none';
+                    if (aiSuggestionsResult) aiSuggestionsResult.style.display = 'none';
+                    if (aiUnwantedColumnsList) aiUnwantedColumnsList.innerHTML = '';
+                    const aiNewFeaturesList = document.getElementById('aiNewFeaturesList');
+                    if (aiNewFeaturesList) aiNewFeaturesList.innerHTML = '';
+                    if (applyAIRemovalBtn) applyAIRemovalBtn.style.display = 'none';
+                    if (aiLoadingSpinner) aiLoadingSpinner.style.display = 'none';
                 }
+
                 if (autoEDAPanel) {
                     autoEDAPanel.style.display = 'none';
-                    // BUGFIX: purge Plotly instances (frees WebGL contexts used by 3D
-                    // charts) before wiping the container, same reasoning as in renderEdaCharts().
                     if (window.Plotly && edaResultContainer) {
                         edaResultContainer.querySelectorAll('.dn-eda-plot > div[id^="dnPlotlyChart_"]').forEach(node => {
                             try { Plotly.purge(node); } catch (e) { /* ignore */ }
                         });
                     }
-                    edaResultContainer.innerHTML = '';
-                    edaLoadingSpinner.style.display = 'none';
+                    if (edaResultContainer) edaResultContainer.innerHTML = '';
+                    if (edaLoadingSpinner) edaLoadingSpinner.style.display = 'none';
                 }
-                if (correlationPanel) {
-                    correlationPanel.style.display = 'none';
-                    correlationResultContainer.style.display = 'none';
-                    correlationLoadingSpinner.style.display = 'none';
-                    scatterPlotResult.style.display = 'none';
+
+                // 4. Correlation Analysis & Scatter Plot Panels
+                if (correlationPanel) correlationPanel.style.display = 'none';
+                if (correlationResultContainer) correlationResultContainer.style.display = 'none';
+                if (correlationLoadingSpinner) correlationLoadingSpinner.style.display = 'none';
+                if (correlationAlertMsg) correlationAlertMsg.style.display = 'none';
+                const topCorrelationsContainer = document.getElementById('dnTopCorrelationsContainer');
+                if (topCorrelationsContainer) topCorrelationsContainer.style.display = 'none';
+                const topPos = document.getElementById('dnTopPositiveCorrelations');
+                if (topPos) topPos.innerHTML = '';
+                const topNeg = document.getElementById('dnTopNegativeCorrelations');
+                if (topNeg) topNeg.innerHTML = '';
+                const heatmapImg = document.getElementById('dnCorrelationHeatmap');
+                if (heatmapImg) heatmapImg.src = '';
+
+                if (scatterPlotResult) scatterPlotResult.style.display = 'none';
+                const scatterPlotImg = document.getElementById('dnScatterPlotImg');
+                if (scatterPlotImg) scatterPlotImg.src = '';
+                if (scatterXSelect) scatterXSelect.innerHTML = '';
+                if (scatterYSelect) scatterYSelect.innerHTML = '';
+
+                // 5. Custom Visualizations Panel
+                const customChartPanel = document.getElementById('dnCustomChartPanel');
+                if (customChartPanel) customChartPanel.style.display = 'none';
+                const customChartResult = document.getElementById('dnCustomChartResult');
+                if (customChartResult) customChartResult.style.display = 'none';
+                const customChartImg = document.getElementById('dnCustomChartImg');
+                if (customChartImg) customChartImg.src = '';
+                const customX = document.getElementById('dnCustomXSelect');
+                if (customX) customX.innerHTML = '<option value="">-- Select X Column --</option>';
+                const customY = document.getElementById('dnCustomYSelect');
+                if (customY) customY.innerHTML = '<option value="">-- None (Single Variable) --</option>';
+
+                // 6. Pattern & Trend Detection Panel
+                const patternPanel = document.getElementById('dnPatternDetectionPanel');
+                if (patternPanel) patternPanel.style.display = 'none';
+                const patternList = document.getElementById('dnPatternDetectionList');
+                if (patternList) patternList.innerHTML = '';
+
+                // 7. Automated AI Profiling List
+                const insightsList = document.getElementById('analystAiInsightsList');
+                if (insightsList) {
+                    insightsList.innerHTML = '<li><span class="dn-insight-dot" style="background:var(--dn-cyan)"></span>Upload a dataset to generate automated AI data profiling.</li>';
                 }
-                // Deactivate sidebar links that require a dataset
+
+                // 8. Live ML & Predictive Analytics Panel
+                const step7Active = document.getElementById('step7PredictionsActiveContent');
+                if (step7Active) step7Active.classList.add('d-none');
+                const step7Empty = document.getElementById('step7PredictionsEmptyState');
+                if (step7Empty) step7Empty.classList.remove('d-none');
+                const step7Target = document.getElementById('step7TargetName');
+                if (step7Target) step7Target.textContent = '--';
+                const step7Formula = document.getElementById('step7FormulaText');
+                if (step7Formula) step7Formula.textContent = '--';
+                const step7Intercept = document.getElementById('step7InterceptText');
+                if (step7Intercept) step7Intercept.textContent = 'Intercept (\u03b20): --';
+                const step7R2 = document.getElementById('step7R2Value');
+                if (step7R2) step7R2.textContent = '--';
+                const step7Mae = document.getElementById('step7MaeValue');
+                if (step7Mae) step7Mae.textContent = '--';
+                const step7PredTbody = document.getElementById('step7PredTbody');
+                if (step7PredTbody) step7PredTbody.innerHTML = '';
+                const step7InstantInputsRow = document.getElementById('step7InstantInputsRow');
+                if (step7InstantInputsRow) step7InstantInputsRow.innerHTML = '';
+                const step7InstantPredictionResult = document.getElementById('step7InstantPredictionResult');
+                if (step7InstantPredictionResult) {
+                    step7InstantPredictionResult.classList.add('d-none');
+                    step7InstantPredictionResult.innerHTML = '';
+                }
+
+                // 9. Top Header Action Buttons
+                const exportBtn = document.getElementById('dnExportReportBtn');
+                if (exportBtn) exportBtn.style.display = 'none';
+                const downloadDropdown = document.getElementById('dnDownloadCleanedDropdown');
+                if (downloadDropdown) downloadDropdown.style.display = 'none';
+                const rollbackBtn = document.getElementById('dnRollbackDatasetBtn');
+                if (rollbackBtn) rollbackBtn.style.display = 'none';
+
+                // 10. Deactivate dataset-dependent sidebar links
                 document.querySelectorAll('.dn-requires-dataset').forEach(link => {
                     link.classList.add('dn-nav-disabled');
                 });
 
-                missingCustomValueContainer.style.display = 'none'; // Hide custom input
-                missingCustomValueInput.value = '';
+                // 11. State & Input Controls Reset
+                if (missingCustomValueContainer) missingCustomValueContainer.style.display = 'none';
+                if (missingCustomValueInput) missingCustomValueInput.value = '';
 
-                activeDatasetId = null; // Clear dataset ID
-                missingColumnInfo = []; // Clear missing column info
-                fullColumnInfo = []; // Clear the stored columns
-                viewAllColsBtn.textContent = 'View All Columns'; // Reset button text
-                viewAllColsBtn.setAttribute('data-state', 'more'); // Reset button state
-                uploadForm.style.display = 'flex'; // Show dropzone again
-                progressBar.classList.remove('bg-success', 'bg-danger');
-                fileInput.value = ''; // Reset file input
+                activeDatasetId = null; // Clear active dataset ID
+                if (uploadAnotherBtn) {
+                    uploadAnotherBtn.style.display = 'none';
+                }
+                currentActiveTask = null; // Clear active task metadata
+                missingColumnInfo = [];
+                fullColumnInfo = [];
 
-                // Also reset the cleaned data preview panel
-                if (cleanedPreviewPanel) {
-                    cleanedPreviewPanel.style.display = 'none';
-                    const downloadBtn = cleanedPreviewPanel.querySelector('#dnDownloadCleanedBtn');
-                    if (downloadBtn) {
-                        downloadBtn.remove(); // Remove the download button
-                    }
+                if (viewAllColsBtn) {
+                    viewAllColsBtn.textContent = 'View All Columns';
+                    viewAllColsBtn.setAttribute('data-state', 'more');
                 }
 
+                // Show upload form & reset dropzone inputs
+                if (uploadForm) uploadForm.style.display = 'flex';
+                if (uploadProgress) uploadProgress.style.display = 'none';
+                if (progressBar) progressBar.classList.remove('bg-success', 'bg-danger');
+                if (fileInput) fileInput.value = '';
+
+                // Scroll smoothly back up to Upload section
+                const uploadSection = document.getElementById('upload');
+                if (uploadSection) {
+                    uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+
+                showToast('Dashboard reset. Ready to upload another dataset.', 'info');
             });
         }
+
+        /* ---------------------------------------------------------------------
+           Google Sheets Import Event Listener
+           ------------------------------------------------------------------- */
+        var gsheetForm = document.getElementById('dnGSheetForm');
+        var gsheetUrlInput = document.getElementById('dnGSheetUrlInput');
+        var gsheetBtn = document.getElementById('dnImportGSheetBtn');
+        var gsheetStatus = document.getElementById('dnGSheetStatus');
+        var gsheetMsg = document.getElementById('dnGSheetMsg');
+
+        if (gsheetForm) {
+            gsheetForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var url = gsheetUrlInput ? gsheetUrlInput.value.trim() : '';
+                if (!url) {
+                    if (gsheetUrlInput) gsheetUrlInput.classList.add('is-invalid');
+                    return;
+                }
+                if (gsheetUrlInput) gsheetUrlInput.classList.remove('is-invalid');
+
+                if (gsheetBtn) gsheetBtn.disabled = true;
+                if (gsheetStatus) gsheetStatus.classList.remove('d-none');
+                if (gsheetMsg) gsheetMsg.textContent = 'Connecting to Google Sheets and downloading dataset...';
+
+                if (processingLoader) processingLoader.style.display = 'flex';
+
+                fetch('/api/import_google_sheet', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ sheet_url: url })
+                })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (processingLoader) processingLoader.style.display = 'none';
+                    if (gsheetBtn) gsheetBtn.disabled = false;
+                    if (gsheetStatus) gsheetStatus.classList.add('d-none');
+
+                    if (data.success && data.preview_html) {
+                        // Close modal
+                        var modalEl = document.getElementById('dnGoogleSheetModal');
+                        if (modalEl && window.bootstrap && bootstrap.Modal) {
+                            var modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                            modalInstance.hide();
+                        }
+
+                        populateDatasetWorkspace(data, data.file_name || 'Google Sheet Dataset', true);
+                        addTooltipsToStatsTable();
+                    } else {
+                        var errText = (data.message || data.error || 'Failed to import Google Sheet dataset.').replace(/\n/g, '<br>');
+                        if (gsheetStatus) {
+                            gsheetStatus.className = 'mt-3 p-3 rounded bg-danger-subtle text-danger border border-danger-subtle';
+                            gsheetStatus.innerHTML = '<div class="d-flex align-items-start gap-2"><i class="bi bi-exclamation-triangle-fill fs-5 mt-0.5 text-danger flex-shrink-0"></i><div class="small fw-medium">' + errText + '</div></div>';
+                        } else {
+                            alert(data.message || 'Failed to import Google Sheet dataset.');
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    if (processingLoader) processingLoader.style.display = 'none';
+                    if (gsheetBtn) gsheetBtn.disabled = false;
+                    console.error('[DataNova] Google Sheet import error:', err);
+                    if (gsheetStatus) {
+                        gsheetStatus.className = 'mt-3 p-3 rounded bg-danger-subtle text-danger border border-danger-subtle';
+                        gsheetStatus.innerHTML = '<div class="d-flex align-items-center gap-2"><i class="bi bi-wifi-off fs-5 text-danger"></i><span class="small fw-semibold">Network error while fetching Google Sheet. Please check your connection and try again.</span></div>';
+                    } else {
+                        alert('Network error while importing Google Sheet. Please check the URL and try again.');
+                    }
+                });
+            });
+        }
+
 
         // Handle "View All Columns" button click
         if (viewAllColsBtn) {
@@ -1190,18 +1390,77 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // --- Duplicate Column Search & Quick Select Toolbar ---
+        const dupSearchInput = document.getElementById('dnDupColSearchInput');
+        if (dupSearchInput) {
+            dupSearchInput.addEventListener('input', function () {
+                const q = this.value.toLowerCase().trim();
+                const pills = duplicateColumnSelect ? duplicateColumnSelect.querySelectorAll('.dn-dup-col-pill') : [];
+                pills.forEach(pill => {
+                    const name = pill.querySelector('.dn-dup-col-name')?.textContent.toLowerCase() || '';
+                    pill.style.display = (!q || name.includes(q)) ? 'inline-flex' : 'none';
+                });
+            });
+        }
+
+        const selectAllDupBtn = document.getElementById('btnSelectAllDupCols');
+        if (selectAllDupBtn) {
+            selectAllDupBtn.addEventListener('click', function () {
+                const pills = duplicateColumnSelect ? duplicateColumnSelect.querySelectorAll('.dn-dup-col-pill') : [];
+                pills.forEach(pill => {
+                    if (pill.style.display !== 'none') {
+                        const chk = pill.querySelector('.dn-dup-check');
+                        if (chk) chk.checked = true;
+                    }
+                });
+                const countBadge = document.getElementById('dnDupSelectedColsCount');
+                const checkedCount = duplicateColumnSelect ? duplicateColumnSelect.querySelectorAll('.dn-dup-check:checked').length : 0;
+                if (countBadge) countBadge.textContent = `${checkedCount} column(s) selected`;
+            });
+        }
+
+        const clearDupBtn = document.getElementById('btnClearDupCols');
+        if (clearDupBtn) {
+            clearDupBtn.addEventListener('click', function () {
+                const chks = duplicateColumnSelect ? duplicateColumnSelect.querySelectorAll('.dn-dup-check') : [];
+                chks.forEach(chk => { chk.checked = false; });
+                const countBadge = document.getElementById('dnDupSelectedColsCount');
+                if (countBadge) countBadge.textContent = `0 columns selected`;
+            });
+        }
+
+        // Navigation button: Step 3B Duplicates -> Step 3C Drop Columns
+        const dupGoToDropColsBtn = document.getElementById('dnDupGoToDropColsBtn');
+        if (dupGoToDropColsBtn) {
+            dupGoToDropColsBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                const dropPanel = document.getElementById('dnDropColumnsPanel');
+                if (dropPanel) {
+                    dropPanel.style.display = 'block';
+                    smoothScrollToTarget(dropPanel);
+                    dropPanel.classList.add('dn-search-highlight-target');
+                    setTimeout(() => dropPanel.classList.remove('dn-search-highlight-target'), 2000);
+                }
+            });
+        }
+
         // Handle "Find Duplicates by Specific Columns" button click
+        const removeSubKeepFirstBtn = document.getElementById('dnRemoveSubDuplicatesKeepFirstBtn');
+        const removeSubKeepLastBtn = document.getElementById('dnRemoveSubDuplicatesKeepLastBtn');
+
         if (findSubDuplicatesBtn) {
             findSubDuplicatesBtn.addEventListener('click', function () {
-                const selectedColumns = Array.from(duplicateColumnSelect.querySelectorAll('input:checked')).map(cb => cb.value);
+                const selectedColumns = Array.from(duplicateColumnSelect ? duplicateColumnSelect.querySelectorAll('.dn-dup-check:checked') : []).map(cb => cb.value);
 
                 if (selectedColumns.length === 0) {
-                    alert('Please select at least one column to check for duplicates.');
+                    showToast('Please select at least one column to check for key duplicates.', 'warning');
                     return;
                 }
 
                 findSubDuplicatesBtn.disabled = true;
-                findSubDuplicatesBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Finding...';
+                findSubDuplicatesBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Finding...';
+                if (removeSubKeepFirstBtn) removeSubKeepFirstBtn.style.display = 'none';
+                if (removeSubKeepLastBtn) removeSubKeepLastBtn.style.display = 'none';
 
                 fetch('/api/handle_duplicates', {
                     method: 'POST',
@@ -1217,24 +1476,101 @@ document.addEventListener('DOMContentLoaded', function () {
                         subDuplicateResult.style.display = 'block';
                         if (data.success && data.count > 0) {
                             subDuplicateResult.innerHTML = `
-                            <div class="dn-alert dn-alert-info"><i class="bi bi-info-circle-fill"></i> Found <strong>${data.count}</strong> rows across groups that share the same values for the selected columns.</div>
-                            <div class="table-responsive">${data.preview_html}</div>
-                        `;
+                                <div class="dn-alert dn-alert-info mb-2"><i class="bi bi-info-circle-fill me-1"></i> Found <strong>${data.count.toLocaleString()}</strong> rows sharing identical values across selected key columns (<strong>${selectedColumns.join(', ')}</strong>).</div>
+                                <div class="table-responsive border rounded" style="max-height: 260px;">${data.preview_html}</div>
+                            `;
+                            if (removeSubKeepFirstBtn) removeSubKeepFirstBtn.style.display = 'inline-flex';
+                            if (removeSubKeepLastBtn) removeSubKeepLastBtn.style.display = 'inline-flex';
                         } else if (data.success) {
-                            subDuplicateResult.innerHTML = `<div class="dn-alert dn-alert-ok"><i class="bi bi-check-circle-fill"></i> ${data.message || 'No rows found sharing the same values in the selected columns.'}</div>`;
+                            subDuplicateResult.innerHTML = `<div class="dn-alert dn-alert-ok"><i class="bi bi-check-circle-fill me-1"></i> ${data.message || 'No duplicate rows found for the selected key columns.'}</div>`;
                         } else {
-                            subDuplicateResult.innerHTML = `<div class="dn-alert dn-alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> ${data.message || 'Failed to check for duplicates.'}</div>`;
+                            subDuplicateResult.innerHTML = `<div class="dn-alert dn-alert-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> ${data.message || 'Failed to check for duplicates.'}</div>`;
                         }
                     })
                     .catch(err => {
                         showFetchError('findSubDuplicatesBtn', err);
                         subDuplicateResult.style.display = 'block';
-                        subDuplicateResult.innerHTML = `<div class="dn-alert dn-alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> Could not reach the server. Please try again.</div>`;
+                        subDuplicateResult.innerHTML = `<div class="dn-alert dn-alert-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> Could not reach the server. Please try again.</div>`;
                     })
                     .finally(() => {
                         findSubDuplicatesBtn.disabled = false;
-                        findSubDuplicatesBtn.innerHTML = '<i class="bi bi-search"></i> Analyze Groups';
+                        findSubDuplicatesBtn.innerHTML = '<i class="bi bi-search me-1"></i> Find Key Duplicates';
                     });
+            });
+        }
+
+        // Helper for Subset Deduplication (Keep First / Keep Last)
+        function executeSubsetDeduplication(keepStrategy, btnElement) {
+            const selectedColumns = Array.from(duplicateColumnSelect ? duplicateColumnSelect.querySelectorAll('.dn-dup-check:checked') : []).map(cb => cb.value);
+            if (selectedColumns.length === 0) {
+                showToast('Please select at least one column to deduplicate.', 'warning');
+                return;
+            }
+
+            const origHtml = btnElement ? btnElement.innerHTML : '';
+            if (btnElement) {
+                btnElement.disabled = true;
+                btnElement.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Deduplicating...`;
+            }
+
+            fetch('/api/handle_duplicates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dataset_id: activeDatasetId,
+                    columns: selectedColumns,
+                    action: 'remove',
+                    keep: keepStrategy
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message || 'Duplicate rows successfully removed!', 'success');
+                        populateDatasetWorkspace(data);
+
+                        if (data.cleaned_data) {
+                            if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = data.cleaned_data.preview_html;
+                            if (cleanedRows) cleanedRows.textContent = data.cleaned_data.row_count.toLocaleString();
+                            if (cleanedCols) cleanedCols.textContent = data.cleaned_data.column_count.toLocaleString();
+                            if (rowsRemoved) rowsRemoved.textContent = (data.rows_removed || 0).toLocaleString();
+                        }
+
+                        if (subDuplicateResult) {
+                            subDuplicateResult.innerHTML = `<div class="dn-alert dn-alert-ok"><i class="bi bi-check-circle-fill me-1"></i> Deduplication complete. Removed <strong>${(data.rows_removed || 0).toLocaleString()}</strong> duplicate rows based on (${selectedColumns.join(', ')}).</div>`;
+                        }
+                        if (removeSubKeepFirstBtn) removeSubKeepFirstBtn.style.display = 'none';
+                        if (removeSubKeepLastBtn) removeSubKeepLastBtn.style.display = 'none';
+
+                        if (cleanedPreviewPanel) {
+                            cleanedPreviewPanel.style.display = 'block';
+                            updateCleanedDownloadLinks();
+                        }
+                    } else {
+                        showToast(data.message || 'Failed to remove duplicates.', 'danger');
+                    }
+                })
+                .catch(err => {
+                    showFetchError('executeSubsetDeduplication', err);
+                    showToast('Could not reach the server. Please try again.', 'danger');
+                })
+                .finally(() => {
+                    if (btnElement) {
+                        btnElement.disabled = false;
+                        btnElement.innerHTML = origHtml;
+                    }
+                });
+        }
+
+        if (removeSubKeepFirstBtn) {
+            removeSubKeepFirstBtn.addEventListener('click', function () {
+                executeSubsetDeduplication('first', removeSubKeepFirstBtn);
+            });
+        }
+
+        if (removeSubKeepLastBtn) {
+            removeSubKeepLastBtn.addEventListener('click', function () {
+                executeSubsetDeduplication('last', removeSubKeepLastBtn);
             });
         }
 
@@ -1250,6 +1586,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const allColumns = fullColumnInfo.map(col => col.name);
 
             removeFullDuplicatesBtn.disabled = true;
+            removeFullDuplicatesBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Removing...';
 
             fetch('/api/handle_duplicates', {
                 method: 'POST',
@@ -1264,39 +1601,39 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        duplicateSummary.className = 'dn-alert dn-alert-ok';
-                        duplicateSummary.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${data.message}`;
+                        showToast(data.message || 'Exact duplicate rows removed successfully!', 'success');
+                        populateDatasetWorkspace(data);
+
+                        if (duplicateSummary) {
+                            duplicateSummary.className = 'dn-alert dn-alert-ok';
+                            duplicateSummary.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> ${data.message || 'Zero exact duplicate rows remaining.'}`;
+                        }
 
                         if (duplicatePreviewContent) duplicatePreviewContent.style.display = 'none';
                         if (removeFullDuplicatesBtn) removeFullDuplicatesBtn.style.display = 'none';
-                        if (subDuplicatesContainer) subDuplicatesContainer.style.display = 'none';
 
-                        const panelFooter = removeFullDuplicatesBtn.closest('.dn-panel-footer');
-                        if (panelFooter) {
-                            let downloadBtn = panelFooter.querySelector('#dnDownloadDedupedBtn');
-                            if (!downloadBtn) {
-                                downloadBtn = document.createElement('a');
-                                downloadBtn.id = 'dnDownloadDedupedBtn';
-                                downloadBtn.className = 'btn dn-btn-success btn-sm mt-2';
-                                downloadBtn.innerHTML = '<i class="bi bi-download"></i> Download Cleaned Dataset (CSV)';
-                                panelFooter.appendChild(downloadBtn);
-                            }
-                            downloadBtn.href = `/api/download_cleaned_dataset/${activeDatasetId}`;
+                        if (data.cleaned_data) {
+                            if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = data.cleaned_data.preview_html;
+                            if (cleanedRows) cleanedRows.textContent = data.cleaned_data.row_count.toLocaleString();
+                            if (cleanedCols) cleanedCols.textContent = data.cleaned_data.column_count.toLocaleString();
+                            if (rowsRemoved) rowsRemoved.textContent = (data.rows_removed || 0).toLocaleString();
                         }
 
-                        if (missingValuePanel) {
-                            missingValuePanel.style.display = 'none';
+                        if (cleanedPreviewPanel) {
+                            cleanedPreviewPanel.style.display = 'block';
+                            updateCleanedDownloadLinks();
                         }
                     } else {
-                        alert('Error removing duplicates: ' + (data.message || 'Unknown error'));
+                        showToast(data.message || 'Failed to remove duplicates.', 'danger');
                     }
                 })
                 .catch(err => {
                     showFetchError('handleRemoveFullDuplicates', err);
-                    alert('Could not remove duplicates — the server could not be reached. Please try again.');
+                    showToast('Could not remove duplicates — server error.', 'danger');
                 })
                 .finally(() => {
                     removeFullDuplicatesBtn.disabled = false;
+                    removeFullDuplicatesBtn.innerHTML = '<i class="bi bi-trash me-1"></i> Remove Fully Identical Rows (100% Match)';
                 });
         }
 
@@ -1340,7 +1677,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     .then(data => {
                         if (data.success) {
                             showToast(data.message || 'Data cleaning applied successfully!', 'success');
-                            missingValueActions.style.display = 'none';
+                            if (missingValueActions) missingValueActions.style.display = 'none';
 
                             const cleanedData = data.cleaned_data;
                             const summary = data.cleaning_summary;
@@ -1351,32 +1688,28 @@ document.addEventListener('DOMContentLoaded', function () {
                                 if (valuesFixed) valuesFixed.textContent = summary.values_fixed.toLocaleString();
                                 if (rowsRemoved) rowsRemoved.textContent = summary.rows_removed.toLocaleString();
 
-                                cleanedPreviewContent.innerHTML = cleanedData.preview_html;
+                                if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = cleanedData.preview_html;
+                                if (cleanedRows) cleanedRows.textContent = cleanedData.row_count.toLocaleString();
+                                if (cleanedCols) cleanedCols.textContent = cleanedData.column_count.toLocaleString();
 
-                                cleanedRows.textContent = cleanedData.row_count.toLocaleString();
-                                cleanedCols.textContent = cleanedData.column_count.toLocaleString();
-
-                                cleanedPreviewPanel.style.display = 'block';
-
-                                const cleanedPanelFooter = cleanedPreviewPanel.querySelector('.dn-panel-footer');
-                                if (cleanedPanelFooter) {
-                                    let downloadBtn = cleanedPanelFooter.querySelector('#dnDownloadCleanedBtn');
-                                    if (!downloadBtn) {
-                                        downloadBtn = document.createElement('a');
-                                        downloadBtn.id = 'dnDownloadCleanedBtn';
-                                        downloadBtn.className = 'btn dn-btn-success btn-sm mt-3';
-                                        downloadBtn.innerHTML = '<i class="bi bi-download"></i> Download Cleaned Dataset (CSV)';
-                                        cleanedPanelFooter.appendChild(downloadBtn);
-                                    }
-                                    downloadBtn.href = `/api/download_cleaned_dataset/${activeDatasetId}`;
-                                    downloadBtn.style.display = 'inline-flex';
-                                }
-                            } else {
-                                console.warn('[DataNova] clean_data succeeded but response missing cleaned_data/cleaning_summary:', data);
+                                if (cleanedPreviewPanel) cleanedPreviewPanel.style.display = 'block';
+                                updateCleanedDownloadLinks();
                             }
 
+                            const nextBanner = document.getElementById('dnMissingValueNextStepBanner');
+                            if (nextBanner) nextBanner.style.display = 'block';
+
                             // Re-fetch dataset workspace state so Missing Values table & all overview cards reload instantly!
-                            loadCurrentDataset();
+                            loadCurrentDataset(() => {
+                                // Smoothly guide user to the next step: Review & Drop Columns
+                                const dropPanel = document.getElementById('dnDropColumnsPanel');
+                                if (dropPanel) {
+                                    dropPanel.style.display = 'block';
+                                    setTimeout(() => {
+                                        smoothScrollToTarget(dropPanel);
+                                    }, 200);
+                                }
+                            });
                         } else {
                             alert('Error cleaning data: ' + (data.message || 'Unknown error'));
                         }
@@ -1392,10 +1725,62 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Helper to update Cleaned Dataset download links (CSV + Excel)
+        function updateCleanedDownloadLinks() {
+            if (!activeDatasetId) return;
+            const csvBtn = document.getElementById('dnDownloadCleanedCsvBtn');
+            const xlsxBtn = document.getElementById('dnDownloadCleanedXlsxBtn');
+            if (csvBtn) {
+                csvBtn.href = `/api/download_cleaned_dataset/${activeDatasetId}?format=csv`;
+            }
+            if (xlsxBtn) {
+                xlsxBtn.href = `/api/download_cleaned_dataset/${activeDatasetId}?format=xlsx`;
+            }
+        }
+
+        // Navigation button: Step 3A Imputation -> Step 3C Drop Columns
+        const goToDropColsBtn = document.getElementById('dnGoToDropColumnsBtn');
+        if (goToDropColsBtn) {
+            goToDropColsBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                const dropPanel = document.getElementById('dnDropColumnsPanel');
+                if (dropPanel) {
+                    dropPanel.style.display = 'block';
+                    smoothScrollToTarget(dropPanel);
+                    dropPanel.classList.add('dn-search-highlight-target');
+                    setTimeout(() => dropPanel.classList.remove('dn-search-highlight-target'), 2000);
+                }
+            });
+        }
+
+        // Navigation button: Step 3C -> Cleaned Preview & Download
+        const skipToCleanedBtn = document.getElementById('dnSkipToCleanedPreviewBtn');
+        if (skipToCleanedBtn) {
+            skipToCleanedBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (cleanedPreviewPanel) {
+                    cleanedPreviewPanel.style.display = 'block';
+                    updateCleanedDownloadLinks();
+                    smoothScrollToTarget(cleanedPreviewPanel);
+                }
+            });
+        }
+
+        // Navigation button: Cleaned Preview -> Step 4 Statistical EDA
+        const proceedToEdaBtn = document.getElementById('dnProceedToEdaBtn');
+        if (proceedToEdaBtn) {
+            proceedToEdaBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                const edaSec = document.getElementById('step-eda');
+                if (edaSec) {
+                    smoothScrollToTarget(edaSec);
+                }
+            });
+        }
+
         /* ---------------------------------------------------------------------
-           3b. Smart AI Column Recommendations & Auto-Clean Actions
+           3b. Smart Column Recommendations & Drop Actions
            ------------------------------------------------------------------- */
-        const autoCleanAllBtn = document.getElementById('dnAutoCleanAllRecommendedBtn');
         const confirmDropBtn = document.getElementById('dnConfirmDropColumnsBtn');
 
         function executeDropColumns(columnsToDrop, btnElement, loadingText) {
@@ -1420,6 +1805,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (data.success) {
                         showToast(data.message || `Successfully removed ${columnsToDrop.length} column(s)!`, 'success');
                         populateDatasetWorkspace(data);
+
+                        // Update Cleaned Data Preview panel with cumulative dataset state (nulls + drops)
+                        if (data.cleaned_data) {
+                            if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = data.cleaned_data.preview_html;
+                            if (cleanedRows) cleanedRows.textContent = data.cleaned_data.row_count.toLocaleString();
+                            if (cleanedCols) cleanedCols.textContent = data.cleaned_data.column_count.toLocaleString();
+                            if (missingAfter) missingAfter.textContent = (data.cleaned_data.missing_count || 0).toLocaleString();
+                        } else if (data.preview_html) {
+                            if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = data.preview_html;
+                            if (cleanedRows) cleanedRows.textContent = (data.row_count || 0).toLocaleString();
+                            if (cleanedCols) cleanedCols.textContent = (data.column_count || 0).toLocaleString();
+                            if (missingAfter) missingAfter.textContent = (data.total_missing_count || 0).toLocaleString();
+                        }
+
+                        if (cleanedPreviewPanel) {
+                            cleanedPreviewPanel.style.display = 'block';
+                            updateCleanedDownloadLinks();
+                            setTimeout(() => {
+                                smoothScrollToTarget(cleanedPreviewPanel);
+                            }, 250);
+                        }
                     } else {
                         showToast(data.message || 'Failed to drop columns.', 'danger');
                     }
@@ -1434,19 +1840,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         btnElement.innerHTML = origHtml;
                     }
                 });
-        }
-
-        if (autoCleanAllBtn) {
-            autoCleanAllBtn.addEventListener('click', function () {
-                const grid = document.getElementById('dnDropColumnsGrid');
-                if (!grid) return;
-                const checkedCols = Array.from(grid.querySelectorAll('.dn-col-drop-check:checked')).map(cb => cb.value);
-                if (checkedCols.length === 0) {
-                    showToast('No recommended columns found to auto-clean.', 'info');
-                    return;
-                }
-                executeDropColumns(checkedCols, autoCleanAllBtn, 'Auto-Cleaning...');
-            });
         }
 
         if (confirmDropBtn) {
@@ -1909,11 +2302,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // BUGFIX: '2d_standard' used to fall back to min-height:auto, which collapses
             // to 0px until the base64 <img> finishes decoding, causing a layout jump/flash.
-            // Give every mode a sane minimum height so cards render stably immediately.
-            const minHeight = (renderingEngine === 'interactive_3d' && is3D) ? '420px' : '360px';
+            const isHeatmap = (chart.chart_type === 'heatmap');
+            const minHeight = isHeatmap ? '460px' : ((renderingEngine === 'interactive_3d' && is3D) ? '420px' : '360px');
+            const colClass = isHeatmap ? 'col-12 mb-3' : 'col-lg-6 mb-3';
+            const imgMaxHeight = isHeatmap ? '540px' : '380px';
 
             const cardHtml = `
-                <div class="col-lg-6 mb-3">
+                <div class="${colClass}">
                     <div class="dn-eda-card h-100 d-flex flex-column justify-content-between">
                         <div class="dn-eda-card-header d-flex justify-content-between align-items-start pb-2 border-bottom">
                             <div>
@@ -1939,7 +2334,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 2D Standard Rendering: Show crisp high-res 2D image (no 3D projection box)
                 const imgData = chart.plot_2d || chart.plot;
                 if (imgData) {
-                    el.innerHTML = `<div class="text-center w-100 py-2"><img src="data:image/png;base64,${imgData}" alt="${cardTitle}" class="img-fluid rounded shadow-sm" style="max-height: 380px; width: 100%; object-fit: contain;"></div>`;
+                    el.innerHTML = `<div class="text-center w-100 py-2"><img src="data:image/png;base64,${imgData}" alt="${cardTitle}" class="img-fluid rounded shadow-sm" style="max-height: ${imgMaxHeight}; width: 100%; object-fit: contain;"></div>`;
                 } else if (chart.plotly_json && window.Plotly) {
                     const layout = JSON.parse(JSON.stringify(chart.plotly_json.layout || {}));
                     layout.autosize = true;
@@ -1989,13 +2384,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.warn("Plotly render failed, using fallback img:", e);
                         const fallbackImg = is3D ? (chart.plot_3d || chart.plot) : (chart.plot_2d || chart.plot);
                         if (fallbackImg) {
-                            el.innerHTML = `<div class="text-center w-100 py-2"><img src="data:image/png;base64,${fallbackImg}" alt="${cardTitle}" class="img-fluid rounded shadow-sm" style="max-height: 380px; width: 100%; object-fit: contain;"></div>`;
+                            el.innerHTML = `<div class="text-center w-100 py-2"><img src="data:image/png;base64,${fallbackImg}" alt="${cardTitle}" class="img-fluid rounded shadow-sm" style="max-height: ${imgMaxHeight}; width: 100%; object-fit: contain;"></div>`;
                         }
                     }
                 } else {
                     const fallbackImg = is3D ? (chart.plot_3d || chart.plot) : (chart.plot_2d || chart.plot);
                     if (fallbackImg) {
-                        el.innerHTML = `<div class="text-center w-100 py-2"><img src="data:image/png;base64,${fallbackImg}" alt="${cardTitle}" class="img-fluid rounded shadow-sm" style="max-height: 380px; width: 100%; object-fit: contain;"></div>`;
+                        el.innerHTML = `<div class="text-center w-100 py-2"><img src="data:image/png;base64,${fallbackImg}" alt="${cardTitle}" class="img-fluid rounded shadow-sm" style="max-height: ${imgMaxHeight}; width: 100%; object-fit: contain;"></div>`;
                     }
                 }
             }
@@ -2198,40 +2593,42 @@ document.addEventListener('DOMContentLoaded', function () {
     // Function to add tooltips to the statistical summary table
     function addTooltipsToStatsTable() {
         const metricDescriptions = {
-            'count': 'Number of non-null observations in the column.',
-            'unique_count': 'The number of distinct or unique non-null values in the column.',
-            'unique_ratio': 'The ratio of unique values to the total count, indicating the level of uniqueness or cardinality.',
-            'mean': 'The average value of the column.',
-            'median': 'The middle value when data is ordered (50th percentile), separating the upper and lower halves.',
-            'std': 'The standard deviation, measuring the amount of variation or dispersion of values.',
-            'variance': 'The average of the squared differences from the mean, representing overall data spread.',
-            'min': 'The minimum value in the column.',
-            '25%': 'The 25th percentile (first quartile), meaning 25% of values are below this point.',
-            '50%': 'The 50th percentile (median), meaning half of the values are below this point.',
-            '75%': 'The 75th percentile (third quartile), meaning 75% of values are below this point.',
-            'max': 'The maximum value in the column.',
-            'range': 'The difference between the maximum and minimum values in the column.',
-            'skewness': 'A measure of asymmetry in the data distribution around its mean (indicating left or right tilt).',
-            'kurtosis': 'A measure of the "tailedness" or sharpness of the peak in the distribution, indicating potential outliers.'
+            'column': 'Column Name: Attribute or feature name in your dataset.',
+            'count': 'Count: Number of valid (non-null) data records in this column.',
+            'unique_count': 'Unique Count: Number of distinct or unique non-null values in this column.',
+            'unique_ratio': 'Unique Ratio: Ratio of unique values to total count (Unique Count / Count). Higher values indicate higher cardinality.',
+            'mean': 'Mean: Arithmetic average value of the data points in this column.',
+            'median': 'Median: Middle value when data is ordered (50th percentile).',
+            'std': 'Standard Deviation (STD): Measures average dispersion or spread of data points from the mean.',
+            'variance': 'Variance: Average of squared differences from the mean, representing overall data spread.',
+            'cv': 'Coefficient of Variation (CV = Std / |Mean|): Measures relative variability independent of measurement scale.',
+            'mad': 'Mean Absolute Deviation (MAD): Average distance of data points from the column mean.',
+            'min': 'Minimum (Min): Lowest recorded value in this column.',
+            'max': 'Maximum (Max): Highest recorded value in this column.',
+            'range': 'Range: Difference between Maximum and Minimum values (Max - Min).',
+            'iqr': 'Interquartile Range (IQR = 75th% - 25th%): Range of middle 50% of values.',
+            'skewness': 'Skewness: Measures distribution asymmetry around the mean (>0 right-skewed, <0 left-skewed).',
+            'skew': 'Skewness: Measures distribution asymmetry around the mean (>0 right-skewed, <0 left-skewed).',
+            'kurtosis': 'Kurtosis: Measures distribution peakness and tail heaviness (>3 heavy-tailed).',
+            'kurt': 'Kurtosis: Measures distribution peakness and tail heaviness (>3 heavy-tailed).',
+            '25pct': '25th Percentile (1st Quartile - Q1): 25% of values fall below this point.',
+            '50pct': '50th Percentile (Median - Q2): 50% of values fall below this point.',
+            '75pct': '75th Percentile (3rd Quartile - Q3): 75% of values fall below this point.',
+            '25%': '25th Percentile (1st Quartile - Q1): 25% of values fall below this point.',
+            '50%': '50th Percentile (Median - Q2): 50% of values fall below this point.',
+            '75%': '75th Percentile (3rd Quartile - Q3): 75% of values fall below this point.',
+            'missing_count': 'Missing Count: Total number of empty, null, or NaN cells in this column.',
+            'missing_pct': 'Missing Percentage: Percentage of missing cells in this column.',
+            'missing_ratio': 'Missing Ratio: Proportion of missing cells in this column.'
         };
 
-        const statsPanel = document.getElementById('dnStatsPanel');
-        if (!statsPanel) return;
+        const statsHeaders = document.querySelectorAll('.dn-table-stats thead th, #dnStatsContent table thead th, .dn-table-preview thead th');
+        if (!statsHeaders || statsHeaders.length === 0) return;
 
-        const existingTooltips = statsPanel.querySelectorAll('[data-bs-toggle="tooltip"]');
-        existingTooltips.forEach(el => {
-            const tooltipInstance = bootstrap.Tooltip.getInstance(el);
-            if (tooltipInstance) {
-                tooltipInstance.dispose();
-            }
-        });
-
-        const statsTableHeaders = statsPanel.querySelectorAll('#dnStatsContent table thead th'); // Correct selector for transposed table
-
-        statsTableHeaders.forEach(header => {
+        statsHeaders.forEach(header => {
             if (!header || !header.textContent) return;
             let metricName = header.textContent.trim().toLowerCase();
-            let description = metricDescriptions[metricName];
+            let description = metricDescriptions[metricName] || header.getAttribute('title');
 
             if (!description && metricName.startsWith('pct')) {
                 const numericPart = parseFloat(metricName);
@@ -2240,15 +2637,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            if (description && metricName !== 'column') { // Don't add tooltip to the 'Column' header
+            if (description) {
                 header.setAttribute('data-bs-toggle', 'tooltip');
                 header.setAttribute('data-bs-placement', 'top');
                 header.setAttribute('title', description);
                 header.style.cursor = 'help';
                 try {
+                    const tooltipInstance = bootstrap.Tooltip.getInstance(header);
+                    if (tooltipInstance) tooltipInstance.dispose();
                     new bootstrap.Tooltip(header);
                 } catch (e) {
-                    // If Bootstrap Tooltip fails, ignore
+                    // Ignore if Bootstrap Tooltip fails
                 }
             }
         });
@@ -2713,7 +3112,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             step1Eyebrow: "STEP 1: DATA INGESTION",
             step1Title: "Upload Dataset",
-            step1Badge: "Workflow Step 1 of 8",
             uploadPanelTitle: "Select or Drop Dataset File",
             uploadDropText: "Drag and drop your CSV, Excel (.xlsx, .xls), or JSON file here",
             uploadDropSub: "Supports CSV, XLSX, XLS, JSON up to 100MB with automatic delimiter detection",
@@ -2723,16 +3121,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             step2Eyebrow: "STEP 2: EXPLORATION",
             step2Title: "Raw Dataset Preview",
-            step2Badge: "Workflow Step 2 of 8",
             btnProceedCleaning: "Proceed to Cleaning",
             btnRunEDA: "Run EDA Immediately",
 
             step3Eyebrow: "STEP 3: PRE-PROCESSING",
             step3Title: "Data Quality & Cleaning",
-            step3Badge: "Workflow Step 3 of 8",
-            sub3ATitle: "3A. Missing Values Treatment",
-            sub3BTitle: "3B. Duplicate Row Detection",
-            sub3CTitle: "3C. Manage & Drop Unwanted Columns",
+            sub3ATitle: " Missing Values Treatment",
+            sub3BTitle: " Duplicate Row Detection",
+            sub3CTitle: " Manage & Drop Unwanted Columns",
             btnAutoCleanMissing: "Auto-Clean Missing",
             btnRemoveDuplicates: "Remove Fully Identical Rows",
             btnAutoCleanRecommended: "⚡ Auto-Clean All Recommended",
@@ -2740,28 +3136,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
             step4Eyebrow: "STEP 4: SUMMARY STATISTICS",
             step4Title: "Statistical EDA & Summary",
-            step4Badge: "Workflow Step 4 of 8",
             btnGenerateEDA: "Generate Statistical Summary",
 
             step5Eyebrow: "STEP 5: RELATIONSHIPS",
             step5Title: "Correlation Heatmap & Analysis",
-            step5Badge: "Workflow Step 5 of 8",
             btnGenerateCorrelation: "Generate Correlation Matrix",
 
             step6Eyebrow: "STEP 6: VISUAL ANALYTICS",
             step6Title: "Interactive Visualizations & Chart Builder",
-            step6Badge: "Workflow Step 6 of 8",
             btnGenerateViz: "Generate Visualization",
 
             step7Eyebrow: "STEP 7: MACHINE LEARNING & AI",
-            step7Title: "Automated ML & AI Insights",
-            step7Badge: "Workflow Step 7 of 8",
+            step7Title: "Automated ML Insights",
             btnTrainML: "Train ML Model",
             btnGenerateInsights: "Generate AI Insights",
 
             step8Eyebrow: "STEP 8: EXECUTIVE SUMMARY",
             step8Title: "Executive Report & Data Export",
-            step8Badge: "Workflow Step 8 of 8",
             btnDownloadPDF: "Download PDF Report",
             btnDownloadHTML: "Download HTML Report",
 
@@ -3187,8 +3578,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (autoCleanBtn) autoCleanBtn.innerHTML = `<i class="bi bi-magic me-1"></i> ${dict.btnAutoCleanMissing}`;
             const removeDupBtn = document.getElementById('dnRemoveFullDuplicatesBtn');
             if (removeDupBtn) removeDupBtn.innerHTML = `<i class="bi bi-trash"></i> ${dict.btnRemoveDuplicates}`;
-            const autoRecBtn = document.getElementById('dnAutoCleanAllRecommendedBtn');
-            if (autoRecBtn) autoRecBtn.innerHTML = `<i class="bi bi-magic me-1"></i> ${dict.btnAutoCleanRecommended}`;
             const dropColsBtn = document.getElementById('dnConfirmDropColumnsBtn');
             if (dropColsBtn) dropColsBtn.innerHTML = `<i class="bi bi-trash me-1"></i> ${dict.btnRemoveSelectedCols}`;
         }
@@ -4226,17 +4615,59 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function openSharedDashboardDetail(sharedId) {
+    const _sharedDashboardDetailCache = new Map();
+
+    function openSharedDashboardDetail(sharedId, forceReload = false) {
         if (!sharedDetailModalInstance && sharedDetailModalEl) {
             sharedDetailModalInstance = new bootstrap.Modal(sharedDetailModalEl);
         }
 
-        // Fetch shared details
+        const cacheKey = 'dn_shared_dash_' + sharedId;
+
+        // 1. Fast in-memory cache check
+        if (!forceReload && _sharedDashboardDetailCache.has(sharedId)) {
+            renderSharedDashboardDetailData(_sharedDashboardDetailCache.get(sharedId));
+            if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+            return;
+        }
+
+        // 2. Fast sessionStorage cache check
+        if (!forceReload) {
+            try {
+                const sessionCached = sessionStorage.getItem(cacheKey);
+                if (sessionCached) {
+                    const parsed = JSON.parse(sessionCached);
+                    if (parsed && parsed.success && parsed.dashboard) {
+                        _sharedDashboardDetailCache.set(sharedId, parsed.dashboard);
+                        renderSharedDashboardDetailData(parsed.dashboard);
+                        if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        if (sharedDetailModalInstance) sharedDetailModalInstance.show();
+
+        // Fetch shared details from API
         fetch(`/api/shared_dashboard/view/${sharedId}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.dashboard) {
-                    const sd = data.dashboard;
+                    _sharedDashboardDetailCache.set(sharedId, data.dashboard);
+                    try {
+                        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                    } catch (e) {}
+                    renderSharedDashboardDetailData(data.dashboard);
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching shared dashboard:', err);
+                showToast('Failed to load shared dashboard details.', 'danger');
+            });
+    }
+
+    function renderSharedDashboardDetailData(sd) {
 
                     const titleEl = document.getElementById('sharedDetailTitle');
                     const metaEl = document.getElementById('sharedDetailMeta');
@@ -4495,17 +4926,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         mgrSection.style.display = 'none';
                     }
 
-                    if (sharedDetailModalInstance) {
-                        sharedDetailModalInstance.show();
-                    }
-                } else {
-                    showToast(data.message || 'Could not load shared dashboard.', 'danger');
-                }
-            })
-            .catch(err => {
-                console.error('Error fetching dashboard details:', err);
-                showToast('Error loading shared dashboard details.', 'danger');
-            });
+        if (sharedDetailModalInstance) {
+            sharedDetailModalInstance.show();
+        }
     }
 
     const refreshSharedBtn = document.getElementById('refreshAnalystSharedBtn');
@@ -4790,9 +5213,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (execTimeBadgeEl) execTimeBadgeEl.textContent = `${duration}s`;
 
                 if (data.success) {
+                    const plotCount = data.plots ? data.plots.length : 0;
                     if (execStatusBannerEl) {
-                        execStatusBannerEl.className = 'alert alert-success py-2 px-3 small mb-2 d-flex align-items-center justify-content-between';
-                        execStatusBannerEl.innerHTML = `<span><i class="bi bi-check-circle-fill text-success me-1"></i> Execution Succeeded!</span><span class="badge bg-success-subtle text-success font-monospace">${duration}s</span>`;
+                        execStatusBannerEl.className = 'alert alert-success py-2 px-3 small mb-2';
+                        execStatusBannerEl.innerHTML = `
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 w-100">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-check-circle-fill text-success fs-6"></i>
+                                    <span class="fw-bold text-success">Execution Succeeded (${duration}s)</span>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-sm btn-outline-primary active" id="btnQuickPlots" onclick="const b=document.getElementById('tab-studio-plots-btn'); if(b) bootstrap.Tab.getOrCreateInstance(b).show();"><i class="bi bi-image me-1"></i>Visual Plots (${plotCount})</button>
+                                    <button type="button" class="btn btn-sm btn-outline-success" id="btnQuickTable" onclick="const b=document.getElementById('tab-studio-preview-btn'); if(b) bootstrap.Tab.getOrCreateInstance(b).show();"><i class="bi bi-table me-1"></i>Table View</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnQuickConsole" onclick="const b=document.getElementById('tab-studio-terminal-btn'); if(b) bootstrap.Tab.getOrCreateInstance(b).show();"><i class="bi bi-terminal me-1"></i>Console Log</button>
+                                </div>
+                            </div>
+                        `;
                     }
 
                     // Console Output
@@ -4802,26 +5238,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // Generated Plots
                     if (plotsContainerEl) {
-                        if (data.plots && data.plots.length > 0) {
+                        if (plotCount > 0) {
                             if (plotsBadgeEl) {
-                                plotsBadgeEl.textContent = data.plots.length;
+                                plotsBadgeEl.textContent = plotCount;
                                 plotsBadgeEl.style.display = 'inline-block';
                             }
                             plotsContainerEl.innerHTML = data.plots.map((p, i) => `
-                                <div class="border rounded p-2 bg-body-tertiary text-center">
-                                    <h6 class="small fw-semibold mb-2 text-primary">Figure ${i + 1}</h6>
-                                    <img src="${p}" class="img-fluid rounded border bg-white shadow-sm" alt="Plot ${i + 1}" style="max-height:300px; width:100%; object-fit:contain;">
+                                <div class="border rounded-3 p-3 bg-body shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="small fw-bold mb-0 text-primary"><i class="bi bi-graph-up me-1"></i> Figure ${i + 1}</h6>
+                                        <a href="${p}" download="figure_${i + 1}.png" class="btn btn-xs btn-outline-secondary py-0 px-2 small" style="font-size:0.75rem;"><i class="bi bi-download me-1"></i>Save PNG</a>
+                                    </div>
+                                    <img src="${p}" class="img-fluid rounded border bg-white shadow-sm w-100" alt="Plot ${i + 1}" style="max-height:360px; object-fit:contain;">
                                 </div>
                             `).join('');
+
+                            // Auto-switch to Visual Plots tab
+                            const plotsTabBtn = document.getElementById('tab-studio-plots-btn');
+                            if (plotsTabBtn) bootstrap.Tab.getOrCreateInstance(plotsTabBtn).show();
                         } else {
                             if (plotsBadgeEl) plotsBadgeEl.style.display = 'none';
                             plotsContainerEl.innerHTML = '<div class="text-center py-4 text-muted small"><i class="bi bi-image fs-2 d-block mb-1 opacity-50"></i> No figures generated by code execution.</div>';
+                            
+                            // If table preview is available, switch to table view
+                            if (data.preview_html) {
+                                const tableTabBtn = document.getElementById('tab-studio-preview-btn');
+                                if (tableTabBtn) bootstrap.Tab.getOrCreateInstance(tableTabBtn).show();
+                            }
                         }
                     }
 
-                    // DataFrame Preview
+                    // DataFrame Preview (Styled table)
                     if (previewContainerEl) {
                         previewContainerEl.innerHTML = data.preview_html || '<div class="p-3 text-muted">Preview not available.</div>';
+                        const renderedTable = previewContainerEl.querySelector('table');
+                        if (renderedTable) {
+                            renderedTable.className = 'table table-hover table-striped dn-table align-middle small mb-0 font-monospace';
+                        }
                     }
                     if (dfShapeBadgeEl) {
                         dfShapeBadgeEl.textContent = `${Number(data.row_count || 0).toLocaleString()} rows x ${data.column_count || 0} cols`;
@@ -4834,7 +5287,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             populateDatasetWorkspace(data.dataset_payload, 'Updated Dataset', false);
                         }
                     } else {
-                        showToast('Python code executed successfully!', 'success');
+                        showToast(`Python code executed successfully (${duration}s)!`, 'success');
                     }
                 } else {
                     if (execStatusBannerEl) {
@@ -4845,6 +5298,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (terminalOutputEl) {
                         terminalOutputEl.textContent = (data.stdout ? data.stdout + '\n\n' : '') + (data.error || 'Execution error.');
                     }
+                    // Switch to console to view traceback
+                    const consoleTabBtn = document.getElementById('tab-studio-terminal-btn');
+                    if (consoleTabBtn) bootstrap.Tab.getOrCreateInstance(consoleTabBtn).show();
+
                     showToast('Code execution failed. Check console output for error traceback.', 'danger');
                 }
             })
@@ -4925,6 +5382,1638 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    /* ---------------------------------------------------------------------
+       11. ML & PREDICTIVE INTELLIGENCE STUDIO CONTROLLER
+       ------------------------------------------------------------------- */
+    let currentMlModality = 'regression';
+    let currentMlOptions = null;
+    let currentMlResults = null;
+    let currentActiveChartType = 'scatter';
+    let selectedSavedModel = null;
+
+    const mlStudioModalEl = document.getElementById('dnMlStudioModal');
+    const mlNavButtons = document.querySelectorAll('#mlModalityNav [data-modality]');
+    const mlTargetColSelect = document.getElementById('mlTargetColSelect');
+    const mlTargetColGroup = document.getElementById('mlTargetColGroup');
+    const mlTargetColLabel = document.getElementById('mlTargetColLabel');
+    const mlDateColSelect = document.getElementById('mlDateColSelect');
+    const mlDateColGroup = document.getElementById('mlDateColGroup');
+    const mlParamGroup = document.getElementById('mlParamGroup');
+    const mlParamLabel = document.getElementById('mlParamLabel');
+    const mlParamInput = document.getElementById('mlParamInput');
+    const mlParamUnit = document.getElementById('mlParamUnit');
+    const mlFeaturePillsContainer = document.getElementById('mlFeaturePillsContainer');
+    const mlSelectedFeaturesCount = document.getElementById('mlSelectedFeaturesCount');
+    const btnRunMlStudio = document.getElementById('btnRunMlStudio');
+    const btnResetMlDefaults = document.getElementById('btnResetMlDefaults');
+    const btnSmartSelectFeatures = document.getElementById('btnSmartSelectFeatures');
+    const mlExecutionSpinner = document.getElementById('mlExecutionSpinner');
+    const mlResultsContainer = document.getElementById('mlResultsContainer');
+    const mlStudioDatasetBadge = document.getElementById('mlStudioDatasetBadge');
+    const mlStudioModelBadge = document.getElementById('mlStudioModelBadge');
+    const mlSearchPredictionsInput = document.getElementById('mlSearchPredictionsInput');
+    const btnExportPredictionsCsv = document.getElementById('btnExportPredictionsCsv');
+    const btnSaveCurrentModel = document.getElementById('btnSaveCurrentModel');
+    const btnOpenSavedModelsModal = document.getElementById('btnOpenSavedModelsModal');
+    const savedModelsCountBadge = document.getElementById('savedModelsCountBadge');
+
+    function getSelectedMlFeatures() {
+        if (!mlFeaturePillsContainer) return [];
+        const checked = mlFeaturePillsContainer.querySelectorAll('input[type="checkbox"]:checked');
+        return Array.from(checked).map(cb => cb.value);
+    }
+
+    function updateSelectedFeaturesCount() {
+        if (!mlSelectedFeaturesCount) return;
+        const count = getSelectedMlFeatures().length;
+        mlSelectedFeaturesCount.textContent = `${count} features selected`;
+    }
+
+    function syncMlModalControls(modality) {
+        currentMlModality = modality;
+
+        mlNavButtons.forEach(btn => {
+            if (btn.getAttribute('data-modality') === modality) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        const formulaCard = document.getElementById('mlFormulaCard');
+        const humanExpSection = document.getElementById('mlHumanExplanationsSection');
+        const chartTabButtons = document.getElementById('mlChartTabButtons');
+
+        if (modality === 'regression') {
+            if (mlTargetColGroup) mlTargetColGroup.classList.remove('d-none');
+            if (mlTargetColLabel) mlTargetColLabel.textContent = 'Target Column (y - Numeric Continuous)';
+            if (mlDateColGroup) mlDateColGroup.classList.add('d-none');
+            if (mlParamGroup) mlParamGroup.classList.add('d-none');
+            if (mlStudioModelBadge) mlStudioModelBadge.textContent = 'Linear Regression (OLS)';
+            if (formulaCard) formulaCard.classList.remove('d-none');
+            if (humanExpSection) humanExpSection.classList.remove('d-none');
+            if (chartTabButtons) chartTabButtons.classList.remove('d-none');
+        } else {
+            if (formulaCard) formulaCard.classList.add('d-none');
+            if (humanExpSection) humanExpSection.classList.add('d-none');
+            if (chartTabButtons) chartTabButtons.classList.add('d-none');
+
+            if (modality === 'classification') {
+                if (mlTargetColGroup) mlTargetColGroup.classList.remove('d-none');
+                if (mlTargetColLabel) mlTargetColLabel.textContent = 'Target Column (y - Categorical / Binary Class)';
+                if (mlDateColGroup) mlDateColGroup.classList.add('d-none');
+                if (mlParamGroup) mlParamGroup.classList.add('d-none');
+                if (mlStudioModelBadge) mlStudioModelBadge.textContent = 'Random Forest Classifier';
+            } else if (modality === 'clustering') {
+                if (mlTargetColGroup) mlTargetColGroup.classList.add('d-none');
+                if (mlDateColGroup) mlDateColGroup.classList.add('d-none');
+                if (mlParamGroup) mlParamGroup.classList.remove('d-none');
+                if (mlParamLabel) mlParamLabel.textContent = 'Number of Clusters (K)';
+                if (mlParamInput) { mlParamInput.value = 3; mlParamInput.min = 2; mlParamInput.max = 8; }
+                if (mlParamUnit) mlParamUnit.textContent = 'Clusters';
+                if (mlStudioModelBadge) mlStudioModelBadge.textContent = 'K-Means Spatial Clustering';
+            } else if (modality === 'forecasting') {
+                if (mlTargetColGroup) mlTargetColGroup.classList.remove('d-none');
+                if (mlTargetColLabel) mlTargetColLabel.textContent = 'Forecast Metric (Numeric Value)';
+                if (mlDateColGroup) mlDateColGroup.classList.remove('d-none');
+                if (mlParamGroup) mlParamGroup.classList.remove('d-none');
+                if (mlParamLabel) mlParamLabel.textContent = 'Forecast Horizon';
+                if (mlParamInput) { mlParamInput.value = 14; mlParamInput.min = 3; mlParamInput.max = 90; }
+                if (mlParamUnit) mlParamUnit.textContent = 'Periods';
+                if (mlStudioModelBadge) mlStudioModelBadge.textContent = 'Time-Series Trend & Seasonality';
+            } else if (modality === 'anomaly') {
+                if (mlTargetColGroup) mlTargetColGroup.classList.add('d-none');
+                if (mlDateColGroup) mlDateColGroup.classList.add('d-none');
+                if (mlParamGroup) mlParamGroup.classList.remove('d-none');
+                if (mlParamLabel) mlParamLabel.textContent = 'Contamination Rate (%)';
+                if (mlParamInput) { mlParamInput.value = 5; mlParamInput.min = 1; mlParamInput.max = 20; }
+                if (mlParamUnit) mlParamUnit.textContent = '% Outliers';
+                if (mlStudioModelBadge) mlStudioModelBadge.textContent = 'Isolation Forest Outlier Detection';
+            }
+        }
+
+        if (currentMlOptions) {
+            populateMlColumnOptions(currentMlOptions, modality);
+        }
+    }
+
+    function populateMlColumnOptions(rawRes, modality) {
+        if (!rawRes) return;
+        const data = (rawRes.data && (rawRes.data.numeric_cols || rawRes.data.recommendations)) ? rawRes.data : rawRes;
+        currentMlOptions = data;
+        const recs = (data.recommendations && data.recommendations[modality]) ? data.recommendations[modality] : {};
+        const correlations = data.correlations || {};
+        const compatibility = data.compatibility || {};
+        let numericCols = data.numeric_cols || [];
+        let catCols = data.cat_cols || [];
+        let dateCols = data.date_cols || [];
+
+        if (numericCols.length === 0 && typeof fullColumnInfo !== 'undefined' && fullColumnInfo && fullColumnInfo.length > 0) {
+            numericCols = fullColumnInfo.filter(c => c.type === 'Integer' || c.type === 'Float' || c.semantic_type === 'numeric' || c.semantic_type === 'measure').map(c => c.name);
+            if (numericCols.length === 0) numericCols = fullColumnInfo.map(c => c.name);
+        }
+        if (catCols.length === 0 && typeof fullColumnInfo !== 'undefined' && fullColumnInfo && fullColumnInfo.length > 0) {
+            catCols = fullColumnInfo.filter(c => c.type === 'Text' || c.semantic_type === 'categorical' || c.semantic_type === 'category').map(c => c.name);
+            if (catCols.length === 0) catCols = fullColumnInfo.map(c => c.name);
+        }
+
+        // 0. Update Modality Nav Badges based on Dataset Compatibility
+        mlNavButtons.forEach(btn => {
+            const mKey = btn.getAttribute('data-modality');
+            const mComp = compatibility[mKey] || { is_trainable: true };
+            const existingBadge = btn.querySelector('.badge-incompat');
+            if (mComp.is_trainable === false) {
+                if (!existingBadge) {
+                    const b = document.createElement('span');
+                    b.className = 'badge bg-danger-subtle text-danger border ms-1 badge-incompat';
+                    b.style.fontSize = '0.62rem';
+                    b.textContent = 'Not Applicable';
+                    btn.appendChild(b);
+                }
+            } else {
+                if (existingBadge) existingBadge.remove();
+            }
+        });
+
+        // Check active modality compatibility
+        const currentComp = compatibility[modality] || { is_trainable: true };
+        const warningBox = document.getElementById('mlIncompatibleWarningBox');
+        const warningReason = document.getElementById('mlIncompatibleReason');
+        const warningTitle = document.getElementById('mlIncompatibleTitle');
+
+        if (currentComp.is_trainable === false) {
+            if (warningBox) warningBox.classList.remove('d-none');
+            if (warningTitle) warningTitle.textContent = `Model Not Trainable for Active Dataset (${modality.toUpperCase()})`;
+            if (warningReason) warningReason.textContent = currentComp.reason || `Selected dataset lacks required column structures for ${modality}. Model execution is disabled.`;
+
+            if (btnRunMlStudio) {
+                btnRunMlStudio.disabled = true;
+                btnRunMlStudio.className = 'btn btn-sm btn-secondary flex-grow-1 fw-semibold d-flex align-items-center justify-content-center gap-2';
+                btnRunMlStudio.innerHTML = '<i class="bi bi-slash-circle me-1"></i> <span>Model Not Applicable (Training Disabled)</span>';
+            }
+        } else {
+            if (warningBox) warningBox.classList.add('d-none');
+            if (btnRunMlStudio) {
+                btnRunMlStudio.disabled = false;
+                btnRunMlStudio.className = 'btn btn-sm btn-primary flex-grow-1 fw-semibold d-flex align-items-center justify-content-center gap-2';
+                btnRunMlStudio.innerHTML = '<i class="bi bi-play-fill fs-6"></i> <span>Run Model &amp; Predict</span>';
+            }
+        }
+
+        // 1. Populate Target Column Select
+        if (mlTargetColSelect) {
+            const currentSelectedTarget = mlTargetColSelect.value;
+            mlTargetColSelect.innerHTML = '';
+            let candidateList = (modality === 'classification') ? (catCols.length ? catCols : numericCols) : numericCols;
+            if (candidateList.length === 0 && typeof fullColumnInfo !== 'undefined' && fullColumnInfo) {
+                candidateList = fullColumnInfo.map(c => c.name);
+            }
+            candidateList.forEach(col => {
+                const opt = document.createElement('option');
+                opt.value = col;
+                opt.textContent = col;
+                if (currentSelectedTarget && currentSelectedTarget === col) {
+                    opt.selected = true;
+                } else if (!currentSelectedTarget && (recs.target === col || (modality === 'forecasting' && recs.value_col === col))) {
+                    opt.selected = true;
+                }
+                mlTargetColSelect.appendChild(opt);
+            });
+            if (mlTargetColSelect.options.length > 0 && !mlTargetColSelect.value) {
+                mlTargetColSelect.selectedIndex = 0;
+            }
+        }
+
+        // 2. Populate Date Column Select (Forecasting)
+        if (mlDateColSelect) {
+            mlDateColSelect.innerHTML = '<option value="">Automatic chronological sequence</option>';
+            dateCols.forEach(col => {
+                const opt = document.createElement('option');
+                opt.value = col;
+                opt.textContent = col;
+                if (recs.date_col === col) opt.selected = true;
+                mlDateColSelect.appendChild(opt);
+            });
+        }
+
+        // 3. Populate Feature Checkbox Pills with Correlation Ratings
+        if (mlFeaturePillsContainer) {
+            mlFeaturePillsContainer.innerHTML = '';
+            const recFeatures = recs.features || [];
+            const displayFeatures = numericCols.length > 0 ? numericCols : (typeof fullColumnInfo !== 'undefined' && fullColumnInfo ? fullColumnInfo.map(c => c.name) : []);
+            
+            displayFeatures.forEach(col => {
+                const isChecked = recFeatures.length > 0 ? recFeatures.includes(col) : true;
+                const corrInfo = correlations[col] || {};
+                const badgeClass = corrInfo.badge || 'secondary';
+                const corrText = corrInfo.corr !== undefined ? ` (r=${corrInfo.corr >= 0 ? '+' : ''}${corrInfo.corr})` : '';
+
+                const pillLabel = document.createElement('label');
+                pillLabel.className = `btn btn-sm btn-outline-${badgeClass === 'secondary' ? 'secondary' : badgeClass} py-0.5 px-2 small d-inline-flex align-items-center gap-1.5 rounded-pill mb-0 text-body`;
+                pillLabel.style.fontSize = '0.78rem';
+                pillLabel.innerHTML = `
+                    <input type="checkbox" class="form-check-input mt-0" value="${col}" ${isChecked ? 'checked' : ''} style="cursor:pointer;" data-badge="${badgeClass}">
+                    <span class="fw-semibold">${col}</span>
+                    ${corrText ? `<span class="badge bg-${badgeClass}-subtle text-${badgeClass} border font-monospace" style="font-size:0.7rem;">${corrText}</span>` : ''}
+                `;
+                pillLabel.querySelector('input').addEventListener('change', () => {
+                    updateSelectedFeaturesCount();
+                });
+                mlFeaturePillsContainer.appendChild(pillLabel);
+            });
+            updateSelectedFeaturesCount();
+        }
+    }
+
+    function fetchMlOptionsAndRun(modality, autoRun = true) {
+        const dsId = activeDatasetId || (document.getElementById('datasetSelect') ? document.getElementById('datasetSelect').value : null);
+        if (!dsId) {
+            showToast('Please select or upload a dataset first.', 'warning');
+            return;
+        }
+
+        if (mlStudioDatasetBadge) {
+            const selectEl = document.getElementById('datasetSelect');
+            const activeOption = selectEl ? selectEl.options[selectEl.selectedIndex] : null;
+            mlStudioDatasetBadge.innerHTML = `<i class="bi bi-database me-1"></i> ${activeOption ? activeOption.text.trim() : 'Dataset #' + dsId}`;
+        }
+
+        updateSavedModelsBadge(dsId);
+
+        fetch(`/api/ml/options?dataset_id=${encodeURIComponent(dsId)}`)
+            .then(res => res.json())
+            .then(resData => {
+                if (resData.success) {
+                    populateMlColumnOptions(resData, modality);
+                    const isTrainable = resData.compatibility ? (resData.compatibility[modality]?.is_trainable !== false) : true;
+                    if (autoRun && isTrainable) {
+                        executeMlModel();
+                    }
+                } else {
+                    showToast(resData.message || 'Could not load dataset columns for ML.', 'danger');
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching ML options:', err);
+                showToast('Failed to load ML column options.', 'danger');
+            });
+    }
+
+    function executeMlModel() {
+        const dsId = activeDatasetId || (document.getElementById('datasetSelect') ? document.getElementById('datasetSelect').value : null);
+        if (!dsId) {
+            showToast('No active dataset selected for prediction.', 'warning');
+            return;
+        }
+
+        const currentComp = (currentMlOptions && currentMlOptions.compatibility && currentMlOptions.compatibility[currentMlModality]) ? currentMlOptions.compatibility[currentMlModality] : { is_trainable: true };
+        if (currentComp.is_trainable === false) {
+            showToast(currentComp.reason || 'This dataset is not compatible with the selected model. Training is blocked.', 'danger');
+            return;
+        }
+
+        const targetCol = mlTargetColSelect ? mlTargetColSelect.value : null;
+        const dateCol = mlDateColSelect ? mlDateColSelect.value : null;
+        const features = getSelectedMlFeatures();
+        let paramVal = mlParamInput ? parseFloat(mlParamInput.value) : null;
+
+        const payload = {
+            dataset_id: dsId,
+            modality: currentMlModality,
+            target_col: targetCol,
+            date_col: dateCol,
+            feature_cols: features
+        };
+
+        if (currentMlModality === 'clustering') payload.n_clusters = parseInt(paramVal) || 3;
+        if (currentMlModality === 'forecasting') {
+            payload.horizon = parseInt(paramVal) || 14;
+            payload.value_col = targetCol;
+        }
+        if (currentMlModality === 'anomaly') payload.contamination = ((parseFloat(paramVal) || 5) / 100.0);
+
+        if (mlExecutionSpinner) mlExecutionSpinner.classList.remove('d-none');
+        if (mlResultsContainer) mlResultsContainer.classList.add('opacity-50');
+        if (btnRunMlStudio) {
+            btnRunMlStudio.disabled = true;
+            btnRunMlStudio.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> <span>Training Model...</span>';
+        }
+
+        fetch('/api/ml/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.json())
+            .then(result => {
+                if (mlExecutionSpinner) mlExecutionSpinner.classList.add('d-none');
+                if (mlResultsContainer) mlResultsContainer.classList.remove('opacity-50');
+                if (btnRunMlStudio) {
+                    btnRunMlStudio.disabled = false;
+                    btnRunMlStudio.innerHTML = '<i class="bi bi-play-fill fs-6"></i> <span>Run Model &amp; Predict</span>';
+                }
+
+                if (result.success) {
+                    currentMlResults = result;
+                    renderMlResults(result);
+                    showToast(`Successfully trained ${result.model_name || 'model'} and generated predictions!`, 'success');
+                } else {
+                    showToast(result.message || 'Model execution encountered an error.', 'danger');
+                }
+            })
+            .catch(err => {
+                console.error('Error running ML model:', err);
+                if (mlExecutionSpinner) mlExecutionSpinner.classList.add('d-none');
+                if (mlResultsContainer) mlResultsContainer.classList.remove('opacity-50');
+                if (btnRunMlStudio) {
+                    btnRunMlStudio.disabled = false;
+                    btnRunMlStudio.innerHTML = '<i class="bi bi-play-fill fs-6"></i> <span>Run Model &amp; Predict</span>';
+                }
+                showToast('Server error while executing ML model.', 'danger');
+            });
+    }
+
+    function renderMlResults(result) {
+        const modality = result.model_type || currentMlModality;
+        const metrics = result.metrics || {};
+
+        // 1. Update Equation & Formula Card (Regression)
+        const formulaCard = document.getElementById('mlFormulaCard');
+        const interceptBadge = document.getElementById('mlInterceptBadge');
+        const formulaText = document.getElementById('mlFormulaText');
+
+        if (modality === 'regression') {
+            if (formulaCard) formulaCard.classList.remove('d-none');
+            if (interceptBadge) interceptBadge.textContent = `Intercept (β0): ${result.intercept !== undefined ? result.intercept : '--'}`;
+            if (formulaText) formulaText.textContent = result.formula || 'Target = β0 + (β1 × Feature1)...';
+        } else {
+            if (formulaCard) formulaCard.classList.add('d-none');
+        }
+
+        // 2. Update Top KPI Cards
+        const k1Label = document.getElementById('mlKpi1Label');
+        const k1Val = document.getElementById('mlKpi1Value');
+        const k1Sub = document.getElementById('mlKpi1Sub');
+
+        const k2Label = document.getElementById('mlKpi2Label');
+        const k2Val = document.getElementById('mlKpi2Value');
+        const k2Sub = document.getElementById('mlKpi2Sub');
+
+        const k3Label = document.getElementById('mlKpi3Label');
+        const k3Val = document.getElementById('mlKpi3Value');
+        const k3Sub = document.getElementById('mlKpi3Sub');
+
+        const k4Label = document.getElementById('mlKpi4Label');
+        const k4Val = document.getElementById('mlKpi4Value');
+        const k4Sub = document.getElementById('mlKpi4Sub');
+
+        if (modality === 'regression') {
+            if (k1Label) k1Label.textContent = 'R² Determination';
+            if (k1Val) k1Val.textContent = (metrics.r2_score !== undefined) ? metrics.r2_score : '--';
+            if (k1Sub) k1Sub.textContent = 'Model Goodness of Fit';
+
+            if (k2Label) k2Label.textContent = 'MAE Error';
+            if (k2Val) k2Val.textContent = (metrics.mae !== undefined) ? metrics.mae : '--';
+            if (k2Sub) k2Sub.textContent = 'Mean Absolute Error';
+
+            if (k3Label) k3Label.textContent = 'RMSE Error';
+            if (k3Val) k3Val.textContent = (metrics.rmse !== undefined) ? metrics.rmse : '--';
+            if (k3Sub) k3Sub.textContent = 'Root Mean Squared Error';
+
+            if (k4Label) k4Label.textContent = 'Sample Size';
+            if (k4Val) k4Val.textContent = (metrics.test_samples !== undefined) ? metrics.test_samples : '--';
+            if (k4Sub) k4Sub.textContent = 'Evaluated Test Rows';
+        } else if (modality === 'classification') {
+            if (k1Label) k1Label.textContent = 'Model Accuracy';
+            if (k1Val) k1Val.textContent = (metrics.accuracy !== undefined) ? `${metrics.accuracy}%` : '--';
+            if (k1Sub) k1Sub.textContent = 'Correct Class Predictions';
+
+            if (k2Label) k2Label.textContent = 'F1-Score';
+            if (k2Val) k2Val.textContent = (metrics.f1_score !== undefined) ? `${metrics.f1_score}%` : '--';
+            if (k2Sub) k2Sub.textContent = 'Harmonic Precision-Recall';
+
+            if (k3Label) k3Label.textContent = 'Precision';
+            if (k3Val) k3Val.textContent = (metrics.precision !== undefined) ? `${metrics.precision}%` : '--';
+            if (k3Sub) k3Sub.textContent = 'Positive Predictive Value';
+
+            if (k4Label) k4Label.textContent = 'Dataset Records';
+            if (k4Val) k4Val.textContent = (metrics.total_records !== undefined) ? metrics.total_records : '--';
+            if (k4Sub) k4Sub.textContent = 'Total labeled training records';
+        } else if (modality === 'clustering') {
+            if (k1Label) k1Label.textContent = 'Silhouette Score';
+            if (k1Val) k1Val.textContent = (metrics.silhouette_score !== undefined) ? metrics.silhouette_score : '--';
+            if (k1Sub) k1Sub.textContent = 'Cluster Separation Quality';
+
+            if (k2Label) k2Label.textContent = 'Clusters Formed';
+            if (k2Val) k2Val.textContent = (metrics.n_clusters !== undefined) ? metrics.n_clusters : '--';
+            if (k2Sub) k2Sub.textContent = 'Distinct Customer Cohorts';
+
+            if (k3Label) k3Label.textContent = 'Inertia (WCSS)';
+            if (k3Val) k3Val.textContent = (metrics.inertia !== undefined) ? metrics.inertia : '--';
+            if (k3Sub) k3Sub.textContent = 'Within-Cluster Sum of Squares';
+
+            if (k4Label) k4Label.textContent = 'Clustered Records';
+            if (k4Val) k4Val.textContent = (metrics.total_records !== undefined) ? metrics.total_records : '--';
+            if (k4Sub) k4Sub.textContent = 'Segmented dataset entities';
+        } else if (modality === 'forecasting') {
+            if (k1Label) k1Label.textContent = 'Projected Avg';
+            if (k1Val) k1Val.textContent = (metrics.avg_projected_value !== undefined) ? metrics.avg_projected_value : '--';
+            if (k1Sub) k1Sub.textContent = 'Mean future forecast value';
+
+            if (k2Label) k2Label.textContent = 'Growth Trend';
+            if (k2Val) k2Val.textContent = (metrics.growth_trend_pct !== undefined) ? `${metrics.growth_trend_pct > 0 ? '+' : ''}${metrics.growth_trend_pct}%` : '--';
+            if (k2Sub) k2Sub.textContent = 'Projected delta vs baseline';
+
+            if (k3Label) k3Label.textContent = 'Horizon Periods';
+            if (k3Val) k3Val.textContent = (metrics.forecast_periods !== undefined) ? metrics.forecast_periods : '--';
+            if (k3Sub) k3Sub.textContent = 'Future steps projected';
+
+            if (k4Label) k4Label.textContent = 'Historical Base';
+            if (k4Val) k4Val.textContent = (metrics.historical_periods !== undefined) ? metrics.historical_periods : '--';
+            if (k4Sub) k4Sub.textContent = 'Chronological historical points';
+        } else if (modality === 'anomaly') {
+            if (k1Label) k1Label.textContent = 'Anomalies Detected';
+            if (k1Val) k1Val.textContent = (metrics.anomalies_detected !== undefined) ? metrics.anomalies_detected : '--';
+            if (k1Sub) k1Sub.textContent = 'High-risk multivariate outliers';
+
+            if (k2Label) k2Label.textContent = 'Anomaly Rate';
+            if (k2Val) k2Val.textContent = (metrics.anomaly_rate_pct !== undefined) ? `${metrics.anomaly_rate_pct}%` : '--';
+            if (k2Sub) k2Sub.textContent = 'Outlier percentage of dataset';
+
+            if (k3Label) k3Label.textContent = 'Contamination';
+            if (k3Val) k3Val.textContent = (metrics.contamination_parameter !== undefined) ? metrics.contamination_parameter : '--';
+            if (k3Sub) k3Sub.textContent = 'Configured sensitivity';
+
+            if (k4Label) k4Label.textContent = 'Total Analyzed';
+            if (k4Val) k4Val.textContent = (metrics.total_records_analyzed !== undefined) ? metrics.total_records_analyzed : '--';
+            if (k4Sub) k4Sub.textContent = 'Records scanned by Isolation Forest';
+        }
+
+        // 3. Render Multi-Chart Plotly Visualizations (Scatter, Residuals, Coefficients)
+        renderMlPlotlyCharts(result);
+
+        // 4. Render Plain-Language Human Explanations Box
+        renderHumanExplanations(result);
+
+        // 5. Render Feature Importances / Driver Ranking
+        renderFeatureImportances(result);
+
+        // 6. Render Predictions Table ("What was Predicted")
+        renderPredictionsTable(result);
+
+        // 7. Render Inline Predictions directly in Step 7 on Dashboard
+        renderStep7InlinePredictions(result);
+    }
+
+    function renderStep7InlinePredictions(result) {
+        const emptyState = document.getElementById('step7PredictionsEmptyState');
+        const activeContent = document.getElementById('step7PredictionsActiveContent');
+
+        if (!result || !result.success) {
+            if (emptyState) emptyState.classList.remove('d-none');
+            if (activeContent) activeContent.classList.add('d-none');
+            return;
+        }
+
+        if (emptyState) emptyState.classList.add('d-none');
+        if (activeContent) activeContent.classList.remove('d-none');
+
+        const modelBadge = document.getElementById('step7ModelBadge');
+        const targetName = document.getElementById('step7TargetName');
+        const r2Val = document.getElementById('step7R2Value');
+        const r2Sub = document.getElementById('step7R2Sub');
+        const maeVal = document.getElementById('step7MaeValue');
+        const maeSub = document.getElementById('step7MaeSub');
+        const formulaText = document.getElementById('step7FormulaText');
+        const interceptText = document.getElementById('step7InterceptText');
+        const countBadge = document.getElementById('step7PredCountBadge');
+
+        const modality = result.model_type || 'regression';
+        const metrics = result.metrics || {};
+
+        if (modelBadge) modelBadge.innerHTML = `<i class="bi bi-cpu-fill me-1"></i> ${result.model_name || 'Linear Regression (OLS)'}`;
+        if (targetName) targetName.textContent = result.target_column || 'Target';
+
+        if (modality === 'regression') {
+            if (r2Val) r2Val.textContent = (metrics.r2_score !== undefined) ? metrics.r2_score : '--';
+            if (r2Sub) r2Sub.textContent = 'Model Goodness of Fit';
+            if (maeVal) maeVal.textContent = (metrics.mae !== undefined) ? metrics.mae : '--';
+            if (maeSub) maeSub.textContent = 'Mean Absolute Error';
+            if (formulaText) formulaText.textContent = result.formula || 'Target = β0 + (β1 × Feature)...';
+            if (interceptText) interceptText.textContent = `Intercept (β0): ${result.intercept !== undefined ? result.intercept : '--'}`;
+        } else {
+            if (r2Val) r2Val.textContent = (metrics.accuracy !== undefined) ? `${metrics.accuracy}%` : '--';
+            if (r2Sub) r2Sub.textContent = 'Classification Accuracy';
+            if (maeVal) maeVal.textContent = (metrics.f1_score !== undefined) ? `${metrics.f1_score}%` : '--';
+            if (maeSub) maeSub.textContent = 'F1-Score Performance';
+            if (formulaText) formulaText.textContent = `Modality: ${modality.toUpperCase()}`;
+            if (interceptText) interceptText.textContent = `Evaluated on dataset`;
+        }
+
+        // Predictions Table
+        const thead = document.getElementById('step7PredThead');
+        const tbody = document.getElementById('step7PredTbody');
+        const samplePreds = result.sample_predictions || [];
+
+        if (countBadge) countBadge.textContent = `${samplePreds.length} Predictions`;
+
+        if (thead && tbody) {
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            if (samplePreds.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No prediction rows generated.</td></tr>';
+            } else if (modality === 'regression') {
+                thead.innerHTML = `
+                    <tr>
+                        <th style="width: 70px;"># Record</th>
+                        <th>Actual Value (y)</th>
+                        <th>Predicted Value (&hat;y)</th>
+                        <th>Difference (&Delta;)</th>
+                        <th class="text-end">Status</th>
+                    </tr>
+                `;
+                samplePreds.forEach(p => {
+                    const tr = document.createElement('tr');
+                    const actVal = (p.actual_value !== undefined) ? p.actual_value : ((p.actual !== undefined) ? p.actual : '--');
+                    const predVal = (p.predicted_value !== undefined) ? p.predicted_value : ((p.predicted !== undefined) ? p.predicted : '--');
+                    const resErr = (p.residual_error !== undefined) ? p.residual_error : ((p.error !== undefined) ? p.error : 0);
+                    const varPctStr = (p.variance_pct !== undefined) ? String(p.variance_pct) : ((p.pct_error !== undefined) ? `${p.pct_error}%` : '0%');
+                    const errPct = parseFloat(varPctStr) || 0;
+                    const badgeClass = errPct <= 10 ? 'bg-success-subtle text-success border-success-subtle' : (errPct <= 25 ? 'bg-warning-subtle text-warning border-warning-subtle' : 'bg-danger-subtle text-danger border-danger-subtle');
+
+                    tr.innerHTML = `
+                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
+                        <td class="fw-semibold">${actVal}</td>
+                        <td class="fw-bold text-primary fs-6">${predVal}</td>
+                        <td class="text-secondary font-monospace">${resErr > 0 ? '+' : ''}${resErr}</td>
+                        <td class="text-end"><span class="badge ${badgeClass} border">${varPctStr.includes('%') ? varPctStr : varPctStr + '%'}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                thead.innerHTML = `
+                    <tr>
+                        <th style="width: 70px;"># Record</th>
+                        <th>Actual Class</th>
+                        <th>Predicted Class</th>
+                        <th>Confidence</th>
+                        <th class="text-end">Match</th>
+                    </tr>
+                `;
+                samplePreds.forEach(p => {
+                    const tr = document.createElement('tr');
+                    const isMatch = (p.actual_class === p.predicted_class);
+                    tr.innerHTML = `
+                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
+                        <td class="fw-semibold">${p.actual_class || p.actual || '--'}</td>
+                        <td class="fw-bold text-primary">${p.predicted_class || p.predicted || '--'}</td>
+                        <td><span class="badge bg-info-subtle text-info border">${p.confidence_pct || 85}%</span></td>
+                        <td class="text-end">${isMatch ? '<span class="badge bg-success-subtle text-success border">Match</span>' : '<span class="badge bg-danger-subtle text-danger border">Mismatch</span>'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // Instant Single-Record Predictor Input Fields
+        const instantInputsRow = document.getElementById('step7InstantInputsRow');
+        const instantResultBox = document.getElementById('step7InstantPredictionResult');
+        const btnCalculate = document.getElementById('btnStep7CalculatePrediction');
+
+        if (instantResultBox) instantResultBox.classList.add('d-none');
+
+        if (instantInputsRow) {
+            instantInputsRow.innerHTML = '';
+            const coefs = result.coefficients || {};
+            const feats = result.feature_columns || Object.keys(coefs);
+
+            if (feats.length === 0) {
+                instantInputsRow.innerHTML = '<div class="col-12 text-muted small">No input feature parameters required for this model.</div>';
+            } else {
+                feats.forEach(feat => {
+                    const coef = (coefs[feat] !== undefined) ? coefs[feat] : 0;
+                    const col = document.createElement('div');
+                    col.className = 'col-6 col-md-3';
+                    col.innerHTML = `
+                        <label class="form-label extra-small text-secondary mb-1 font-monospace fw-semibold text-truncate w-100" title="${feat}">
+                            ${feat} ${coef !== 0 ? `<span class="badge bg-light text-secondary border font-monospace ms-1" style="font-size:0.65rem;">β: ${coef >= 0 ? '+' : ''}${coef}</span>` : ''}
+                        </label>
+                        <input type="number" step="any" class="form-control form-control-sm step7-instant-input" data-feature="${feat}" placeholder="Enter ${feat}">
+                    `;
+                    instantInputsRow.appendChild(col);
+                });
+            }
+        }
+
+        if (btnCalculate) {
+            btnCalculate.onclick = function () {
+                if (!result || !result.coefficients || result.intercept === undefined) {
+                    if (instantResultBox) {
+                        instantResultBox.classList.remove('d-none');
+                        instantResultBox.className = 'mt-2 p-2 rounded-2 bg-info-subtle text-info border border-info-subtle fw-bold text-center';
+                        instantResultBox.innerHTML = `Model evaluation complete. Model: ${result.model_name || 'Active ML Model'}.`;
+                    }
+                    return;
+                }
+
+                const intercept = parseFloat(result.intercept) || 0;
+                let predictedVal = intercept;
+                const coefs = result.coefficients || {};
+                const inputElems = document.querySelectorAll('.step7-instant-input');
+                let inputSummary = [];
+
+                inputElems.forEach(inp => {
+                    const featName = inp.getAttribute('data-feature');
+                    const val = parseFloat(inp.value) || 0;
+                    const coef = parseFloat(coefs[featName]) || 0;
+                    predictedVal += (val * coef);
+                    inputSummary.push(`${featName}=${val}`);
+                });
+
+                const formattedVal = Number.isInteger(predictedVal) ? predictedVal : predictedVal.toFixed(4);
+
+                if (instantResultBox) {
+                    instantResultBox.classList.remove('d-none');
+                    instantResultBox.className = 'mt-2 p-2.5 rounded-2 bg-success-subtle text-success border border-success-subtle text-center shadow-sm';
+                    instantResultBox.innerHTML = `
+                        <div class="small fw-semibold text-secondary mb-1">Instant Single-Record Prediction Result (&hat;y)</div>
+                        <div class="fs-4 fw-bold text-success mb-1">${result.target_column || 'Target'}: <span class="badge bg-success text-white fs-4 font-monospace px-3 py-1 me-1">${formattedVal}</span></div>
+                        <div class="extra-small text-muted">Calculated via equation: &hat;y = ${intercept} + &sum; (&beta;<sub>i</sub> &times; X<sub>i</sub>) using inputs [${inputSummary.join(', ')}]</div>
+                    `;
+                }
+            };
+        }
+    }
+
+    function renderMlPlotlyCharts(result) {
+        const chartContainer = document.getElementById('mlPlotlyContainer');
+        const btnTabScatter = document.getElementById('btnTabScatter');
+        const btnTabResidual = document.getElementById('btnTabResidual');
+        const btnTabCoef = document.getElementById('btnTabCoef');
+
+        if (!chartContainer || !window.Plotly) return;
+
+        function plotChart(chartPayload) {
+            if (!chartPayload || !chartPayload.data) return;
+            try {
+                window.Plotly.newPlot(chartContainer, chartPayload.data, chartPayload.layout, { responsive: true, displayModeBar: true });
+            } catch (e) {
+                console.error('Plotly ML render error:', e);
+            }
+        }
+
+        // Default: Scatter Plot
+        currentActiveChartType = 'scatter';
+        if (btnTabScatter) btnTabScatter.classList.add('active');
+        if (btnTabResidual) btnTabResidual.classList.remove('active');
+        if (btnTabCoef) btnTabCoef.classList.remove('active');
+        plotChart(result.plotly_chart);
+
+        // Tab click handlers
+        if (btnTabScatter) {
+            btnTabScatter.onclick = () => {
+                btnTabScatter.classList.add('active');
+                if (btnTabResidual) btnTabResidual.classList.remove('active');
+                if (btnTabCoef) btnTabCoef.classList.remove('active');
+                plotChart(result.plotly_chart);
+            };
+        }
+        if (btnTabResidual) {
+            btnTabResidual.onclick = () => {
+                btnTabResidual.classList.add('active');
+                if (btnTabScatter) btnTabScatter.classList.remove('active');
+                if (btnTabCoef) btnTabCoef.classList.remove('active');
+                plotChart(result.residual_chart || result.plotly_chart);
+            };
+        }
+        if (btnTabCoef) {
+            btnTabCoef.onclick = () => {
+                btnTabCoef.classList.add('active');
+                if (btnTabScatter) btnTabScatter.classList.remove('active');
+                if (btnTabResidual) btnTabResidual.classList.remove('active');
+                plotChart(result.coef_chart || result.plotly_chart);
+            };
+        }
+    }
+
+    function renderHumanExplanations(result) {
+        const humanExpSection = document.getElementById('mlHumanExplanationsSection');
+        const expR2Text = document.getElementById('expR2Text');
+        const expErrorText = document.getElementById('expErrorText');
+        const expGraphGuideList = document.getElementById('expGraphGuideList');
+        const expSlopesContainer = document.getElementById('expSlopesContainer');
+
+        if (!result.human_explanations || (result.model_type && result.model_type !== 'regression')) {
+            if (humanExpSection) humanExpSection.classList.add('d-none');
+            return;
+        }
+
+        if (humanExpSection) humanExpSection.classList.remove('d-none');
+        const hExp = result.human_explanations;
+
+        if (expR2Text) expR2Text.innerHTML = hExp.r2_explanation || 'Variance explained calculated.';
+        if (expErrorText) expErrorText.innerHTML = hExp.error_explanation || 'Average deviation metrics.';
+
+        if (expGraphGuideList) {
+            expGraphGuideList.innerHTML = '';
+            const g = hExp.graph_guide || {};
+            if (g.scatter) expGraphGuideList.innerHTML += `<li><i class="bi bi-graph-up text-primary me-1.5"></i> ${g.scatter}</li>`;
+            if (g.residual) expGraphGuideList.innerHTML += `<li><i class="bi bi-activity text-danger me-1.5"></i> ${g.residual}</li>`;
+            if (g.coefficients) expGraphGuideList.innerHTML += `<li><i class="bi bi-bar-chart-steps text-success me-1.5"></i> ${g.coefficients}</li>`;
+        }
+
+        if (expSlopesContainer) {
+            expSlopesContainer.innerHTML = '';
+            const slopes = hExp.slopes || [];
+            if (slopes.length === 0) {
+                expSlopesContainer.innerHTML = '<span class="text-muted">No individual predictor slopes available.</span>';
+            } else {
+                slopes.forEach(sText => {
+                    const div = document.createElement('div');
+                    div.className = 'py-1 border-bottom border-secondary-subtle';
+                    div.innerHTML = `<i class="bi bi-caret-right-fill text-primary me-1"></i> ${sText}`;
+                    expSlopesContainer.appendChild(div);
+                });
+            }
+        }
+    }
+
+    function renderFeatureImportances(result) {
+        const importanceSection = document.getElementById('mlImportanceSection');
+        const importanceBars = document.getElementById('mlImportanceBars');
+        const importanceTitle = document.getElementById('mlImportanceTitle');
+
+        if (result.feature_importances && Object.keys(result.feature_importances).length > 0) {
+            if (importanceSection) importanceSection.classList.remove('d-none');
+            if (importanceTitle) importanceTitle.textContent = 'Key Drivers & Relative Impact Weights';
+            if (importanceBars) {
+                importanceBars.innerHTML = '';
+                const entries = Object.entries(result.feature_importances);
+                entries.forEach(([feat, imp]) => {
+                    const pct = Math.round(imp * 100);
+                    const row = document.createElement('div');
+                    row.className = 'mb-2';
+                    row.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center mb-1 small">
+                            <span class="fw-semibold font-monospace">${feat}</span>
+                            <span class="text-secondary fw-bold">${pct}% impact weight</span>
+                        </div>
+                        <div class="progress" style="height: 7px;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: ${pct}%;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    `;
+                    importanceBars.appendChild(row);
+                });
+            }
+        } else if (result.cluster_profiles) {
+            if (importanceSection) importanceSection.classList.remove('d-none');
+            if (importanceTitle) importanceTitle.textContent = 'Customer / Entity Cluster Cohort Profiles';
+            if (importanceBars) {
+                importanceBars.innerHTML = '<div class="row g-2">';
+                result.cluster_profiles.forEach(prof => {
+                    const col = document.createElement('div');
+                    col.className = 'col-12 col-md-4';
+                    col.innerHTML = `
+                        <div class="p-2.5 rounded-2 border bg-body">
+                            <div class="d-flex justify-content-between align-items-center mb-1.5">
+                                <span class="badge bg-primary">${prof.cluster_name}</span>
+                                <span class="small fw-semibold text-secondary">${prof.size_count} records (${prof.size_pct}%)</span>
+                            </div>
+                            <div class="small text-muted font-monospace" style="font-size:0.75rem;">
+                                ${Object.entries(prof.feature_means || {}).slice(0, 3).map(([k, v]) => `<div>${k}: <strong>${v}</strong></div>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                    importanceBars.querySelector('.row').appendChild(col);
+                });
+            }
+        } else {
+            if (importanceSection) importanceSection.classList.add('d-none');
+        }
+    }
+
+    function renderPredictionsTable(result) {
+        const thead = document.getElementById('mlPredictionsThead');
+        const tbody = document.getElementById('mlPredictionsTbody');
+        const badge = document.getElementById('mlPredictionsCountBadge');
+        const tableTitle = document.getElementById('mlTableTitle');
+        const modality = result.model_type || currentMlModality;
+        const predictions = result.sample_predictions || [];
+
+        if (badge) badge.textContent = `${predictions.length} Predictions`;
+        if (tableTitle) {
+            tableTitle.textContent = `${result.model_name || 'Model'} Predictions & Decision Table`;
+        }
+
+        if (!thead || !tbody) return;
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        if (predictions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No prediction records available.</td></tr>';
+            return;
+        }
+
+        if (modality === 'regression') {
+            thead.innerHTML = `
+                <tr>
+                    <th style="width: 70px;"># Record</th>
+                    <th>Actual ${result.target_column || 'Value'}</th>
+                    <th>Predicted (Linear OLS)</th>
+                    <th>Residual Error</th>
+                    <th>Variance Error %</th>
+                    <th class="text-end">Status</th>
+                </tr>
+            `;
+            predictions.forEach(p => {
+                const tr = document.createElement('tr');
+                const actVal = (p.actual_value !== undefined) ? p.actual_value : ((p.actual !== undefined) ? p.actual : '--');
+                const predVal = (p.predicted_value !== undefined) ? p.predicted_value : ((p.predicted !== undefined) ? p.predicted : '--');
+                const resErr = (p.residual_error !== undefined) ? p.residual_error : ((p.error !== undefined) ? p.error : 0);
+                const varPctStr = (p.variance_pct !== undefined) ? String(p.variance_pct) : ((p.pct_error !== undefined) ? `${p.pct_error}%` : '0.0%');
+                const errPct = parseFloat(varPctStr) || 0;
+                const badgeClass = errPct <= 10 ? 'bg-success-subtle text-success' : (errPct <= 25 ? 'bg-warning-subtle text-warning' : 'bg-danger-subtle text-danger');
+                const statusTag = p.status || (errPct <= 10 ? 'High Precision' : (errPct <= 25 ? 'Acceptable' : 'Evaluated'));
+
+                tr.innerHTML = `
+                    <td class="text-secondary">#${p.record_id || 1}</td>
+                    <td class="fw-bold">${actVal}</td>
+                    <td class="text-primary fw-bold">${predVal}</td>
+                    <td class="text-secondary">${resErr > 0 ? '+' : ''}${resErr}</td>
+                    <td><span class="badge ${badgeClass} border">${varPctStr.includes('%') ? varPctStr : varPctStr + '%'}</span></td>
+                    <td class="text-end"><span class="badge bg-secondary-subtle text-secondary border">${statusTag}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else if (modality === 'classification') {
+            thead.innerHTML = `
+                <tr>
+                    <th style="width: 70px;"># Record</th>
+                    <th>Actual Class</th>
+                    <th>Predicted Class</th>
+                    <th>Model Confidence</th>
+                    <th class="text-end">Prediction Status</th>
+                </tr>
+            `;
+            predictions.forEach(p => {
+                const tr = document.createElement('tr');
+                const isCorrect = (p.is_correct !== undefined) ? p.is_correct : (p.actual_class === p.predicted_class);
+                const statusBadge = isCorrect
+                    ? '<span class="badge bg-success-subtle text-success border"><i class="bi bi-check-circle me-1"></i> Correct Match</span>'
+                    : '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-x-circle me-1"></i> Misclassified</span>';
+                tr.innerHTML = `
+                    <td class="text-secondary">#${p.record_id || 1}</td>
+                    <td class="fw-semibold">${p.actual_class !== undefined ? p.actual_class : (p.actual || '--')}</td>
+                    <td class="fw-bold text-primary">${p.predicted_class !== undefined ? p.predicted_class : (p.predicted || '--')}</td>
+                    <td><span class="badge bg-info-subtle text-info border">${p.confidence_pct || 85}% Confidence</span></td>
+                    <td class="text-end">${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else if (modality === 'clustering') {
+            thead.innerHTML = `
+                <tr>
+                    <th style="width: 70px;"># Record</th>
+                    <th>Assigned Cluster</th>
+                    <th>Cluster Cohort</th>
+                    <th>Proximity Distance</th>
+                    <th class="text-end">Key Profile Features</th>
+                </tr>
+            `;
+            predictions.forEach(p => {
+                const tr = document.createElement('tr');
+                const clName = p.cluster_name || p.assigned_cluster || 'Segment 1';
+                tr.innerHTML = `
+                    <td class="text-secondary">#${p.record_id || 1}</td>
+                    <td><span class="badge bg-primary-subtle text-primary border fw-bold">${p.assigned_cluster || clName}</span></td>
+                    <td class="fw-semibold">${clName}</td>
+                    <td class="text-secondary">${p.distance_to_center || 1.25}</td>
+                    <td class="text-end text-muted small">${p.sample_features_summary || p.features_summary || '--'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else if (modality === 'forecasting') {
+            thead.innerHTML = `
+                <tr>
+                    <th>Future Timeline</th>
+                    <th>Projected Value (${result.value_column || 'Metric'})</th>
+                    <th>Lower 95% Confidence</th>
+                    <th>Upper 95% Confidence</th>
+                    <th>Period Growth %</th>
+                    <th class="text-end">Trend Direction</th>
+                </tr>
+            `;
+            predictions.forEach(p => {
+                const tr = document.createElement('tr');
+                const isUp = p.trend_direction === 'Upward';
+                const trendBadge = isUp
+                    ? '<span class="badge bg-success-subtle text-success border"><i class="bi bi-arrow-up-right me-1"></i> Upward</span>'
+                    : '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-arrow-down-right me-1"></i> Downward</span>';
+                tr.innerHTML = `
+                    <td class="fw-bold text-primary"><i class="bi bi-calendar-event me-1"></i> ${p.period}</td>
+                    <td class="fw-bold fs-6 text-success">${p.projected_forecast}</td>
+                    <td class="text-secondary">${p.lower_bound_95}</td>
+                    <td class="text-secondary">${p.upper_bound_95}</td>
+                    <td class="fw-semibold">${p.growth_trend}</td>
+                    <td class="text-end">${trendBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else if (modality === 'anomaly') {
+            thead.innerHTML = `
+                <tr>
+                    <th style="width: 70px;"># Record</th>
+                    <th>Outlier Score</th>
+                    <th>Severity Rating</th>
+                    <th>Primary Anomaly Driver</th>
+                    <th class="text-end">Key Metric Values</th>
+                </tr>
+            `;
+            predictions.forEach(p => {
+                const tr = document.createElement('tr');
+                const isCrit = p.severity === 'Critical';
+                const sevBadge = isCrit
+                    ? '<span class="badge bg-danger text-white border"><i class="bi bi-fire me-1"></i> Critical Outlier</span>'
+                    : '<span class="badge bg-warning text-dark border"><i class="bi bi-exclamation-triangle me-1"></i> High Risk</span>';
+                tr.innerHTML = `
+                    <td class="text-secondary">#${p.record_id || 1}</td>
+                    <td class="fw-bold text-danger font-monospace">${p.anomaly_score}</td>
+                    <td>${sevBadge}</td>
+                    <td class="fw-semibold text-primary">${p.primary_driver || 'Multivariate deviation'}</td>
+                    <td class="text-end text-muted small">${p.values_summary || '--'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+    // --- Saved Models & Instant Predictor Functions ---
+    function updateSavedModelsBadge(dsId) {
+        if (!dsId) return;
+        fetch(`/api/ml/saved_models?dataset_id=${encodeURIComponent(dsId)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && savedModelsCountBadge) {
+                    savedModelsCountBadge.textContent = data.count || 0;
+                }
+            })
+            .catch(err => console.error('Error updating saved models badge:', err));
+    }
+
+    function saveCurrentTrainedModel() {
+        if (!currentMlResults || !currentMlResults.success) {
+            showToast('Please train a regression model first before saving.', 'warning');
+            return;
+        }
+
+        const dsId = activeDatasetId || (document.getElementById('datasetSelect') ? document.getElementById('datasetSelect').value : null);
+        const defaultName = `Linear Model (${currentMlResults.target_column || 'Target'}) - R² ${currentMlResults.metrics?.r2_score || 0}`;
+        const userCustomName = prompt('Enter a name for this saved model:', defaultName);
+
+        if (userCustomName === null) return; // User cancelled
+
+        const payload = {
+            dataset_id: dsId,
+            model_name: userCustomName.trim() || defaultName,
+            model_data: currentMlResults
+        };
+
+        fetch('/api/ml/save_model', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.json())
+            .then(resData => {
+                if (resData.success) {
+                    showToast(resData.message || 'Model saved successfully!', 'success');
+                    updateSavedModelsBadge(dsId);
+                } else {
+                    showToast(resData.message || 'Failed to save model.', 'danger');
+                }
+            })
+            .catch(err => {
+                console.error('Error saving model:', err);
+                showToast('Server error while saving model.', 'danger');
+            });
+    }
+
+    function loadSavedModelsList() {
+        const container = document.getElementById('savedModelsListContainer');
+        const dsId = activeDatasetId || (document.getElementById('datasetSelect') ? document.getElementById('datasetSelect').value : null);
+        if (!container) return;
+
+        container.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div> Fetching saved models...</div>';
+
+        fetch(`/api/ml/saved_models?dataset_id=${encodeURIComponent(dsId || '')}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success || !data.models || data.models.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-bookmark-dash fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                            <h6 class="fw-bold">No Saved Models Found</h6>
+                            <p class="small mb-0">Train a Linear Regression model in ML Studio and click <strong>"Save Trained Model"</strong> to persist it here.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '<div class="d-flex flex-column gap-3">';
+                data.models.forEach(m => {
+                    const card = document.createElement('div');
+                    card.className = 'card border shadow-sm bg-body-tertiary';
+                    card.innerHTML = `
+                        <div class="card-body p-3">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Saved Model #${m.id}</span>
+                                    <h6 class="fw-bold mb-0 text-body">${m.model_name}</h6>
+                                </div>
+                                <div class="d-flex align-items-center gap-1.5">
+                                    <span class="badge bg-primary-subtle text-primary border">R² Score: ${m.metrics?.r2_score !== undefined ? m.metrics.r2_score : '--'}</span>
+                                    <span class="badge bg-info-subtle text-info border">MAE: ${m.metrics?.mae !== undefined ? m.metrics.mae : '--'}</span>
+                                </div>
+                            </div>
+                            <div class="p-2 rounded-2 bg-body font-monospace text-body small mb-2 text-break border">
+                                <strong>Formula:</strong> ${m.formula_str || 'Target = β0 + β1X1...'}
+                            </div>
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 small text-muted">
+                                <div>
+                                    <span class="me-3">Target: <strong class="text-body">${m.target_column}</strong></span>
+                                    <span>Features (${(m.feature_columns || []).length}): <strong class="text-body">${(m.feature_columns || []).join(', ')}</strong></span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-xs btn-outline-danger py-1 px-2 btn-delete-saved-model" data-model-id="${m.id}" title="Delete saved model">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                    <button class="btn btn-xs btn-primary py-1 px-2.5 fw-semibold btn-use-saved-model" data-model-id="${m.id}">
+                                        <i class="bi bi-lightning-fill me-1"></i> Instant Predict
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.querySelector('.d-flex').appendChild(card);
+                });
+
+                // Attach button handlers inside saved models list
+                container.querySelectorAll('.btn-use-saved-model').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const mId = parseInt(this.getAttribute('data-model-id'));
+                        const mObj = data.models.find(x => x.id === mId);
+                        if (mObj) {
+                            loadSavedModelIntoPredictor(mObj);
+                        }
+                    });
+                });
+
+                container.querySelectorAll('.btn-delete-saved-model').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const mId = parseInt(this.getAttribute('data-model-id'));
+                        if (confirm('Are you sure you want to delete this saved model?')) {
+                            fetch(`/api/ml/saved_models/${mId}`, { method: 'DELETE' })
+                                .then(r => r.json())
+                                .then(res => {
+                                    if (res.success) {
+                                        showToast('Saved model deleted.', 'info');
+                                        loadSavedModelsList();
+                                        updateSavedModelsBadge(dsId);
+                                    } else {
+                                        showToast(res.message || 'Failed to delete model.', 'danger');
+                                    }
+                                });
+                        }
+                    });
+                });
+            })
+            .catch(err => {
+                console.error('Error fetching saved models list:', err);
+                container.innerHTML = '<div class="text-danger small p-3 text-center">Failed to load saved models from server.</div>';
+            });
+    }
+
+    function loadSavedModelIntoPredictor(model) {
+        selectedSavedModel = model;
+        const titleEl = document.getElementById('instantPredictModelTitle');
+        const targetBadge = document.getElementById('instantPredictTargetBadge');
+        const formulaEl = document.getElementById('instantPredictFormulaText');
+        const inputsContainer = document.getElementById('instantPredictInputsContainer');
+        const btnRunInstant = document.getElementById('btnRunInstantPredict');
+        const resultCard = document.getElementById('instantPredictResultCard');
+
+        if (titleEl) titleEl.textContent = `Instant Predictor: ${model.model_name}`;
+        if (targetBadge) targetBadge.textContent = `Target Column: ${model.target_column}`;
+        if (formulaEl) formulaEl.textContent = `Equation: ${model.formula_str}`;
+
+        if (resultCard) resultCard.classList.add('d-none');
+
+        if (inputsContainer) {
+            inputsContainer.innerHTML = '<div class="row g-3">';
+            const features = model.feature_columns || [];
+            features.forEach(feat => {
+                const coef = (model.coefficients || {})[feat] || 0;
+                const col = document.createElement('div');
+                col.className = 'col-12 col-md-6';
+                col.innerHTML = `
+                    <label class="form-label small fw-semibold text-secondary mb-1">
+                        ${feat} <span class="badge bg-secondary-subtle text-secondary font-monospace" style="font-size:0.7rem;">Slope: ${coef >= 0 ? '+' : ''}${coef}</span>
+                    </label>
+                    <input type="number" step="any" class="form-control form-control-sm instant-feature-input" data-feature="${feat}" placeholder="Enter numerical value for ${feat}" required>
+                `;
+                inputsContainer.querySelector('.row').appendChild(col);
+            });
+        }
+
+        if (btnRunInstant) btnRunInstant.disabled = false;
+
+        // Switch Tab to Instant Predictor
+        const tabEl = document.getElementById('tab-instant-predict');
+        if (tabEl && typeof bootstrap !== 'undefined') {
+            const bsTab = bootstrap.Tab.getOrCreateInstance(tabEl);
+            bsTab.show();
+        }
+    }
+
+    function runInstantPrediction(e) {
+        if (e) e.preventDefault();
+        if (!selectedSavedModel) {
+            showToast('Please select a saved model first.', 'warning');
+            return;
+        }
+
+        const inputElements = document.querySelectorAll('.instant-feature-input');
+        const inputFeatures = {};
+        inputElements.forEach(inp => {
+            const feat = inp.getAttribute('data-feature');
+            const val = parseFloat(inp.value);
+            inputFeatures[feat] = isNaN(val) ? 0.0 : val;
+        });
+
+        const payload = {
+            model_id: selectedSavedModel.id,
+            input_features: inputFeatures
+        };
+
+        fetch('/api/ml/predict_saved', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    renderInstantPredictionResult(data);
+                    showToast('Instant prediction computed successfully!', 'success');
+                } else {
+                    showToast(data.message || 'Instant prediction failed.', 'danger');
+                }
+            })
+            .catch(err => {
+                console.error('Error running instant prediction:', err);
+                showToast('Server error while predicting with saved model.', 'danger');
+            });
+    }
+
+    function renderInstantPredictionResult(data) {
+        const resultCard = document.getElementById('instantPredictResultCard');
+        const targetName = document.getElementById('ipTargetName');
+        const outputVal = document.getElementById('instantPredictOutputValue');
+        const breakdownList = document.getElementById('instantPredictBreakdownList');
+
+        if (!resultCard) return;
+
+        if (targetName) targetName.textContent = data.target_column || 'Target';
+        if (outputVal) outputVal.textContent = data.predicted_value;
+
+        if (breakdownList && data.breakdown) {
+            breakdownList.innerHTML = '';
+            data.breakdown.forEach(b => {
+                const div = document.createElement('div');
+                div.className = 'd-flex justify-content-between py-1 border-bottom border-success-subtle';
+                if (b.factor === 'Baseline Intercept') {
+                    div.innerHTML = `<span>Baseline (β0 Intercept):</span> <strong class="text-body">${b.contribution}</strong>`;
+                } else {
+                    div.innerHTML = `<span>${b.factor} (${b.input_value} × ${b.coefficient}):</span> <strong class="${b.contribution >= 0 ? 'text-success' : 'text-danger'}">${b.contribution >= 0 ? '+' : ''}${b.contribution}</strong>`;
+                }
+                breakdownList.appendChild(div);
+            });
+        }
+
+        resultCard.classList.remove('d-none');
+    }
+
+    // Attach click handlers to all 5 ML Tool Cards & Buttons
+    function initMlToolCardListeners() {
+        const toolCards = document.querySelectorAll('.dn-clickable-tool[data-tool]');
+        toolCards.forEach(card => {
+            card.addEventListener('click', function () {
+                const modality = this.getAttribute('data-tool');
+                if (!modality) return;
+
+                syncMlModalControls(modality);
+
+                if (mlStudioModalEl && typeof bootstrap !== 'undefined') {
+                    const bsModal = bootstrap.Modal.getOrCreateInstance(mlStudioModalEl);
+                    bsModal.show();
+                }
+
+                fetchMlOptionsAndRun(modality, true);
+            });
+        });
+
+        mlNavButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const modality = this.getAttribute('data-modality');
+                syncMlModalControls(modality);
+                fetchMlOptionsAndRun(modality, true);
+            });
+        });
+
+        if (btnRunMlStudio) {
+            btnRunMlStudio.addEventListener('click', () => {
+                executeMlModel();
+            });
+        }
+
+        if (btnResetMlDefaults) {
+            btnResetMlDefaults.addEventListener('click', () => {
+                if (currentMlOptions) {
+                    populateMlColumnOptions(currentMlOptions, currentMlModality);
+                    showToast('Reset feature inputs to automated ML recommendations.', 'info');
+                }
+            });
+        }
+
+        // Smart Auto-Select Features Button
+        if (btnSmartSelectFeatures) {
+            btnSmartSelectFeatures.addEventListener('click', () => {
+                if (!mlFeaturePillsContainer) return;
+                const checkboxes = mlFeaturePillsContainer.querySelectorAll('input[type="checkbox"]');
+                let selectedCount = 0;
+                checkboxes.forEach(cb => {
+                    const bType = cb.getAttribute('data-badge');
+                    // Check if high/moderate/weak relevance (not secondary)
+                    if (bType === 'success' || bType === 'primary' || bType === 'warning') {
+                        cb.checked = true;
+                        selectedCount++;
+                    } else {
+                        cb.checked = false;
+                    }
+                });
+                updateSelectedFeaturesCount();
+                showToast(`Smart-selected ${selectedCount} continuous features with logical correlation to target!`, 'success');
+            });
+        }
+
+        // Target column change listener to update correlation badges
+        if (mlTargetColSelect) {
+            mlTargetColSelect.addEventListener('change', () => {
+                if (currentMlOptions) {
+                    const dsId = activeDatasetId || (document.getElementById('datasetSelect') ? document.getElementById('datasetSelect').value : null);
+                    if (dsId) {
+                        fetch(`/api/ml/options?dataset_id=${encodeURIComponent(dsId)}`)
+                            .then(r => r.json())
+                            .then(resData => {
+                                if (resData.success) {
+                                    populateMlColumnOptions(resData, currentMlModality);
+                                }
+                            });
+                    }
+                }
+            });
+        }
+
+        // Save Current Model Button
+        if (btnSaveCurrentModel) {
+            btnSaveCurrentModel.addEventListener('click', () => {
+                saveCurrentTrainedModel();
+            });
+        }
+
+        // Saved Models Modal Opener
+        if (btnOpenSavedModelsModal) {
+            btnOpenSavedModelsModal.addEventListener('click', () => {
+                const savedModalEl = document.getElementById('dnSavedModelsModal');
+                if (savedModalEl && typeof bootstrap !== 'undefined') {
+                    const bsModal = bootstrap.Modal.getOrCreateInstance(savedModalEl);
+                    bsModal.show();
+                    loadSavedModelsList();
+                }
+            });
+        }
+
+        // Instant Predictor Form Submit
+        const instantPredictForm = document.getElementById('instantPredictForm');
+        if (instantPredictForm) {
+            instantPredictForm.addEventListener('submit', runInstantPrediction);
+        }
+
+        // Table search filter
+        if (mlSearchPredictionsInput) {
+            mlSearchPredictionsInput.addEventListener('input', function () {
+                const filter = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#mlPredictionsTbody tr');
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(filter) ? '' : 'none';
+                });
+            });
+        }
+
+        // Export Predictions CSV
+        if (btnExportPredictionsCsv) {
+            btnExportPredictionsCsv.addEventListener('click', () => {
+                if (!currentMlResults || !currentMlResults.sample_predictions || currentMlResults.sample_predictions.length === 0) {
+                    showToast('No prediction data available to export.', 'warning');
+                    return;
+                }
+                const preds = currentMlResults.sample_predictions;
+                const headers = Object.keys(preds[0]);
+                const csvRows = [headers.join(',')];
+                preds.forEach(p => {
+                    const values = headers.map(h => {
+                        const str = String(p[h] !== undefined ? p[h] : '').replace(/"/g, '""');
+                        return `"${str}"`;
+                    });
+                    csvRows.push(values.join(','));
+                });
+                const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `DataNova_${currentMlModality}_Predictions_${Date.now()}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Predictions exported successfully as CSV!', 'success');
+            });
+        }
+    }
+
+    initMlToolCardListeners();
+
+
+    // --- Topbar Global Search Activation ---
+    function initAnalystTopbarSearch() {
+        const searchInput = document.getElementById('analystTopbarSearchInput');
+        const searchDropdown = document.getElementById('analystSearchDropdown');
+        const searchDropdownContent = document.getElementById('analystSearchDropdownContent');
+        const searchMatchCount = document.getElementById('analystSearchMatchCount');
+        const searchClearBtn = document.getElementById('analystSearchClearBtn');
+
+        if (!searchInput || !searchDropdown || !searchDropdownContent) return;
+
+        const defaultSearchIndex = [
+            { title: 'Dashboard Overview', subtitle: 'High-level KPIs, activity metrics, and platform status.', tag: 'Navigation', icon: 'bi-grid-1x2-fill', target: '#main-overview' },
+            { title: '1. Upload Dataset', subtitle: 'Upload CSV, XLSX, JSON or SQLite database file.', tag: 'Step 1', icon: 'bi-cloud-upload', target: '#upload' },
+            { title: '2. Raw Data Preview', subtitle: 'Inspect raw table data, column dtypes, summary, and head/tail records.', tag: 'Step 2', icon: 'bi-database', target: '#step-preview' },
+            { title: '3. Data Cleaning & Preprocessing', subtitle: 'Handle missing values, duplicate removal, outlier IQR filter, encoding.', tag: 'Step 3', icon: 'bi-shield-check', target: '#step-cleaning' },
+            { title: '4. Statistical EDA', subtitle: 'Descriptive statistics, skewness, kurtosis, distributions, quartile metrics.', tag: 'Step 4', icon: 'bi-search', target: '#step-eda' },
+            { title: '5. Correlation Matrix', subtitle: 'Interactive heatmap, Pearson correlation coefficients, strong pairs.', tag: 'Step 5', icon: 'bi-grid-3x3', target: '#step-correlation' },
+            { title: '6. Visualizations & Charts', subtitle: 'Plotly Bar, Line, Scatter, Pie, Histogram, Box, Heatmap visualizer.', tag: 'Step 6', icon: 'bi-bar-chart-line', target: '#step-visualization' },
+            { title: '7. AI Insights & ML', subtitle: 'Automated AI anomaly detection, business insights, key drivers.', tag: 'Step 7', icon: 'bi-stars', target: '#step-insights' },
+            { title: 'ML Predictive Studio', subtitle: 'Regression, Classification, Clustering, Forecasting, Anomaly detection.', tag: 'Machine Learning', icon: 'bi-cpu-fill', action: 'ml_studio' },
+            { title: '8. Reports & Export', subtitle: 'Download PDF, Word docx, PowerPoint pptx, HTML, and Excel reports.', tag: 'Step 8', icon: 'bi-file-earmark-bar-graph', target: '#step-reports' },
+            { title: '9. Python Code Studio (.ipynb)', subtitle: 'Interactive Jupyter code execution, visual pipelines, data exports.', tag: 'Step 9', icon: 'bi-filetype-py', target: '#step-code' },
+            { title: 'Ask Your Data (AI Chat)', subtitle: 'Query dataset with natural language, generate SQL & instant answers.', tag: 'AI Assistant', icon: 'bi-chat-dots-fill', action: 'ask_data' },
+            { title: 'Assigned Work & Tasks', subtitle: 'Manager task assignments, deadlines, remarks, and status updates.', tag: 'Workload', icon: 'bi-check2-square', target: '#assignedTasksPanel' },
+            { title: 'Shared Dashboards', subtitle: 'Team dashboard sharing, access control, and collaborative exploration.', tag: 'Collaboration', icon: 'bi-share-fill', target: '#sharedDashboardsPanel' },
+            { title: 'Help & Documentation', subtitle: 'Analyst keyboard shortcuts, analysis guides, and troubleshooting.', tag: 'Help', icon: 'bi-question-circle', action: 'help_modal' }
+        ];
+
+        let activeIndex = -1;
+
+        function renderResults(query) {
+            query = (query || '').toLowerCase().trim();
+            if (!query) {
+                searchDropdown.classList.add('d-none');
+                if (searchClearBtn) searchClearBtn.classList.add('d-none');
+                return;
+            }
+
+            if (searchClearBtn) searchClearBtn.classList.remove('d-none');
+            searchDropdown.classList.remove('d-none');
+
+            // Collect items to search
+            let items = [...defaultSearchIndex];
+
+            // Add active columns if available
+            if (activeDatasetSummary && activeDatasetSummary.columns) {
+                activeDatasetSummary.columns.forEach(col => {
+                    const colName = typeof col === 'string' ? col : (col.name || '');
+                    const colType = typeof col === 'object' && col.dtype ? col.dtype : 'feature';
+                    if (colName) {
+                        items.push({
+                            title: `Column: ${colName}`,
+                            subtitle: `Type: ${colType} &mdash; Click to view in Raw Preview & EDA`,
+                            tag: 'Dataset Column',
+                            icon: 'bi-layout-three-columns',
+                            target: '#step-preview'
+                        });
+                    }
+                });
+            }
+
+            const matches = items.filter(item => {
+                return item.title.toLowerCase().includes(query) ||
+                    item.subtitle.toLowerCase().includes(query) ||
+                    item.tag.toLowerCase().includes(query);
+            });
+
+            if (searchMatchCount) {
+                searchMatchCount.textContent = `${matches.length} match${matches.length === 1 ? '' : 'es'}`;
+            }
+
+            if (matches.length === 0) {
+                searchDropdownContent.innerHTML = `
+                    <div class="text-center py-3 text-muted">
+                        <i class="bi bi-search fs-4 d-block mb-1 opacity-50"></i>
+                        <small>No matches found for "<strong>${escapeHtml(query)}</strong>"</small>
+                    </div>`;
+                activeIndex = -1;
+                return;
+            }
+
+            searchDropdownContent.innerHTML = matches.map((m, idx) => `
+                <div class="dn-search-result-item d-flex align-items-center gap-2 p-2 rounded mb-1 text-decoration-none text-body" 
+                     data-index="${idx}" 
+                     data-target="${m.target || ''}" 
+                     data-action="${m.action || ''}" 
+                     style="cursor: pointer; transition: background 0.15s ease;">
+                    <div class="p-2 rounded bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.95rem;">
+                        <i class="bi ${m.icon}"></i>
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <strong class="small text-truncate">${highlightMatch(m.title, query)}</strong>
+                            <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.65rem;">${m.tag}</span>
+                        </div>
+                        <div class="text-muted text-truncate" style="font-size: 0.75rem;">${m.subtitle}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            activeIndex = -1;
+
+            // Bind click to each result item
+            searchDropdownContent.querySelectorAll('.dn-search-result-item').forEach(el => {
+                el.addEventListener('click', function () {
+                    executeSearchAction(this.getAttribute('data-target'), this.getAttribute('data-action'));
+                });
+                el.addEventListener('mouseenter', function () {
+                    searchDropdownContent.querySelectorAll('.dn-search-result-item').forEach(r => r.classList.remove('bg-body-secondary'));
+                    this.classList.add('bg-body-secondary');
+                    activeIndex = parseInt(this.getAttribute('data-index'), 10);
+                });
+            });
+        }
+
+        function highlightMatch(text, query) {
+            if (!query) return escapeHtml(text);
+            const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return escapeHtml(text).replace(regex, '<mark class="p-0 bg-warning-subtle fw-bold text-body">$1</mark>');
+        }
+
+        function executeSearchAction(target, action) {
+            // Hide dropdown & clear input
+            searchDropdown.classList.add('d-none');
+            searchInput.value = '';
+            if (searchClearBtn) searchClearBtn.classList.add('d-none');
+
+            if (action === 'ml_studio') {
+                if (mlStudioModalEl && typeof bootstrap !== 'undefined') {
+                    const bsModal = bootstrap.Modal.getOrCreateInstance(mlStudioModalEl);
+                    bsModal.show();
+                    syncMlModalControls('regression');
+                    fetchMlOptionsAndRun('regression', true);
+                }
+                return;
+            }
+
+            if (action === 'ask_data') {
+                const askModal = document.getElementById('dnAskDataModal') || document.getElementById('askDataModal');
+                if (askModal && typeof bootstrap !== 'undefined') {
+                    const bsModal = bootstrap.Modal.getOrCreateInstance(askModal);
+                    bsModal.show();
+                } else {
+                    const askNav = document.getElementById('navAskYourData');
+                    if (askNav) askNav.click();
+                }
+                return;
+            }
+
+            if (action === 'help_modal') {
+                const helpModal = document.getElementById('analystHelpModal');
+                if (helpModal && typeof bootstrap !== 'undefined') {
+                    bootstrap.Modal.getOrCreateInstance(helpModal).show();
+                }
+                return;
+            }
+
+            if (target) {
+                // Check if target is a nav section
+                const navLink = document.querySelector(`.dn-sidebar-scroll a[href="${target}"]`);
+                if (navLink) {
+                    navLink.click();
+                } else {
+                    const el = document.querySelector(target);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            }
+        }
+
+        searchInput.addEventListener('input', function () {
+            renderResults(this.value);
+        });
+
+        searchInput.addEventListener('focus', function () {
+            if (this.value.trim()) renderResults(this.value);
+        });
+
+        if (searchClearBtn) {
+            searchClearBtn.addEventListener('click', function () {
+                searchInput.value = '';
+                searchDropdown.classList.add('d-none');
+                searchClearBtn.classList.add('d-none');
+                searchInput.focus();
+            });
+        }
+
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', function (e) {
+            const items = searchDropdownContent.querySelectorAll('.dn-search-result-item');
+            if (items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % items.length;
+                updateActiveResult(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                updateActiveResult(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (activeIndex >= 0 && activeIndex < items.length) {
+                    items[activeIndex].click();
+                } else if (items.length > 0) {
+                    items[0].click();
+                }
+            } else if (e.key === 'Escape') {
+                searchDropdown.classList.add('d-none');
+            }
+        });
+
+        function updateActiveResult(items) {
+            items.forEach((item, idx) => {
+                if (idx === activeIndex) {
+                    item.classList.add('bg-body-secondary');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('bg-body-secondary');
+                }
+            });
+        }
+
+        // Close on click outside
+        document.addEventListener('click', function (e) {
+            if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                searchDropdown.classList.add('d-none');
+            }
+        });
+    }
+
+    initAnalystTopbarSearch();
+    fetchAnalystAnalytics();
+
+    // Wire Quick Ask & Modal buttons
+    const btnQuickAsk = document.getElementById('btnQuickAsk');
+    if (btnQuickAsk) {
+        btnQuickAsk.addEventListener('click', function () {
+            const askModal = document.getElementById('dnAskDataModal') || document.getElementById('askDataModal');
+            if (askModal && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(askModal).show();
+            } else {
+                const navAsk = document.getElementById('navAskYourData');
+                if (navAsk) navAsk.click();
+            }
+        });
+    }
+
+    const btnUploadPanelPrevious = document.getElementById('btnUploadPanelPrevious');
+    if (btnUploadPanelPrevious) {
+        btnUploadPanelPrevious.addEventListener('click', function () {
+            if (typeof fetchPreviousDatasets === 'function') {
+                fetchPreviousDatasets();
+            }
+        });
+    }
+
     // Global State Bus Listener for Analyst Dashboard
     if (window.DataNovaStateBus) {
         window.DataNovaStateBus.on('*', function (eventType) {
@@ -4934,6 +7023,200 @@ document.addEventListener('DOMContentLoaded', function () {
             if (eventType === 'MUTATION_DASHBOARD_SHARED') {
                 fetchAnalystSharedDashboards();
             }
+        });
+    }
+
+    // --- Compare Datasets Controller for Analyst Dashboard ---
+    let compareDatasetsModalInstance = null;
+    const compareModalEl = document.getElementById('dnCompareDatasetsModal');
+    if (compareModalEl && typeof bootstrap !== 'undefined') {
+        compareDatasetsModalInstance = bootstrap.Modal.getOrCreateInstance(compareModalEl);
+    }
+
+    function showCompareDatasetsModal() {
+        if (!compareDatasetsModalInstance && compareModalEl && typeof bootstrap !== 'undefined') {
+            compareDatasetsModalInstance = bootstrap.Modal.getOrCreateInstance(compareModalEl);
+        }
+        if (compareDatasetsModalInstance) {
+            const alertEl = document.getElementById('compareDatasetsAlert');
+            if (alertEl) alertEl.classList.add('d-none');
+            const resContainer = document.getElementById('compareResultsContainer');
+            if (resContainer) resContainer.classList.add('d-none');
+            compareDatasetsModalInstance.show();
+        }
+    }
+
+    document.querySelectorAll('[data-action="compare-data"], #navCompareDatasets').forEach(trigger => {
+        trigger.addEventListener('click', function (e) {
+            e.preventDefault();
+            showCompareDatasetsModal();
+        });
+    });
+
+    const compareForm = document.getElementById('dnCompareDatasetsForm');
+    if (compareForm) {
+        compareForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const alertEl = document.getElementById('compareDatasetsAlert');
+            const btnSubmit = document.getElementById('btnSubmitCompare');
+            const resContainer = document.getElementById('compareResultsContainer');
+
+            if (alertEl) alertEl.classList.add('d-none');
+            if (resContainer) resContainer.classList.add('d-none');
+
+            const file1Input = document.getElementById('compareFile1Input');
+            const file2Input = document.getElementById('compareFile2Input');
+            const ds1Input = document.getElementById('compareDs1Input');
+            const ds2Input = document.getElementById('compareDs2Input');
+            const gsheet1Input = document.getElementById('compareGSheet1Input');
+            const gsheet2Input = document.getElementById('compareGSheet2Input');
+
+            const file1 = file1Input && file1Input.files ? file1Input.files[0] : null;
+            const file2 = file2Input && file2Input.files ? file2Input.files[0] : null;
+            const ds1 = ds1Input ? ds1Input.value.trim() : '';
+            const ds2 = ds2Input ? ds2Input.value.trim() : '';
+            const gsheet1 = gsheet1Input ? gsheet1Input.value.trim() : '';
+            const gsheet2 = gsheet2Input ? gsheet2Input.value.trim() : '';
+
+            const hasFirst = Boolean(file1 || ds1 || gsheet1);
+            const hasSecond = Boolean(file2 || ds2 || gsheet2);
+
+            if (!hasFirst || !hasSecond) {
+                if (alertEl) {
+                    alertEl.textContent = "Please provide two datasets to compare (upload files, paste Google Sheet URLs, or enter dataset IDs).";
+                    alertEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            const formData = new FormData();
+            if (file1) formData.append('file1', file1);
+            else if (gsheet1) formData.append('gsheet_url_1', gsheet1);
+            else if (ds1) formData.append('dataset_id_1', ds1);
+
+            if (file2) formData.append('file2', file2);
+            else if (gsheet2) formData.append('gsheet_url_2', gsheet2);
+            else if (ds2) formData.append('dataset_id_2', ds2);
+
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Comparing...';
+            }
+
+            fetch('/api/compare_datasets', {
+                method: 'POST',
+                body: formData
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (btnSubmit) {
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = '<i class="bi bi-arrow-left-right me-1"></i>Run Comparison';
+                    }
+
+                    if (data && data.success) {
+                        if (resContainer) resContainer.classList.remove('d-none');
+
+                        // Headers
+                        const h1 = document.getElementById('compHeadDs1');
+                        const h2 = document.getElementById('compHeadDs2');
+                        if (h1) h1.textContent = data.dataset_1_name || 'Dataset 1';
+                        if (h2) h2.textContent = data.dataset_2_name || 'Dataset 2';
+
+                        const n1 = document.getElementById('compOnlyName1');
+                        const n2 = document.getElementById('compOnlyName2');
+                        if (n1) n1.textContent = data.dataset_1_name || 'Dataset 1';
+                        if (n2) n2.textContent = data.dataset_2_name || 'Dataset 2';
+
+                        // Metrics
+                        const m1 = data.ds1_metrics || {};
+                        const m2 = data.ds2_metrics || {};
+
+                        document.getElementById('compRows1').textContent = (m1.rows || 0).toLocaleString();
+                        document.getElementById('compRows2').textContent = (m2.rows || 0).toLocaleString();
+
+                        document.getElementById('compCols1').textContent = m1.cols || 0;
+                        document.getElementById('compCols2').textContent = m2.cols || 0;
+
+                        document.getElementById('compMem1').textContent = m1.memory_str || '0 KB';
+                        document.getElementById('compMem2').textContent = m2.memory_str || '0 KB';
+
+                        document.getElementById('compMiss1').textContent = (m1.missing_count || 0).toLocaleString();
+                        document.getElementById('compMiss2').textContent = (m2.missing_count || 0).toLocaleString();
+
+                        document.getElementById('compDup1').textContent = (m1.duplicates || 0).toLocaleString();
+                        document.getElementById('compDup2').textContent = (m2.duplicates || 0).toLocaleString();
+
+                        const q1 = m1.quality_score || 100;
+                        const q2 = m2.quality_score || 100;
+                        document.getElementById('compGrade1').innerHTML = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${m1.quality_grade || 'A+'} (${q1})</span>`;
+                        document.getElementById('compGrade2').innerHTML = `<span class="badge bg-info-subtle text-info border border-info-subtle">${m2.quality_grade || 'A+'} (${q2})</span>`;
+
+                        // Pills
+                        const common = data.common_columns || [];
+                        const only1 = data.only_in_ds1 || [];
+                        const only2 = data.only_in_ds2 || [];
+
+                        document.getElementById('compCommonCount').textContent = common.length;
+                        document.getElementById('compOnlyCount1').textContent = only1.length;
+                        document.getElementById('compOnlyCount2').textContent = only2.length;
+
+                        const commonContainer = document.getElementById('compCommonPills');
+                        if (commonContainer) {
+                            commonContainer.innerHTML = common.length ? common.map(c => `<span class="badge bg-success-subtle text-success border border-success-subtle">${c}</span>`).join('') : '<span class="small text-muted">None</span>';
+                        }
+
+                        const only1Container = document.getElementById('compOnly1Pills');
+                        if (only1Container) {
+                            only1Container.innerHTML = only1.length ? only1.map(c => `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${c}</span>`).join('') : '<span class="small text-muted">None</span>';
+                        }
+
+                        const only2Container = document.getElementById('compOnly2Pills');
+                        if (only2Container) {
+                            only2Container.innerHTML = only2.length ? only2.map(c => `<span class="badge bg-info-subtle text-info border border-info-subtle">${c}</span>`).join('') : '<span class="small text-muted">None</span>';
+                        }
+
+                        // Schema table
+                        const schemaTbody = document.getElementById('compSchemaTableBody');
+                        const schemaList = data.schema_comparison || [];
+                        if (schemaTbody) {
+                            if (schemaList.length > 0) {
+                                schemaTbody.innerHTML = schemaList.map(item => {
+                                    const matchBadge = item.match ?
+                                        '<span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Match</span>' :
+                                        '<span class="badge bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Type Mismatch</span>';
+                                    return `
+                                        <tr>
+                                            <td class="fw-semibold">${item.column}</td>
+                                            <td><code>${item.type1}</code></td>
+                                            <td><code>${item.type2}</code></td>
+                                            <td>${matchBadge}</td>
+                                        </tr>
+                                    `;
+                                }).join('');
+                            } else {
+                                schemaTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted small py-2">No overlapping schema to compare.</td></tr>';
+                            }
+                        }
+
+                    } else {
+                        if (alertEl) {
+                            alertEl.textContent = data ? data.message || "Failed to compare datasets." : "Failed to compare datasets.";
+                            alertEl.classList.remove('d-none');
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Error comparing datasets:', err);
+                    if (btnSubmit) {
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = '<i class="bi bi-arrow-left-right me-1"></i>Run Comparison';
+                    }
+                    if (alertEl) {
+                        alertEl.textContent = "Server error while comparing datasets.";
+                        alertEl.classList.remove('d-none');
+                    }
+                });
         });
     }
 });

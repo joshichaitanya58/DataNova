@@ -11,32 +11,12 @@ bcrypt = Bcrypt()
 def create_app():
     """
     Application factory to create and configure the Flask app.
-    Supports both standard server and serverless (e.g. Vercel, AWS Lambda) deployments.
     """
-    # --- Resolve absolute paths for templates and static assets ---
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    template_dir = os.path.join(base_dir, 'templates')
-    static_dir = os.path.join(base_dir, 'static')
-
-    import tempfile
-
-    # Detect serverless environment (Vercel / AWS Lambda)
-    is_serverless = bool(os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'))
-    if is_serverless:
-        temp_dir = tempfile.gettempdir()
-        instance_path = os.path.abspath(os.path.join(temp_dir, 'datanova_instance'))
-        upload_folder = os.path.abspath(os.path.join(temp_dir, 'datanova_uploads'))
-    else:
-        instance_path = os.path.abspath(os.path.join(base_dir, 'instance'))
-        upload_folder = os.path.abspath(os.path.join(instance_path, 'uploads'))
-
     app = Flask(
         __name__,
-        instance_path=instance_path,
         instance_relative_config=True,
-        template_folder=template_dir,
-        static_folder=static_dir,
-        static_url_path='/static'
+        template_folder='../templates',
+        static_folder='../static'
     )
 
     # --- Configure Terminal Logging & Suppress Noisy 3rd-Party Debuggers ---
@@ -54,19 +34,23 @@ def create_app():
 
     secret_key = os.getenv('SECRET_KEY')
     if not secret_key:
-        import secrets
-        secret_key = secrets.token_hex(32)
-        app.logger.warning(
-            "SECRET_KEY environment variable is not set. Generated a secure random fallback key. "
-            "For production session persistence across serverless workers, set SECRET_KEY in your environment."
+        raise RuntimeError(
+            "SECRET_KEY environment variable is not set. "
+            "Please set it in your .env file or environment."
         )
+
+    # Determine safe upload folder for local or serverless/Vercel environments
+    if os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'):
+        import tempfile
+        upload_folder = os.path.join(tempfile.gettempdir(), 'uploads')
+    else:
+        upload_folder = os.path.join(app.instance_path, 'uploads')
 
     app.config.from_mapping(
         SECRET_KEY=secret_key,
         UPLOAD_FOLDER=upload_folder,
         MAX_CONTENT_LENGTH=50 * 1024 * 1024,  # 50 MB upload limit
-        TEMPLATES_AUTO_RELOAD=not is_serverless,
-        SEND_FILE_MAX_AGE_DEFAULT=0 if not is_serverless else 86400,
+        TEMPLATES_AUTO_RELOAD=True,
         PRIMARY_COLOR='#4F46E5',
         VIOLET_COLOR='#7C3AED',
         CYAN_COLOR='#06B6D4',
@@ -74,14 +58,25 @@ def create_app():
     )
 
     try:
-        os.makedirs(app.instance_path, exist_ok=True)
+        if not os.getenv('VERCEL'):
+            os.makedirs(app.instance_path, exist_ok=True)
         os.makedirs(upload_folder, exist_ok=True)
     except OSError as e:
-        app.logger.warning(f"Could not create required directories: {e}")
+        app.logger.warning(f"Could not create primary upload folder, using system temp dir: {e}")
+        import tempfile
+        upload_folder = os.path.join(tempfile.gettempdir(), 'uploads')
+        os.makedirs(upload_folder, exist_ok=True)
+        app.config['UPLOAD_FOLDER'] = upload_folder
 
-    # --- Load Persistent System Settings ---
-    import json
-    settings_file = os.path.join(app.instance_path, 'system_settings.json')
+    # --- Auto-Initialize Database Schema & Tables ---
+    try:
+        from database.db_connector import init_db
+        init_db()
+    except Exception as e:
+        app.logger.warning(f"Database auto-initialization deferred or failed: {e}")
+
+    # --- Load Persistent System Settings (MySQL Database primary, JSON fallback) ---
+    from .services.system_settings_service import load_merged_system_settings
     default_settings = {
         # General
         'platform_name': 'DataNova Analytics Platform',
@@ -110,24 +105,10 @@ def create_app():
         'ai_temperature': '0.7',
         'auto_eda_on_upload': True
     }
-    if os.path.exists(settings_file):
-        try:
-            with open(settings_file, 'r', encoding='utf-8') as f:
-                saved_settings = json.load(f)
-                default_settings.update(saved_settings)
-        except Exception as e:
-            app.logger.error(f"Error loading system_settings.json: {e}")
-
-    app.config['SYSTEM_SETTINGS'] = default_settings
+    app.config['SYSTEM_SETTINGS'] = load_merged_system_settings(default_settings, app.instance_path)
 
     bcrypt.init_app(app)
 
-    # --- Auto-Initialize Database Schema & Tables ---
-    try:
-        from database.db_connector import init_db
-        init_db()
-    except Exception as e:
-        app.logger.warning(f"Database auto-initialization deferred or failed: {e}")
 
     # --- Register Blueprints ---
     from . import auth, dashboards, api
@@ -184,13 +165,18 @@ def create_app():
 
         # Highlight API endpoints vs page routes
         if request.path.startswith('/api/'):
-            if status_code < 300:
+            if request.path == '/api/system/live_sync' and status_code == 200:
+                # Suppress terminal log spam for routine background heartbeat
+                pass
+            elif status_code < 300:
                 tag = f"\033[92m[API SUCCESS {status_code}]\033[0m"
+                print(f"{tag} {request.method} \033[1m{request.path}\033[0m | Time: {duration_ms}ms", flush=True)
             elif status_code < 400:
                 tag = f"\033[93m[API REDIRECT {status_code}]\033[0m"
+                print(f"{tag} {request.method} \033[1m{request.path}\033[0m | Time: {duration_ms}ms", flush=True)
             else:
                 tag = f"\033[91;1m[API ERROR {status_code}]\033[0m"
-            print(f"{tag} {request.method} \033[1m{request.path}\033[0m | Time: {duration_ms}ms", flush=True)
+                print(f"{tag} {request.method} \033[1m{request.path}\033[0m | Time: {duration_ms}ms", flush=True)
         else:
             if status_code >= 400:
                 tag = f"\033[91m[PAGE ERROR {status_code}]\033[0m"

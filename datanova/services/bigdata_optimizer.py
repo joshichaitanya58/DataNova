@@ -12,11 +12,11 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def optimize_dataframe_memory(df: pd.DataFrame, verbose: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+def optimize_dataframe_memory(df: pd.DataFrame, verbose: bool = False, convert_floats: bool = True) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
-    Optimizes a pandas DataFrame memory footprint by 70-90% through intelligent
+    Optimizes a pandas DataFrame memory footprint by through intelligent
     type downcasting (int64 -> int8/16/32, float64 -> float32, object -> category).
-    Crucial for handling 10,000,000 rows without RAM saturation.
+    Crucial for handling large datasets without RAM saturation.
     """
     if df is None or df.empty:
         return df, {"initial_mb": 0, "final_mb": 0, "reduction_pct": 0}
@@ -33,28 +33,29 @@ def optimize_dataframe_memory(df: pd.DataFrame, verbose: bool = False) -> Tuple[
                 continue
 
             if c_min >= 0:
-                if c_max < 255:
+                if c_max <= 255:
                     df[col] = df[col].astype(np.uint8)
-                elif c_max < 65535:
+                elif c_max <= 65535:
                     df[col] = df[col].astype(np.uint16)
-                elif c_max < 4294967295:
+                elif c_max <= 4294967295:
                     df[col] = df[col].astype(np.uint32)
                 else:
                     df[col] = df[col].astype(np.uint64)
             else:
-                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                if c_min >= np.iinfo(np.int8).min and c_max <= np.iinfo(np.int8).max:
                     df[col] = df[col].astype(np.int8)
-                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                elif c_min >= np.iinfo(np.int16).min and c_max <= np.iinfo(np.int16).max:
                     df[col] = df[col].astype(np.int16)
-                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                elif c_min >= np.iinfo(np.int32).min and c_max <= np.iinfo(np.int32).max:
                     df[col] = df[col].astype(np.int32)
                 else:
                     df[col] = df[col].astype(np.int64)
 
-        # 2. Optimize Numeric Floats (float64 -> float32)
-        float_cols = df.select_dtypes(include=['floating', 'float64']).columns
-        for col in float_cols:
-            df[col] = pd.to_numeric(df[col], downcast='float')
+        # 2. Optionally Optimize Numeric Floats (float64 -> float32)
+        if convert_floats:
+            float_cols = df.select_dtypes(include=['floating', 'float64']).columns
+            for col in float_cols:
+                df[col] = pd.to_numeric(df[col], downcast='float')
 
         # 3. Optimize Strings/Objects to Categories if cardinality is reasonable (< 50% unique)
         obj_cols = df.select_dtypes(include=['object', 'string']).columns
@@ -87,15 +88,13 @@ def optimize_dataframe_memory(df: pd.DataFrame, verbose: bool = False) -> Tuple[
 
 def smart_sample_for_visualization(df: pd.DataFrame, max_points: int = 15000, random_state: int = 42) -> pd.DataFrame:
     """
-    Downsamples massive datasets (e.g. 10M rows) to an optimal representative subset
-    for high-speed frontend rendering (Scatter, Histogram, Box plots) without crashing
-    client browser memory.
+    Downsamples large datasets to an optimal representative subset
+    for high-speed frontend rendering (Scatter, Histogram, Box plots) using random sampling.
     """
     if df is None or len(df) <= max_points:
         return df
 
     try:
-        # Uniform stratified random reservoir sampling
         sample_df = df.sample(n=max_points, random_state=random_state)
         return sample_df
     except Exception as e:
@@ -105,11 +104,13 @@ def smart_sample_for_visualization(df: pd.DataFrame, max_points: int = 15000, ra
 
 def compute_fast_vector_stats(series: pd.Series) -> Dict[str, Any]:
     """
-    Computes comprehensive statistical metrics on full multi-million row series
-    in pure vectorized NumPy space in milliseconds.
+    Computes statistical metrics on a numeric series using NumPy operations.
     """
     if series is None or len(series) == 0:
         return {}
+
+    if not pd.api.types.is_numeric_dtype(series):
+        return {"error": "Statistics are supported only for numeric columns", "count": len(series)}
 
     # Drop NA using NumPy
     arr = series.dropna().to_numpy()

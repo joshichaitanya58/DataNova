@@ -93,7 +93,8 @@ document.addEventListener('DOMContentLoaded', function () {
         'manage-roles': () => window.showAllUsersModal(),
         'view-datasets': () => window.showAllDatasetsModal(),
         'view-reports': () => window.showViewReportsModal(),
-        'system-settings': () => window.showSystemSettingsModal()
+        'system-settings': () => window.showSystemSettingsModal(),
+        'database-explorer': () => window.showDatabaseExplorerModal()
     };
 
     document.querySelectorAll('[data-action]').forEach(el => {
@@ -455,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const tbody = document.querySelector('#adminRecentUsersTable tbody');
             if (tbody) {
                 if (data.recent_users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">No recent users found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">No recent users found.</td></tr>';
                 } else {
                     tbody.innerHTML = data.recent_users.map(r_user => {
                         const isAct = (r_user.status || 'active').toLowerCase() === 'active';
@@ -471,18 +472,20 @@ document.addEventListener('DOMContentLoaded', function () {
                         const init2 = (r_user.last_name || '')[0] ? r_user.last_name[0].toUpperCase() : '';
                         const roleCap = (r_user.role || 'viewer').charAt(0).toUpperCase() + (r_user.role || 'viewer').slice(1);
                         const joinedDate = r_user.created_at ? (typeof r_user.created_at === 'string' ? r_user.created_at.substring(0, 10) : 'Active') : 'N/A';
+                        const orgName = r_user.organization || 'General';
 
                         return `
                             <tr>
-                                <td><div class="dn-cell-user"><span class="dn-avatar-sm">${init1}${init2}</span> ${r_user.first_name || ''} ${r_user.last_name || ''}</div></td>
-                                <td>${r_user.email || ''}</td>
-                                <td><span class="dn-badge-role">${roleCap}</span></td>
+                                <td><div class="dn-cell-user"><span class="dn-avatar-sm">${init1}${init2}</span> ${escapeHtml(r_user.first_name || '')} ${escapeHtml(r_user.last_name || '')}</div></td>
+                                <td>${escapeHtml(r_user.email || '')}</td>
+                                <td><span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-building me-1 text-primary"></i>${escapeHtml(orgName)}</span></td>
+                                <td><span class="dn-badge-role">${escapeHtml(roleCap)}</span></td>
                                 <td>${statusBadge}</td>
                                 <td>${joinedDate}</td>
                                 <td>
                                     <div class="d-flex gap-1 align-items-center">
                                         ${toggleBtn}
-                                        <button class="dn-table-action dn-btn-edit-role" data-user-id="${r_user.id}" data-role="${r_user.role}" title="Edit Role"><i class="bi bi-pencil"></i></button>
+                                        <button class="dn-table-action dn-btn-edit-role" data-user-id="${r_user.id}" data-role="${escapeHtml(r_user.role || '')}" title="Edit Role"><i class="bi bi-pencil"></i></button>
                                     </div>
                                 </td>
                             </tr>
@@ -1043,7 +1046,7 @@ window.renderAdminOrgFilterControls = function (orgList, currentOrg) {
     if (selectEl) {
         let selectHtml = `<option value="all" ${currentOrg === 'all' ? 'selected' : ''}>All Organizations (${totalCount})</option>`;
         orgList.forEach(o => {
-            const orgName = o.organization || 'General';
+            const orgName = o.name || o.organization || o.org || 'General';
             const sel = (currentOrg.toLowerCase() === orgName.toLowerCase()) ? 'selected' : '';
             selectHtml += `<option value="${escapeHtml(orgName)}" ${sel}>${escapeHtml(orgName)} (${o.count})</option>`;
         });
@@ -1058,7 +1061,7 @@ window.renderAdminOrgFilterControls = function (orgList, currentOrg) {
             </button>
         `;
         orgList.forEach(o => {
-            const orgName = o.organization || 'General';
+            const orgName = o.name || o.organization || o.org || 'General';
             const isActive = currentOrg.toLowerCase() === orgName.toLowerCase();
             pillsHtml += `
                 <button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline-secondary'} py-0 px-2 rounded-pill small" 
@@ -1189,11 +1192,47 @@ window.toggleUserStatus = function (userId, newStatus) {
 };
 
 // --- Admin Edit User Profile & Role Modal Handling ---
-window.showAdminEditUserProfileModalById = function (userId) {
-    const user = (window._allUsersCache || []).find(u => u.id === userId);
+window.showEditRoleModal = function (userId, currentRole) {
+    const targetId = parseInt(userId, 10) || userId;
+    let user = (window._allUsersCache || []).find(u => String(u.id) === String(userId));
+
     if (!user) {
-        window.showToast("User details not found in cache. Reloading...", "warning");
-        window.loadAllUsersModalData();
+        // Extract row details from DOM if cache is not yet populated
+        const btn = document.querySelector(`.dn-btn-edit-role[data-user-id="${userId}"]`);
+        const row = btn ? btn.closest('tr') : null;
+        if (row) {
+            const userNameText = row.querySelector('.dn-cell-user')?.textContent.trim() || '';
+            const emailText = row.cells[1]?.textContent.trim() || '';
+            const orgText = row.cells[2]?.textContent.trim() || 'General';
+            const statusText = row.cells[4]?.textContent.trim().toLowerCase() || 'active';
+
+            const parts = userNameText.split(/\s+/);
+            const firstName = parts[0] || 'User';
+            const lastName = parts.slice(1).join(' ') || '';
+
+            user = {
+                id: targetId,
+                first_name: firstName,
+                last_name: lastName,
+                email: emailText,
+                organization: orgText,
+                role: currentRole || 'viewer',
+                status: statusText.includes('inactive') ? 'inactive' : 'active'
+            };
+        }
+    }
+
+    if (user) {
+        window.showAdminEditUserProfileModal(user);
+    } else {
+        window.showAdminEditUserProfileModal({ id: targetId, role: currentRole || 'viewer' });
+    }
+};
+
+window.showAdminEditUserProfileModalById = function (userId) {
+    const user = (window._allUsersCache || []).find(u => String(u.id) === String(userId));
+    if (!user) {
+        window.showEditRoleModal(userId);
         return;
     }
     window.showAdminEditUserProfileModal(user);
@@ -2015,18 +2054,28 @@ window.showViewReportsModal = function () {
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-secondary">No reports generated yet.</td></tr>`;
                     return;
                 }
-                tbody.innerHTML = res.reports.map(rep => `
+                tbody.innerHTML = res.reports.map(rep => {
+                    const rType = (rep.report_type || 'HTML').toUpperCase();
+                    const typeBadge = rType === 'PDF' ? 'bg-danger text-white' :
+                                      rType === 'DOCX' || rType === 'WORD' ? 'bg-primary text-white' :
+                                      rType === 'XLSX' || rType === 'EXCEL' ? 'bg-success text-white' :
+                                      rType === 'PPTX' || rType === 'PPT' ? 'bg-warning text-dark' : 'bg-info text-white';
+                    return `
                     <tr>
-                        <td class="fw-semibold"><i class="bi bi-file-earmark-pdf text-danger me-1"></i> ${rep.report_name || 'Report'}</td>
+                        <td class="fw-semibold"><i class="bi bi-file-earmark-text text-primary me-1"></i> ${rep.report_name || 'Report'}</td>
                         <td>${rep.first_name || 'User'} ${rep.last_name || ''}<br><small class="text-secondary">${rep.email || ''}</small></td>
-                        <td><span class="badge bg-primary-subtle text-primary">${rep.dataset_name || 'Dataset'}</span></td>
-                        <td><span class="badge bg-info text-white">${(rep.report_type || 'HTML').toUpperCase()}</span></td>
-                        <td>${rep.created_at || 'N/A'}</td>
+                        <td><span class="badge bg-primary-subtle text-primary">${rep.dataset_name || rep.dataset_file_name || 'Dataset'}</span></td>
+                        <td><span class="badge ${typeBadge}">${rType}</span></td>
+                        <td>${rep.created_at || rep.created_at_str || 'N/A'}</td>
                         <td class="text-end">
-                            <a href="/api/report/download/${rep.id}" class="btn btn-sm btn-outline-success py-0 px-2" target="_blank"><i class="bi bi-download"></i> View</a>
+                            <a href="/api/report/view/${rep.id}" class="btn btn-sm btn-outline-primary py-0 px-2" target="_blank" title="View Report (${rType})">
+                                <i class="bi bi-eye"></i> View
+                            </a>
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
+
             } else {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-danger">Failed to load reports.</td></tr>`;
             }
@@ -2175,3 +2224,386 @@ document.addEventListener('click', function (e) {
             console.error('Security scan error:', err);
         });
 });
+
+/* ==========================================================================
+   Database Viewer & Explorer Controller (Read-Only)
+   ========================================================================== */
+let dbExplorerState = {
+    tables: [],
+    currentTable: '',
+    selectedColumns: [],
+    allColumnsForTable: [],
+    search: '',
+    limit: 50,
+    offset: 0,
+    totalRows: 0,
+    filteredRows: 0,
+    currentRows: [],
+    searchDebounceTimer: null
+};
+
+function showDatabaseExplorerModal() {
+    const modalEl = document.getElementById('adminDatabaseModal');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    if (!dbExplorerState.tables || dbExplorerState.tables.length === 0) {
+        loadDatabaseTables();
+    }
+}
+window.showDatabaseExplorerModal = showDatabaseExplorerModal;
+
+function loadDatabaseTables() {
+    const selectEl = document.getElementById('dbExplorerTableSelect');
+    if (selectEl) {
+        selectEl.innerHTML = '<option value="" disabled selected>Fetching database tables...</option>';
+    }
+
+    fetch('/api/admin/database/tables')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.tables) && data.tables.length > 0) {
+                dbExplorerState.tables = data.tables;
+                if (selectEl) {
+                    selectEl.innerHTML = data.tables.map(t =>
+                        `<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)} (${(t.rows || 0).toLocaleString()} rows &bull; ${t.size || '0 KB'})</option>`
+                    ).join('');
+
+                    const firstTable = data.tables[0];
+                    dbExplorerState.currentTable = firstTable.name;
+                    selectEl.value = firstTable.name;
+                    onTableSelected(firstTable.name);
+                }
+            } else {
+                if (selectEl) selectEl.innerHTML = '<option value="" disabled selected>No tables found</option>';
+                showToast(data.message || 'No database tables returned.', 'warning');
+            }
+        })
+        .catch(err => {
+            console.error('Error loading tables:', err);
+            if (selectEl) selectEl.innerHTML = '<option value="" disabled selected>Error loading tables</option>';
+            showToast('Failed to load database tables from server.', 'danger');
+        });
+}
+
+function onTableSelected(tableName) {
+    dbExplorerState.currentTable = tableName;
+    dbExplorerState.offset = 0;
+    dbExplorerState.search = '';
+
+    const searchInput = document.getElementById('dbExplorerSearchInput');
+    if (searchInput) searchInput.value = '';
+    const clearBtn = document.getElementById('dbExplorerClearSearchBtn');
+    if (clearBtn) clearBtn.classList.add('d-none');
+
+    const tblInfo = dbExplorerState.tables.find(t => t.name === tableName);
+    if (!tblInfo) return;
+
+    dbExplorerState.allColumnsForTable = tblInfo.columns || [];
+    dbExplorerState.selectedColumns = (tblInfo.columns || []).map(c => c.name);
+
+    renderColumnCheckboxes();
+    queryDatabaseTable();
+}
+
+function renderColumnCheckboxes() {
+    const container = document.getElementById('dbExplorerColumnsList');
+    const badge = document.getElementById('dbExplorerColCountBadge');
+    if (!container) return;
+
+    const cols = dbExplorerState.allColumnsForTable || [];
+    if (badge) {
+        badge.textContent = `${dbExplorerState.selectedColumns.length} of ${cols.length} columns`;
+    }
+
+    if (cols.length === 0) {
+        container.innerHTML = '<span class="text-muted small">No columns detected for this table.</span>';
+        return;
+    }
+
+    container.innerHTML = cols.map(c => {
+        const isChecked = dbExplorerState.selectedColumns.includes(c.name);
+        const pkIcon = c.is_primary ? '<i class="bi bi-key-fill text-warning me-0.5" title="Primary Key"></i>' : '';
+        const badgeClass = isChecked ? 'bg-primary text-white border-primary shadow-sm' : 'bg-body text-secondary border';
+        return `
+            <label class="badge ${badgeClass} border d-inline-flex align-items-center gap-1.5 px-2.5 py-1.5 rounded-pill cursor-pointer user-select-none" style="cursor: pointer; font-size: 0.74rem; font-weight: 500; transition: all 0.15s ease;">
+                <input type="checkbox" class="form-check-input mt-0 db-col-toggle-input d-none" value="${escapeHtml(c.name)}" ${isChecked ? 'checked' : ''}>
+                <i class="bi ${isChecked ? 'bi-check-circle-fill' : 'bi-circle'} small"></i>
+                ${pkIcon}
+                <span class="font-monospace">${escapeHtml(c.name)}</span>
+            </label>
+        `;
+    }).join('');
+
+    container.querySelectorAll('.db-col-toggle-input').forEach(chk => {
+        chk.addEventListener('change', function () {
+            const colName = this.value;
+            if (this.checked) {
+                if (!dbExplorerState.selectedColumns.includes(colName)) {
+                    dbExplorerState.selectedColumns.push(colName);
+                }
+            } else {
+                dbExplorerState.selectedColumns = dbExplorerState.selectedColumns.filter(c => c !== colName);
+            }
+            if (dbExplorerState.selectedColumns.length === 0) {
+                this.checked = true;
+                dbExplorerState.selectedColumns.push(colName);
+                showToast("At least one column must be selected.", "warning");
+                return;
+            }
+            renderColumnCheckboxes();
+            dbExplorerState.offset = 0;
+            queryDatabaseTable();
+        });
+    });
+}
+
+function queryDatabaseTable() {
+    if (!dbExplorerState.currentTable) return;
+
+    const overlay = document.getElementById('dbExplorerLoadingOverlay');
+    const tbody = document.getElementById('dbExplorerTbody');
+    const thead = document.getElementById('dbExplorerThead');
+    const emptyState = document.getElementById('dbExplorerEmptyState');
+    const tableWrapper = document.getElementById('dbExplorerTableWrapper');
+    const statusText = document.getElementById('dbExplorerStatusText');
+    const metaText = document.getElementById('dbExplorerMetaText');
+    const prevBtn = document.getElementById('dbExplorerPrevPageBtn');
+    const nextBtn = document.getElementById('dbExplorerNextPageBtn');
+    const pageInfo = document.getElementById('dbExplorerPageInfo');
+
+    if (overlay) overlay.classList.remove('d-none');
+    if (emptyState) emptyState.classList.add('d-none');
+    if (tableWrapper) tableWrapper.classList.remove('d-none');
+
+    const payload = {
+        table: dbExplorerState.currentTable,
+        columns: dbExplorerState.selectedColumns,
+        limit: dbExplorerState.limit,
+        offset: dbExplorerState.offset,
+        search: dbExplorerState.search
+    };
+
+    fetch('/api/admin/database/table_data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (overlay) overlay.classList.add('d-none');
+
+            if (data.success) {
+                dbExplorerState.currentRows = data.rows || [];
+                dbExplorerState.totalRows = data.total_rows || 0;
+                dbExplorerState.filteredRows = data.filtered_rows || 0;
+
+                const cols = data.columns || [];
+                const rows = data.rows || [];
+
+                if (thead) {
+                    thead.innerHTML = `
+                        <tr>
+                            <th style="width: 45px;" class="text-secondary text-center">#</th>
+                            ${cols.map(c => `
+                                <th>
+                                    <div class="d-flex align-items-center gap-1.5">
+                                        ${c.is_primary ? '<i class="bi bi-key-fill text-warning me-0.5" title="Primary Key"></i>' : ''}
+                                        <span class="font-monospace fw-semibold">${escapeHtml(c.name)}</span>
+                                        <span class="text-secondary opacity-50 small font-monospace" style="font-size: 0.68rem; font-weight: normal;">${escapeHtml(c.type || '')}</span>
+                                    </div>
+                                </th>
+                            `).join('')}
+                        </tr>
+                    `;
+                }
+
+                if (tbody) {
+                    if (rows.length === 0) {
+                        tbody.innerHTML = '';
+                        if (emptyState) emptyState.classList.remove('d-none');
+                    } else {
+                        tbody.innerHTML = rows.map((r, idx) => {
+                            const rowNum = dbExplorerState.offset + idx + 1;
+                            const cells = cols.map(c => {
+                                const val = r[c.name];
+                                if (val === null || val === undefined) {
+                                    return '<td class="text-muted fst-italic">NULL</td>';
+                                }
+                                const valStr = String(val);
+                                if (valStr.startsWith('••••')) {
+                                    return `<td><span class="badge bg-dark-subtle text-dark border font-monospace">${escapeHtml(valStr)}</span></td>`;
+                                }
+                                return `<td>${escapeHtml(valStr)}</td>`;
+                            }).join('');
+                            return `<tr><td class="text-secondary text-center small">${rowNum}</td>${cells}</tr>`;
+                        }).join('');
+                    }
+                }
+
+                const startRow = rows.length > 0 ? dbExplorerState.offset + 1 : 0;
+                const endRow = dbExplorerState.offset + rows.length;
+                if (statusText) {
+                    if (dbExplorerState.search) {
+                        statusText.innerHTML = `Showing <strong>${startRow}-${endRow}</strong> of <strong>${dbExplorerState.filteredRows.toLocaleString()}</strong> filtered rows (Total ${dbExplorerState.totalRows.toLocaleString()} in table)`;
+                    } else {
+                        statusText.innerHTML = `Showing <strong>${startRow}-${endRow}</strong> of <strong>${dbExplorerState.totalRows.toLocaleString()}</strong> records in <code>${escapeHtml(dbExplorerState.currentTable)}</code>`;
+                    }
+                }
+
+                if (metaText) {
+                    metaText.textContent = `Columns: ${cols.length} | Limit: ${dbExplorerState.limit}`;
+                }
+
+                const currentPage = Math.floor(dbExplorerState.offset / dbExplorerState.limit) + 1;
+                const totalPages = Math.max(1, Math.ceil(dbExplorerState.filteredRows / dbExplorerState.limit));
+                if (pageInfo) {
+                    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                }
+                if (prevBtn) prevBtn.disabled = dbExplorerState.offset === 0;
+                if (nextBtn) nextBtn.disabled = endRow >= dbExplorerState.filteredRows;
+            } else {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="100" class="text-danger text-center py-3">${escapeHtml(data.message || 'Failed to query table.')}</td></tr>`;
+                showToast(data.message || 'Failed to query table data.', 'danger');
+            }
+        })
+        .catch(err => {
+            if (overlay) overlay.classList.add('d-none');
+            console.error('Error querying table:', err);
+            if (tbody) tbody.innerHTML = `<tr><td colspan="100" class="text-danger text-center py-3">Network error while querying database.</td></tr>`;
+            showToast('Network error while querying database.', 'danger');
+        });
+}
+
+function exportCurrentDatabaseViewCSV() {
+    if (!dbExplorerState.currentRows || dbExplorerState.currentRows.length === 0) {
+        showToast('No table records to export.', 'warning');
+        return;
+    }
+    const cols = dbExplorerState.selectedColumns;
+    const rows = dbExplorerState.currentRows;
+
+    let csvContent = '\uFEFF';
+    csvContent += cols.map(c => `"${c.replace(/"/g, '""')}"`).join(',') + '\r\n';
+
+    rows.forEach(r => {
+        const rowLine = cols.map(c => {
+            const val = r[c] === null || r[c] === undefined ? '' : String(r[c]);
+            return `"${val.replace(/"/g, '""')}"`;
+        }).join(',');
+        csvContent += rowLine + '\r\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${dbExplorerState.currentTable || 'table'}_export_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Exported ${rows.length} rows to CSV!`, 'success');
+}
+
+// Bind Database Explorer Controls on DOM Load
+(function initDatabaseExplorerEvents() {
+    const tableSelect = document.getElementById('dbExplorerTableSelect');
+    if (tableSelect) {
+        tableSelect.addEventListener('change', function () {
+            onTableSelected(this.value);
+        });
+    }
+
+    const searchInput = document.getElementById('dbExplorerSearchInput');
+    const clearBtn = document.getElementById('dbExplorerClearSearchBtn');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const val = this.value.trim();
+            dbExplorerState.search = val;
+            dbExplorerState.offset = 0;
+            if (clearBtn) clearBtn.classList.toggle('d-none', !val);
+
+            clearTimeout(dbExplorerState.searchDebounceTimer);
+            dbExplorerState.searchDebounceTimer = setTimeout(() => {
+                queryDatabaseTable();
+            }, 300);
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            if (searchInput) searchInput.value = '';
+            dbExplorerState.search = '';
+            dbExplorerState.offset = 0;
+            clearBtn.classList.add('d-none');
+            queryDatabaseTable();
+        });
+    }
+
+    const limitSelect = document.getElementById('dbExplorerLimitSelect');
+    if (limitSelect) {
+        limitSelect.addEventListener('change', function () {
+            dbExplorerState.limit = parseInt(this.value, 10) || 50;
+            dbExplorerState.offset = 0;
+            queryDatabaseTable();
+        });
+    }
+
+    const refreshBtn = document.getElementById('dbExplorerRefreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function () {
+            queryDatabaseTable();
+        });
+    }
+
+    const exportBtn = document.getElementById('dbExplorerExportBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function () {
+            exportCurrentDatabaseViewCSV();
+        });
+    }
+
+    const selectAllBtn = document.getElementById('dbExplorerSelectAllColsBtn');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function () {
+            dbExplorerState.selectedColumns = (dbExplorerState.allColumnsForTable || []).map(c => c.name);
+            renderColumnCheckboxes();
+            dbExplorerState.offset = 0;
+            queryDatabaseTable();
+        });
+    }
+
+    const deselectAllBtn = document.getElementById('dbExplorerDeselectAllColsBtn');
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function () {
+            if (dbExplorerState.allColumnsForTable && dbExplorerState.allColumnsForTable.length > 0) {
+                const firstCol = dbExplorerState.allColumnsForTable[0].name;
+                dbExplorerState.selectedColumns = [firstCol];
+                renderColumnCheckboxes();
+                dbExplorerState.offset = 0;
+                queryDatabaseTable();
+            }
+        });
+    }
+
+    const prevBtn = document.getElementById('dbExplorerPrevPageBtn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+            if (dbExplorerState.offset > 0) {
+                dbExplorerState.offset = Math.max(0, dbExplorerState.offset - dbExplorerState.limit);
+                queryDatabaseTable();
+            }
+        });
+    }
+
+    const nextBtn = document.getElementById('dbExplorerNextPageBtn');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+            if (dbExplorerState.offset + dbExplorerState.limit < dbExplorerState.filteredRows) {
+                dbExplorerState.offset += dbExplorerState.limit;
+                queryDatabaseTable();
+            }
+        });
+    }
+})();

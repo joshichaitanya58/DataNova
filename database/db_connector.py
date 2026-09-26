@@ -30,7 +30,12 @@ class PooledConnectionWrapper:
         self._pool = pool
         self._is_closed = False
 
+    def _check_closed(self):
+        if self._is_closed:
+            raise DatabaseConnectionError("Cannot perform operation on closed database connection wrapper.")
+
     def __getattr__(self, name: str) -> Any:
+        self._check_closed()
         return getattr(self._raw_conn, name)
 
     def close(self):
@@ -39,15 +44,19 @@ class PooledConnectionWrapper:
             self._pool.release_connection(self._raw_conn)
 
     def cursor(self, cursor_type=DictCursor):
+        self._check_closed()
         return self._raw_conn.cursor(cursor_type)
 
     def commit(self):
+        self._check_closed()
         return self._raw_conn.commit()
 
     def rollback(self):
+        self._check_closed()
         return self._raw_conn.rollback()
 
     def ping(self, reconnect=True):
+        self._check_closed()
         return self._raw_conn.ping(reconnect=reconnect)
 
     def __enter__(self):
@@ -81,17 +90,14 @@ class DataNovaConnectionPool:
         self._initialized = False
 
     def _load_config(self):
-        db_host = os.getenv("DB_HOST")
-        db_user = os.getenv("DB_USER")
-        db_password = os.getenv("DB_PASSWORD")
-        db_name = os.getenv("DB_NAME")
-        db_port_str = os.getenv("DB_PORT", "3306")
+        db_host = os.getenv("DB_HOST") or os.getenv("MYSQLHOST") or os.getenv("MYSQL_HOST")
+        db_user = os.getenv("DB_USER") or os.getenv("MYSQLUSER") or os.getenv("MYSQL_USER")
+        db_password = os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD") or os.getenv("MYSQL_PASSWORD")
+        db_name = os.getenv("DB_NAME") or os.getenv("MYSQLDATABASE") or os.getenv("MYSQL_DATABASE")
+        db_port_str = os.getenv("DB_PORT") or os.getenv("MYSQLPORT") or os.getenv("MYSQL_PORT") or "3306"
 
         if not all([db_host, db_user, db_password, db_name]):
-            raise DatabaseConnectionError("Missing critical DB configuration variables in environment.")
-
-        db_ssl_enabled = os.getenv("DB_SSL", "false").lower() in ("true", "1", "yes", "require", "required")
-        db_ssl_ca = os.getenv("DB_SSL_CA")
+            raise DatabaseConnectionError("Missing critical DB configuration variables in environment (DB_HOST/MYSQLHOST, DB_USER/MYSQLUSER, DB_PASSWORD/MYSQLPASSWORD, DB_NAME/MYSQLDATABASE).")
 
         port = int(db_port_str) if db_port_str.isdigit() else 3306
         self._db_config = {
@@ -102,21 +108,11 @@ class DataNovaConnectionPool:
             "database": db_name,
             "charset": "utf8mb4",
             "cursorclass": DictCursor,
-            "connect_timeout": 15,
-            "read_timeout": 60,
-            "write_timeout": 60,
+            "connect_timeout": 10,
+            "read_timeout": 30,
+            "write_timeout": 30,
             "autocommit": False,
         }
-
-        # Enable SSL for cloud MySQL instances (e.g. TiDB, Aiven, AWS RDS, PlanetScale)
-        if db_ssl_enabled:
-            ssl_dict = {}
-            if db_ssl_ca and os.path.exists(db_ssl_ca):
-                ssl_dict["ca"] = db_ssl_ca
-            else:
-                ssl_dict["ssl"] = True
-            self._db_config["ssl"] = ssl_dict
-
         self._initialized = True
 
     def _create_raw_connection(self) -> pymysql.connections.Connection:
@@ -153,18 +149,24 @@ class DataNovaConnectionPool:
         except queue.Empty:
             pass
 
-        # 2. If pool is not full, create a new connection
+        # 2. If pool is not full, increment count under lock and create connection outside lock
+        can_create = False
         with self._lock:
             if self._created_count < self._max_connections:
-                try:
-                    raw_conn = self._create_raw_connection()
-                    self._created_count += 1
-                    return PooledConnectionWrapper(raw_conn, self)
-                except Exception as e:
-                    logger.error(f"Error creating new database connection: {e}")
-                    if raise_on_error:
-                        raise DatabaseConnectionError(str(e)) from e
-                    return None
+                self._created_count += 1
+                can_create = True
+
+        if can_create:
+            try:
+                raw_conn = self._create_raw_connection()
+                return PooledConnectionWrapper(raw_conn, self)
+            except Exception as e:
+                with self._lock:
+                    self._created_count = max(0, self._created_count - 1)
+                logger.error(f"Error creating new database connection: {e}")
+                if raise_on_error:
+                    raise DatabaseConnectionError(str(e)) from e
+                return None
 
         # 3. Wait for an available connection with timeout
         try:
@@ -195,14 +197,12 @@ class DataNovaConnectionPool:
         if raw_conn is None:
             return
         try:
-            # Ensure transaction is rolled back so the connection is clean
             try:
                 raw_conn.rollback()
             except Exception:
                 pass
             self._pool.put_nowait(raw_conn)
         except queue.Full:
-            # Pool full, close connection
             try:
                 raw_conn.close()
             except Exception:
@@ -262,10 +262,10 @@ def init_db(connection: Optional[Any] = None) -> bool:
             file_path VARCHAR(255) NOT NULL,
             file_size BIGINT,
             file_type VARCHAR(10),
-            row_count INT,
-            column_count INT,
-            missing_values_count INT DEFAULT 0,
-            duplicate_rows_count INT DEFAULT 0,
+            row_count BIGINT UNSIGNED,
+            column_count INT UNSIGNED,
+            missing_values_count BIGINT UNSIGNED DEFAULT 0,
+            duplicate_rows_count BIGINT UNSIGNED DEFAULT 0,
             status VARCHAR(20) DEFAULT 'uploaded',
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             eda_charts_json JSON,
@@ -307,8 +307,12 @@ def init_db(connection: Optional[Any] = None) -> bool:
             title VARCHAR(255) NOT NULL,
             description TEXT,
             dataset_id INT,
+            status VARCHAR(20) DEFAULT 'Shared',
+            remark TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (shared_with_user_id) REFERENCES users(id) ON DELETE SET NULL,
             FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE SET NULL,
             INDEX idx_shared_owner (owner_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -343,8 +347,29 @@ def init_db(connection: Optional[Any] = None) -> bool:
             FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE SET NULL,
             INDEX idx_tasks_mgr_assigned (manager_id, assigned_to_id, status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            message TEXT NOT NULL,
+            type VARCHAR(20) DEFAULT 'info',
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_notifs_user (user_id, is_read)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS system_settings (
+            setting_key VARCHAR(100) PRIMARY KEY,
+            setting_value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
     ]
+
 
     try:
         with connection.cursor() as cursor:
@@ -364,7 +389,29 @@ def init_db(connection: Optional[Any] = None) -> bool:
             if not cursor.fetchone():
                 cursor.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT NULL")
 
-            # High-concurrency performance index additions (safe try-catch per index)
+            # Auto-migrations for shared_dashboards table columns
+            cursor.execute("SHOW COLUMNS FROM shared_dashboards LIKE 'status'")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE shared_dashboards ADD COLUMN status VARCHAR(20) DEFAULT 'Shared'")
+
+            cursor.execute("SHOW COLUMNS FROM shared_dashboards LIKE 'remark'")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE shared_dashboards ADD COLUMN remark TEXT DEFAULT NULL")
+
+            cursor.execute("SHOW COLUMNS FROM shared_dashboards LIKE 'updated_at'")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE shared_dashboards ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP")
+
+            # Auto-migrations for manager_tasks table columns
+            cursor.execute("SHOW COLUMNS FROM manager_tasks LIKE 'remark'")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE manager_tasks ADD COLUMN remark TEXT DEFAULT NULL")
+
+            cursor.execute("SHOW COLUMNS FROM manager_tasks LIKE 'dataset_id'")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE manager_tasks ADD COLUMN dataset_id INT DEFAULT NULL")
+
+            # High-concurrency performance index additions
             index_queries = [
                 "CREATE INDEX idx_users_org_role ON users (organization, role)",
                 "CREATE INDEX idx_users_status ON users (status)",
@@ -376,8 +423,12 @@ def init_db(connection: Optional[Any] = None) -> bool:
             for idx_q in index_queries:
                 try:
                     cursor.execute(idx_q)
-                except Exception:
-                    pass  # Index already exists
+                except Exception as idx_err:
+                    err_str = str(idx_err)
+                    if "1061" in err_str or "Duplicate key name" in err_str:
+                        pass  # Index already exists
+                    else:
+                        logger.warning(f"Note on index creation '{idx_q}': {idx_err}")
 
         connection.commit()
         logger.info("Database tables and high-concurrency indexes verified/created successfully.")

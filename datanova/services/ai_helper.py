@@ -52,7 +52,17 @@ def extract_json_from_text(text: str):
     return None
 
 
-def make_http_request(url: str, headers: dict = None, payload: dict = None, timeout: int = 20):
+def _sanitize_url_for_logging(url: str) -> str:
+    """Removes sensitive query parameters (e.g. key=...) from URLs before logging."""
+    if not url:
+        return ""
+    if "?key=" in url:
+        base_url = url.split("?key=")[0]
+        return f"{base_url}?key=REDACTED"
+    return url
+
+
+def make_http_request(url: str, headers: dict = None, payload: dict = None, timeout: int = 15):
     """
     Sends HTTP POST request using `requests` package if installed, else `urllib.request`.
     Logs detailed provider errors internally while raising sanitized client-safe exception messages.
@@ -60,12 +70,13 @@ def make_http_request(url: str, headers: dict = None, payload: dict = None, time
     default_headers = {"User-Agent": "DataNova-Analytics-Platform/1.0"}
     req_headers = {**default_headers, **(headers or {})}
     req_payload = payload or {}
+    safe_log_url = _sanitize_url_for_logging(url)
 
     try:
         import requests
         resp = requests.post(url, headers=req_headers, json=req_payload, timeout=timeout)
         if resp.status_code >= 400:
-            logger.error(f"HTTP {resp.status_code} error from provider {url}: {resp.text[:300]}")
+            logger.error(f"HTTP {resp.status_code} error from provider {safe_log_url}: {resp.text[:300]}")
             raise ValueError(f"HTTP Error {resp.status_code} from AI Provider.")
         return resp.json()
     except ImportError:
@@ -80,10 +91,10 @@ def make_http_request(url: str, headers: dict = None, payload: dict = None, time
                 return json.loads(res_body)
         except urllib.error.HTTPError as http_err:
             err_body = http_err.read().decode("utf-8")
-            logger.error(f"HTTP {http_err.code} error from provider {url}: {err_body[:300]}")
+            logger.error(f"HTTP {http_err.code} error from provider {safe_log_url}: {err_body[:300]}")
             raise ValueError(f"HTTP Error {http_err.code} from AI Provider.")
         except Exception as e:
-            logger.error(f"HTTP request to {url} failed: {e}")
+            logger.error(f"HTTP request to {safe_log_url} failed: {e}")
             raise ValueError("HTTP request to AI provider failed.")
 
 
@@ -120,14 +131,21 @@ def log_ai_provider_call(provider_name, status):
 
 def call_groq(prompt: str, expect_json: bool = False) -> str:
     """
-    Provider 1: Groq API Call with multi-model fallback
+    Provider 1: Groq API Call with multi-model fallback across active free models
     """
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = (os.getenv("GROQ_API_KEY") or "").strip('"\' ')
     if not api_key or api_key.startswith("your_"):
         raise ValueError("GROQ_API_KEY environment variable is not configured.")
 
-    env_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-    candidate_models = [m for m in [env_model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"] if m]
+    env_model = (os.getenv("GROQ_MODEL") or "").strip('"\' ')
+    candidate_models = [m for m in [
+        env_model,
+        "qwen/qwen3.8-27b",
+        "groq/compound-mini",
+        "groq/compound",
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b"
+    ] if m]
     models = list(dict.fromkeys(candidate_models))
     capped_prompt = prompt[:8000]
 
@@ -144,7 +162,8 @@ def call_groq(prompt: str, expect_json: bool = False) -> str:
             if expect_json:
                 params["response_format"] = {"type": "json_object"}
             completion = client.chat.completions.create(**params)
-            return completion.choices[0].message.content
+            if completion and completion.choices and completion.choices[0].message.content:
+                return completion.choices[0].message.content
         except Exception as sdk_err:
             logger.warning(f"Groq SDK with model '{model}' failed: {sdk_err}. Trying HTTP API fallback...")
             try:
@@ -159,8 +178,9 @@ def call_groq(prompt: str, expect_json: bool = False) -> str:
                 }
                 if expect_json:
                     payload["response_format"] = {"type": "json_object"}
-                res = make_http_request(url, headers=headers, payload=payload)
-                return res["choices"][0]["message"]["content"]
+                res = make_http_request(url, headers=headers, payload=payload, timeout=15)
+                if res and "choices" in res and res["choices"]:
+                    return res["choices"][0]["message"]["content"]
             except Exception as http_err:
                 last_exc = http_err
                 logger.warning(f"Groq HTTP API with model '{model}' failed: {http_err}.")
@@ -171,19 +191,22 @@ def call_groq(prompt: str, expect_json: bool = False) -> str:
 
 def call_openrouter(prompt: str, expect_json: bool = False) -> str:
     """
-    Provider 2: OpenRouter API with multi-model fallback
+    Provider 2: OpenRouter API with multi-model fallback across active free models
     """
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = (os.getenv("OPENROUTER_API_KEY") or "").strip('"\' ')
     if not api_key or api_key.startswith("your_"):
         raise ValueError("OPENROUTER_API_KEY environment variable is not configured.")
 
-    env_model = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+    env_model = (os.getenv("OPENROUTER_MODEL") or "").strip('"\' ')
     candidate_models = [m for m in [
         env_model,
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "deepseek/deepseek-r1-distill-llama-70b:free",
-        "google/gemini-2.0-flash-exp:free",
-        "mistralai/mistral-7b-instruct:free"
+        "nvidia/nemotron-3.5-lightning:free",
+        "nex-agi/nex-n2.5-mini:free",
+        "nex-agi/nex-n2.5-pro:free",
+        "google/gemma-4-26b-a4b-it:free",
+        "google/gemma-4-31b-it:free",
+        "liquid/lfm-2.5-2.6b:free",
+        "openrouter/free"
     ] if m]
     # Remove duplicates while preserving order
     models = list(dict.fromkeys(candidate_models))
@@ -207,9 +230,11 @@ def call_openrouter(prompt: str, expect_json: bool = False) -> str:
             payload["response_format"] = {"type": "json_object"}
 
         try:
-            res = make_http_request(url, headers=headers, payload=payload)
+            res = make_http_request(url, headers=headers, payload=payload, timeout=18)
             if "choices" in res and res["choices"]:
-                return res["choices"][0]["message"]["content"]
+                msg_content = res["choices"][0].get("message", {}).get("content")
+                if msg_content:
+                    return msg_content
         except Exception as e:
             last_exc = e
             logger.warning(f"OpenRouter model '{model}' failed: {e}. Trying next fallback model...")
@@ -222,8 +247,8 @@ def call_cloudflare(prompt: str, expect_json: bool = False) -> str:
     """
     Provider 3: Cloudflare Workers AI API
     """
-    api_token = os.getenv("CLOUDFLARE_API_TOKEN") or os.getenv("CF_API_TOKEN")
-    account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID") or os.getenv("CF_ACCOUNT_ID")
+    api_token = (os.getenv("CLOUDFLARE_API_TOKEN") or os.getenv("CF_API_TOKEN") or "").strip('"\' ')
+    account_id = (os.getenv("CLOUDFLARE_ACCOUNT_ID") or os.getenv("CF_ACCOUNT_ID") or "").strip('"\' ')
 
     if not api_token or api_token.startswith("your_"):
         raise ValueError("CLOUDFLARE_API_TOKEN environment variable is not configured.")
@@ -246,7 +271,7 @@ def call_cloudflare(prompt: str, expect_json: bool = False) -> str:
         "messages": [{"role": "user", "content": full_prompt}]
     }
 
-    res = make_http_request(url, headers=headers, payload=payload)
+    res = make_http_request(url, headers=headers, payload=payload, timeout=15)
     if isinstance(res, dict) and res.get("success", False):
         result = res.get("result", {})
         if "response" in result:
@@ -264,7 +289,7 @@ def call_together(prompt: str, expect_json: bool = False) -> str:
     """
     Provider 4: Together AI API
     """
-    api_key = os.getenv("TOGETHER_API_KEY")
+    api_key = (os.getenv("TOGETHER_API_KEY") or "").strip('"\' ')
     if not api_key or api_key.startswith("your_"):
         raise ValueError("TOGETHER_API_KEY environment variable is not configured.")
 
@@ -290,12 +315,19 @@ def call_gemini(prompt: str, expect_json: bool = False) -> str:
     """
     Provider 5: Google AI Studio Gemini API with automatic model retry
     """
-    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip('"\' ')
     if not api_key or api_key.startswith("your_"):
         raise ValueError("GEMINI_API_KEY environment variable is not configured.")
 
-    env_model = os.getenv("GEMINI_MODEL", "")
-    gemini_models = [m for m in [env_model, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"] if m]
+    env_model = (os.getenv("GEMINI_MODEL") or "").strip('"\' ')
+    gemini_models = [m for m in [
+        env_model,
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-pro-latest"
+    ] if m]
 
     capped_prompt = prompt[:8000]
     formatted_prompt = capped_prompt
@@ -347,11 +379,13 @@ def generate_rule_based_ai_fallback(prompt: str, expect_json: bool = False):
     
     if expect_json:
         return {
+            "status": "limited",
+            "source": "rule_based_fallback",
             "unwanted_columns": [],
             "insights": [
-                "Dataset metrics evaluated successfully via DataNova local intelligence engine.",
-                "Review column quality scores and correlation matrices for deep patterns."
-            ]
+                "AI engine is currently offline or unreachable. Computed local statistical metrics are displayed."
+            ],
+            "warning": "AI analysis unavailable."
         }
     
     # Extract user question if present
@@ -362,12 +396,11 @@ def generate_rule_based_ai_fallback(prompt: str, expect_json: bool = False):
             question = parts[1]
 
     fallback_answer = (
-        "Based on DataNova's automated analytical summary: "
-        "The dataset metrics have been parsed successfully. All key data quality dimensions, "
-        "correlations, and distributions are active in your dashboard panels."
+        "DataNova Local Fallback Engine: External AI service is currently unavailable. "
+        "The computed summary metrics and data quality indicators are available directly in your dashboard panels."
     )
     if question:
-        fallback_answer += f" Regarding your question ('{question}'): Please refer to the Summary Statistics, KPI Metrics, and Visualization panels for exact column-level insights."
+        fallback_answer += f" Regarding your query ('{question}'): Please refer to the computed Summary Statistics and Visualizations."
     
     return fallback_answer
 

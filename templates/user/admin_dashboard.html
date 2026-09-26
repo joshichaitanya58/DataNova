@@ -44,6 +44,8 @@
                         class="bi bi-file-earmark-bar-graph"></i> Reports Management</a>
                 <a href="#sharedDashboardsModal" class="dn-nav-link" data-action="nav-shared"
                     data-page="shared-dashboards"><i class="bi bi-share"></i> Shared Dashboards</a>
+                <a href="#adminDatabaseModal" class="dn-nav-link" data-action="database-explorer"><i
+                        class="bi bi-database-fill-gear"></i> Database Explorer</a>
 
                 <div class="dn-nav-section-label">Monitoring</div>
                 <a href="#adminSystemActivitySection" class="dn-nav-link" data-action="nav-activity"
@@ -227,7 +229,8 @@
                 </div>
 
                 <!-- KPI cards -->
-                <div class="row g-3 mb-4">
+                <div class="row g-3 mb-4 justify-content-start">
+
                     <div class="col-6 col-lg-2">
                         <div class="dn-kpi-card">
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-primary)"><i
@@ -355,6 +358,7 @@
                                 <tr>
                                     <th>User</th>
                                     <th>Email</th>
+                                    <th>Organization</th>
                                     <th>Role</th>
                                     <th>Status</th>
                                     <th>Joined</th>
@@ -371,6 +375,9 @@
                                         </div>
                                     </td>
                                     <td>{{ r_user.email }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-building me-1 text-primary"></i>{{ r_user.organization|default('General') }}</span>
+                                    </td>
                                     <td><span class="dn-badge-role">{{ r_user.role|capitalize }}</span></td>
                                     <td><span
                                             class="dn-badge-status {{ 'ok' if (r_user.status|default('active')|lower == 'active') else 'danger' }}"><i
@@ -401,7 +408,7 @@
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="6" class="text-center p-4">No recent users found.</td>
+                                    <td colspan="7" class="text-center p-4">No recent users found.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -611,16 +618,18 @@
                         <h3 class="dn-panel-title"><i class="bi bi-lightning-charge"></i> Quick Actions</h3>
                     </div>
                     <div class="row g-3">
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="add-user"><i
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action" data-action="add-user"><i
                                     class="bi bi-person-plus"></i><span>Add User</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="manage-roles"><i
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action" data-action="manage-roles"><i
                                     class="bi bi-person-badge"></i><span>Manage Roles</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="view-datasets"><i
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action" data-action="view-datasets"><i
                                     class="bi bi-database"></i><span>View Datasets</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="view-reports"><i
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action" data-action="view-reports"><i
                                     class="bi bi-file-earmark-bar-graph"></i><span>View Reports</span></button></div>
-                        <div class="col-6 col-md-3"><button class="dn-quick-action" data-action="system-settings"><i
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action" data-action="system-settings"><i
                                     class="bi bi-gear"></i><span>System Settings</span></button></div>
+                        <div class="col-6 col-md-4 col-lg-2"><button class="dn-quick-action" data-action="database-explorer"><i
+                                    class="bi bi-database-fill-gear text-primary"></i><span>Database</span></button></div>
                     </div>
                 </div>
 
@@ -739,7 +748,7 @@
                             <div class="col-6">
                                 <label class="form-label small fw-semibold text-black">Password</label>
                                 <input type="password" id="addUserPassword" class="form-control" placeholder="••••••••"
-                                    required minlength="6">
+                                    autocomplete="new-password" required minlength="6">
                                 <div class="invalid-feedback">Min 6 characters required.</div>
                             </div>
                             <div class="col-6">
@@ -1168,7 +1177,7 @@
                                     <div class="col-12">
                                         <label class="form-label small fw-semibold">SMTP Password / App Password</label>
                                         <div class="input-group">
-                                            <input type="password" class="form-control" id="settingSmtpPassword" placeholder="App password or API token">
+                                            <input type="password" class="form-control" id="settingSmtpPassword" placeholder="App password or API token" autocomplete="off">
                                             <button class="btn btn-outline-secondary" type="button" id="btnToggleSmtpPassword">
                                                 <i class="bi bi-eye" id="iconToggleSmtpPassword"></i>
                                             </button>
@@ -1520,6 +1529,161 @@
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== DATABASE EXPLORER MODAL (READ-ONLY) ===================== -->
+        <div class="modal fade" id="adminDatabaseModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-fullscreen-lg-down modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content dn-modal shadow-lg border-0 rounded-4 overflow-hidden">
+                    <!-- Header -->
+                    <div class="modal-header dn-modal-header border-bottom px-4 py-3 bg-body-tertiary">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-database-fill fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="modal-title dn-modal-title fw-bold mb-0 fs-6 text-body">Database Explorer</h6>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5 fw-semibold" style="font-size: 10px;">
+                                        <i class="bi bi-shield-check me-1"></i>Read-Only
+                                    </span>
+                                </div>
+                                <p class="small text-secondary mb-0" style="font-size: 12px;">Browse live database tables, select visible columns, and filter records in real-time.</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body px-4 py-3 bg-body">
+                        <!-- Top Unified Toolbar -->
+                        <div class="p-2.5 mb-3 bg-body-tertiary border rounded-3">
+                            <div class="row g-2.5 align-items-center">
+                                <!-- Table Selector -->
+                                <div class="col-12 col-md-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-body text-primary border-end-0"><i class="bi bi-table"></i></span>
+                                        <select id="dbExplorerTableSelect" class="form-select form-select-sm border-start-0 fw-semibold">
+                                            <option value="" disabled selected>Loading tables...</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Search Filter -->
+                                <div class="col-12 col-md-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-body text-muted border-end-0"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="dbExplorerSearchInput" class="form-control border-start-0" placeholder="Filter / search records...">
+                                        <button class="btn btn-outline-secondary d-none" type="button" id="dbExplorerClearSearchBtn"><i class="bi bi-x"></i></button>
+                                    </div>
+                                </div>
+
+                                <!-- Limit & Action Buttons -->
+                                <div class="col-12 col-md-4 d-flex align-items-center justify-content-md-end gap-2 flex-wrap">
+                                    <div class="input-group input-group-sm" style="max-width: 110px;">
+                                        <span class="input-group-text bg-body text-muted border-end-0"><i class="bi bi-list-ol"></i></span>
+                                        <select id="dbExplorerLimitSelect" class="form-select form-select-sm border-start-0">
+                                            <option value="25">25 rows</option>
+                                            <option value="50" selected>50 rows</option>
+                                            <option value="100">100 rows</option>
+                                            <option value="250">250 rows</option>
+                                            <option value="500">500 rows</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1" id="dbExplorerRefreshBtn" title="Refresh Table Data">
+                                        <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1" id="dbExplorerExportBtn" title="Export Current View to CSV">
+                                        <i class="bi bi-download me-1"></i> Export
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column Filter Chips Strip -->
+                        <div class="p-2.5 mb-3 border rounded-3 bg-body-tertiary">
+                            <div class="d-flex justify-content-between align-items-center mb-1.5 flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="small fw-semibold text-secondary d-flex align-items-center gap-1" style="font-size: 12px;">
+                                        <i class="bi bi-layout-three-columns text-primary"></i> Visible Columns:
+                                    </span>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2" id="dbExplorerColCountBadge" style="font-size: 11px;">0 columns selected</span>
+                                </div>
+                                <div class="d-flex gap-1.5">
+                                    <button type="button" class="btn btn-sm btn-link text-primary text-decoration-none p-0 px-1 small" id="dbExplorerSelectAllColsBtn" style="font-size: 12px;">
+                                        Select All
+                                    </button>
+                                    <span class="text-secondary opacity-50">|</span>
+                                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none p-0 px-1 small" id="dbExplorerDeselectAllColsBtn" style="font-size: 12px;">
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="dbExplorerColumnsList" class="d-flex flex-wrap gap-1.5 pt-1" style="max-height: 90px; overflow-y: auto;">
+                                <span class="text-muted small">Select a table to choose columns...</span>
+                            </div>
+                        </div>
+
+                        <!-- Table Data Container -->
+                        <div class="position-relative">
+                            <!-- Table Info Header -->
+                            <div class="d-flex justify-content-between align-items-center mb-2 px-1 flex-wrap gap-2">
+                                <div class="small text-secondary" style="font-size: 12px;">
+                                    <span id="dbExplorerStatusText" class="fw-semibold">Showing 0 rows</span>
+                                </div>
+                                <div class="small text-muted font-monospace" id="dbExplorerMetaText" style="font-size: 11px;">
+                                </div>
+                            </div>
+
+                            <!-- Loading Spinner Overlay -->
+                            <div id="dbExplorerLoadingOverlay" class="d-none position-absolute top-0 start-0 w-100 h-100 bg-body bg-opacity-75 d-flex justify-content-center align-items-center rounded-3" style="z-index: 10; min-height: 200px;">
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary mb-2" role="status"></div>
+                                    <div class="small fw-semibold text-secondary">Querying Database Table...</div>
+                                </div>
+                            </div>
+
+                            <!-- Table Scroll Wrapper -->
+                            <div class="table-responsive border rounded-3 shadow-sm bg-body" style="max-height: 440px; overflow: auto;" id="dbExplorerTableWrapper">
+                                <table class="table dn-table table-hover table-striped align-middle small mb-0 font-monospace" id="dbExplorerTable" style="font-size: 0.8rem;">
+                                    <thead class="table-light sticky-top" id="dbExplorerThead" style="z-index: 2;">
+                                    </thead>
+                                    <tbody id="dbExplorerTbody">
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Empty State -->
+                            <div id="dbExplorerEmptyState" class="d-none text-center py-5 border rounded-3 bg-body-tertiary mt-2">
+                                <i class="bi bi-inbox fs-1 text-secondary opacity-50 mb-2"></i>
+                                <h6 class="fw-bold mb-1">No Records Found</h6>
+                                <p class="small text-secondary mb-0">The selected table is empty or matches no search criteria.</p>
+                            </div>
+
+                            <!-- Pagination Footer -->
+                            <div class="d-flex justify-content-between align-items-center mt-2.5 flex-wrap gap-2" id="dbExplorerPaginationBar">
+                                <span class="small text-secondary" id="dbExplorerPageInfo" style="font-size: 12px;">Page 1</span>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary rounded-start-pill px-3 py-1" id="dbExplorerPrevPageBtn" disabled>
+                                        <i class="bi bi-chevron-left me-1"></i> Prev
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary rounded-end-pill px-3 py-1" id="dbExplorerNextPageBtn" disabled>
+                                        Next <i class="bi bi-chevron-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer dn-modal-footer border-top px-4 py-2 bg-body-tertiary d-flex align-items-center justify-content-between">
+                        <small class="text-secondary d-flex align-items-center gap-1" style="font-size: 11px;">
+                            <i class="bi bi-shield-check text-success"></i>
+                            <span>Safe Read-Only Query Mode (SELECT queries only)</span>
+                        </small>
+                        <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3 py-1" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>

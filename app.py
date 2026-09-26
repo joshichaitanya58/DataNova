@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     host = os.getenv('FLASK_HOST', '127.0.0.1')
     port = int(os.getenv('FLASK_PORT', 5000))
-    debug_env = os.getenv('FLASK_DEBUG', '1').lower() in ('true', '1', 't')
+    debug_env = os.getenv('FLASK_DEBUG', '0').lower() in ('true', '1', 't')
 
     extra_files = []
     base_dir = os.path.dirname(os.path.abspath(__file__))

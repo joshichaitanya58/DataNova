@@ -26,13 +26,17 @@ def normalize_missing_values(df):
 
 def convert_currency(series):
     """
-    Converts currency strings like '₹1,200', '$500.50' into float.
+    Converts currency strings like '₹1,200', '$500.50', or '(₹500)' into float.
     """
     if pd.api.types.is_numeric_dtype(series):
         return series
 
+    str_s = series.astype(str).str.strip()
+    is_neg = str_s.str.startswith("(") & str_s.str.endswith(")")
     cleaned = (
-        series.astype(str)
+        str_s
+        .str.replace("(", "", regex=False)
+        .str.replace(")", "", regex=False)
         .str.replace("₹", "", regex=False)
         .str.replace("$", "", regex=False)
         .str.replace("€", "", regex=False)
@@ -40,20 +44,19 @@ def convert_currency(series):
         .str.replace(",", "", regex=False)
         .str.strip()
     )
-    return pd.to_numeric(cleaned, errors="coerce")
+    numeric = pd.to_numeric(cleaned, errors="coerce")
+    if is_neg.any():
+        numeric = np.where(is_neg, -numeric, numeric)
+    return pd.Series(numeric, index=series.index, dtype=float)
 
 
 def convert_percentage(series):
     """
-    Converts percentage strings (e.g., '15.5%') or scaled numbers into float fractions (0.155).
-    Unambiguously handles string vs decimal representation (DN-DATA-002).
+    Converts percentage strings (e.g., '15.5%') into float fractions (0.155).
+    Preserves numeric series as-is without dividing plain numbers by 100.
     """
     if pd.api.types.is_numeric_dtype(series):
-        series_float = series.astype(float)
-        non_null = series_float.dropna()
-        if not non_null.empty and non_null.abs().max() > 1.0:
-            return series_float / 100.0
-        return series_float
+        return series.astype(float)
 
     str_s = series.astype(str)
     has_percent = str_s.str.contains("%", regex=False, na=False)
@@ -65,9 +68,8 @@ def convert_percentage(series):
     )
     numeric = pd.to_numeric(cleaned, errors="coerce").astype(float)
 
-    mask_scale = has_percent | (numeric.abs() > 1.0)
     scaled = numeric / 100.0
-    return pd.Series(np.where(mask_scale, scaled, numeric), index=series.index, dtype=float)
+    return pd.Series(np.where(has_percent, scaled, numeric), index=series.index, dtype=float)
 
 
 def convert_datetime(series):

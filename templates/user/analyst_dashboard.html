@@ -68,7 +68,12 @@
 
         .dn-page-title,
         .dn-panel-title,
-        h1, h2, h3, h4, h5, h6 {
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             letter-spacing: -0.01em;
         }
 
@@ -158,6 +163,7 @@
                 <a href="#sharedDashboardsPanel" class="dn-nav-link" id="navSharedDashboards"><i
                         class="bi bi-share"></i> Shared Dashboards <span class="badge rounded-pill bg-info ms-auto"
                         id="analystSharedBadge" style="display:none;">0</span></a>
+                <a href="#dnCompareDatasetsModal" class="dn-nav-link" id="navCompareDatasets" data-action="compare-data"><i class="bi bi-columns-gap"></i> Compare Data</a>
 
                 <div class="dn-nav-section-label">Account</div>
                 <a href="#" class="dn-nav-link" id="navAnalystProfile" data-bs-toggle="modal"
@@ -181,7 +187,22 @@
 
                 <div class="dn-topbar-search">
                     <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Search your datasets...">
+                    <input type="text" id="analystTopbarSearchInput"
+                        placeholder="Search datasets, tasks, tools, features..." autocomplete="off">
+                    <button type="button" class="dn-search-clear-btn d-none" id="analystSearchClearBtn"
+                        title="Clear search"><i class="bi bi-x-circle-fill"></i></button>
+                    <div class="dn-search-dropdown d-none" id="analystSearchDropdown">
+                        <div
+                            class="p-2 border-bottom d-flex justify-content-between align-items-center bg-body-tertiary">
+                            <small class="fw-bold text-secondary text-uppercase"
+                                style="font-size: 0.68rem; letter-spacing: 0.05em;"><i
+                                    class="bi bi-funnel-fill text-primary me-1"></i> Live Search Results</small>
+                            <span class="badge bg-primary" id="analystSearchMatchCount" style="font-size: 0.68rem;">0
+                                matches</span>
+                        </div>
+                        <div class="p-2" style="max-height: 380px; overflow-y: auto;" id="analystSearchDropdownContent">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="dn-topbar-spacer"></div>
@@ -253,43 +274,29 @@
                     <div>
                         <span class="dn-eyebrow"><i class="bi bi-clipboard-data"></i> ANALYTICS WORKSPACE</span>
                         <h1 class="dn-page-title">Analyst Dashboard</h1>
-                        <p class="dn-page-sub">Upload, clean, explore, visualize, and generate executive reports from your datasets.</p>
+                        <p class="dn-page-sub">Upload, clean, explore, visualize, and generate executive reports from
+                            your datasets.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
-                        <button id="btnOpenCodeStudio" class="btn dn-btn-primary btn-sm"><i class="bi bi-filetype-py me-1"></i> Python Studio (.ipynb)</button>
-                        <button id="btnHeaderViewPrevious" class="btn dn-btn-outline-dn btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#previousDatasetsModal"><i class="bi bi-clock-history me-1"></i> Previous
-                            Datasets</button>
-                        <button id="btnShareDashboard" class="btn dn-btn-primary btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#shareDashboardModal"><i class="bi bi-share-fill me-1"></i> Share
-                            Dashboard</button>
-                        <button id="dnExportReportBtn" class="btn dn-btn-success btn-sm" style="display: none;"><i
-                                class="bi bi-file-earmark-pdf-fill me-1"></i> Export Full EDA</button>
-                        <div class="dropdown" id="dnDownloadCleanedDropdown" style="display: none;">
-                            <button class="btn dn-btn-primary btn-sm dropdown-toggle" type="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-download me-1"></i> Download Cleaned Data
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#" id="dnDownloadCleanedCSV"><i
-                                            class="bi bi-filetype-csv text-success me-2"></i> Download as CSV (.csv)</a>
-                                </li>
-                                <li><a class="dropdown-item" href="#" id="dnDownloadCleanedExcel"><i
-                                            class="bi bi-file-earmark-excel text-primary me-2"></i> Download as Excel
-                                        (.xlsx)</a></li>
-                            </ul>
-                        </div>
-                        <button id="dnRollbackDatasetBtn" class="btn dn-btn-outline-dn btn-sm" style="display: none;"><i
-                                class="bi bi-arrow-counterclockwise me-1"></i> Rollback</button>
-                        <button class="btn dn-btn-outline-dn btn-sm dn-open-ask-modal"><i
-                                class="bi bi-chat-dots me-1"></i> Ask AI</button>
-                        <a href="#upload" class="btn dn-btn-primary btn-sm"><i class="bi bi-cloud-upload me-1"></i>
-                            Upload Dataset</a>
+                        <button id="btnHeaderViewPrevious" class="btn btn-sm fw-semibold" data-bs-toggle="modal"
+                            data-bs-target="#previousDatasetsModal"
+                            style="background-color: #F1F5F9; color: #334155; border: 1px solid #CBD5E1;">
+                            <i class="bi bi-clock-history me-1"></i> Previous Datasets
+                        </button>
+                        <button id="dnRollbackDatasetBtn" class="btn btn-sm fw-semibold"
+                            style="display: none; background-color: #FFF7ED; color: #C2410C; border: 1px solid #FFEDD5;">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Rollback
+                        </button>
+                        <a href="#upload" class="btn btn-sm fw-semibold text-white"
+                            style="background-color: #2563EB; border: 1px solid #2563EB;">
+                            <i class="bi bi-cloud-upload me-1"></i> Upload Dataset
+                        </a>
                     </div>
                 </div>
 
                 <!-- KPI cards -->
-                <div class="row g-3 mb-4">
+                <div class="row g-3 mb-4 justify-content-start">
+
                     <div class="col-6 col-md-4 col-lg-2">
                         <div class="dn-kpi-card">
                             <div class="dn-kpi-top"><span class="dn-kpi-icon" style="background:var(--dn-primary)"><i
@@ -348,9 +355,6 @@
                                 INGESTION</span>
                             <h2 class="h4 fw-bold mb-0">Upload Dataset</h2>
                         </div>
-                        <span
-                            class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">Workflow
-                            Step 1 of 8</span>
                     </div>
 
                     <div class="dn-panel mb-4">
@@ -360,10 +364,19 @@
                                 <p class="dn-panel-sub text-muted small mb-0">Upload a fresh dataset or choose from
                                     previously analyzed datasets.</p>
                             </div>
-                            <button class="btn btn-sm dn-btn-outline-dn" id="btnUploadPanelPrevious"
-                                data-bs-toggle="modal" data-bs-target="#previousDatasetsModal">
-                                <i class="bi bi-clock-history me-1"></i> View Previous Datasets
-                            </button>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <button id="dnUploadAnotherBtn" class="btn dn-btn-outline-dn btn-sm" style="display: none;"><i
+                                        class="bi bi-arrow-clockwise"></i> Upload Another</button>
+                                <button
+                                    class="btn btn-sm btn-outline-success border-success-subtle fw-semibold rounded-pill px-3"
+                                    id="btnOpenGSheetModal" data-bs-toggle="modal" data-bs-target="#dnGoogleSheetModal">
+                                    <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Import Google Sheet
+                                </button>
+                                <button class="btn btn-sm dn-btn-outline-dn" id="btnUploadPanelPrevious"
+                                    data-bs-toggle="modal" data-bs-target="#previousDatasetsModal">
+                                    <i class="bi bi-clock-history me-1"></i> View Previous Datasets
+                                </button>
+                            </div>
                         </div>
                         <form id="dnUploadForm" class="dn-dropzone" novalidate>
                             <input type="file" id="dnFileInput" name="file"
@@ -371,11 +384,15 @@
                                 hidden>
                             <i class="bi bi-cloud-arrow-up"></i>
                             <h4>Drag and drop a file here, or click to browse</h4>
-                            <p>Supports CSV and Excel (.xlsx) &mdash; up to 200 MB per file</p>
-                            <div class="d-flex justify-content-center gap-2 mt-3">
-                                <span class="dn-badge-status neutral"><i class="bi bi-filetype-csv"></i> CSV</span>
-                                <span class="dn-badge-status neutral"><i class="bi bi-file-earmark-excel"></i>
+                            <p>Supports CSV, Excel (.xlsx), &amp; Google Sheets &mdash; up to 200 MB per file</p>
+                            <div class="d-flex justify-content-center gap-2 mt-3 flex-wrap align-items-center">
+                                <span class="dn-badge-status neutral"><i class="bi bi-filetype-csv me-1"></i> CSV</span>
+                                <span class="dn-badge-status neutral"><i class="bi bi-file-earmark-excel me-1"></i>
                                     Excel</span>
+                                <span class="dn-badge-status neutral" data-bs-toggle="modal"
+                                    data-bs-target="#dnGoogleSheetModal" style="cursor: pointer;">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i> Google Sheet
+                                </span>
                             </div>
                         </form>
                         <!-- Upload Progress Indicator (hidden by default) -->
@@ -402,9 +419,6 @@
                                     PROFILING</span>
                                 <h2 class="h4 fw-bold mb-0">Raw Data Preview &amp; Schema Overview</h2>
                             </div>
-                            <span
-                                class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">Workflow
-                                Step 2 of 8</span>
                         </div>
 
                         <div class="dn-panel-head">
@@ -412,8 +426,7 @@
                                 <h3 class="dn-panel-title"><i class="bi bi-eye"></i> Data Preview</h3>
                                 <p id="dnPreviewFilename" class="dn-panel-sub">First 5 rows of the uploaded dataset.</p>
                             </div>
-                            <button id="dnUploadAnotherBtn" class="btn dn-btn-outline-dn btn-sm"><i
-                                    class="bi bi-arrow-clockwise"></i> Upload Another</button>
+
                         </div>
                         <div class="table-responsive" id="dnDataPreviewContent">
                             <!-- Preview table HTML will be injected here by JavaScript -->
@@ -481,9 +494,6 @@
                                 QUALITY &amp; CLEANING PIPELINE</span>
                             <h2 class="h4 fw-bold mb-0">Clean, Impute &amp; Refine Dataset</h2>
                         </div>
-                        <span
-                            class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">Workflow
-                            Step 3 of 8</span>
                     </div>
 
                     <!-- Missing Value Detection (hidden by default) -->
@@ -545,43 +555,116 @@
                                 <button class="btn dn-btn-primary btn-sm" id="dnApplyCleaningBtn">Apply</button>
                             </div>
                         </div>
+
+                        <!-- Next Step Banner after Imputation -->
+                        <div class="dn-panel-footer border-top mt-3" id="dnMissingValueNextStepBanner"
+                            style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <div class="fw-bold text-success"><i class="bi bi-check-circle-fill me-1"></i>
+                                        Missing Values Cleaned &amp; Imputed</div>
+                                    <div class="small text-muted">Proceed to the next pipeline step: review and drop
+                                        unnecessary or low-variance columns.</div>
+                                </div>
+                                <button type="button" class="btn dn-btn-primary btn-sm" id="dnGoToDropColumnsBtn">
+                                    <i class="bi bi-arrow-down-circle me-1"></i> Next Step: Review &amp; Drop Columns
+                                     &rarr;
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Duplicate Row Detection (hidden by default) -->
+                    <!-- ================= 3B. DUPLICATE ROW DETECTION & REMOVAL ================= -->
                     <div class="dn-panel mb-4" id="dnDuplicatePanel" style="display: none;">
-                        <div class="dn-panel-head">
-                            <h3 class="dn-panel-title"><i class="bi bi-files"></i> Duplicate Row Detection</h3>
-                        </div>
-                        <div class="dn-alert dn-alert-info" id="dnDuplicateSummary">
-                            <!-- Summary will be injected here -->
-                        </div>
-                        <div class="table-responsive" id="dnDuplicatePreviewContent" style="display: none;">
-                            <h4 class="dn-panel-title-sm mt-3 mb-2"><i class="bi bi-eye"></i> Preview of Duplicate Rows
-                            </h4>
-                            <!-- Duplicate preview table will be injected here -->
-                        </div>
-                        <div class="dn-panel-footer">
-                            <div class="d-flex gap-2">
-                                <button class="btn dn-btn-primary btn-sm" id="dnRemoveFullDuplicatesBtn"><i
-                                        class="bi bi-trash"></i> Remove Fully Identical Rows</button>
+                        <div class="dn-panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h3 class="dn-panel-title"><i class="bi bi-files text-primary me-2"></i> Duplicate
+                                    Row Detection &amp; Removal</h3>
+                                <p class="dn-panel-sub mb-0">Identify and remove redundant duplicate rows to ensure
+                                    clean, accurate analytics.</p>
                             </div>
                         </div>
 
-                        <!-- New section for finding duplicates by specific columns -->
-                        <div class="dn-panel-footer" id="dnSubDuplicatesContainer"
-                            style="border-top: 1px solid var(--dn-border); display: none;">
-                            <h4 class="dn-panel-title-sm"><i class="bi bi-check2-square"></i> Analyze Grouped Rows</h4>
-                            <p class="dn-panel-sub small">Select columns to find and review rows that share the same
-                                values (e.g., all items for a specific Order ID).</p>
-                            <div class="dn-column-select-grid mb-3" id="dnDuplicateColumnSelect">
+                        <!-- 1. Exact Duplicate Rows Detection Summary -->
+                        <div class="dn-alert dn-alert-info mb-3" id="dnDuplicateSummary">
+                            <!-- Summary will be injected here -->
+                        </div>
+
+                        <div class="table-responsive mb-3" id="dnDuplicatePreviewContent" style="display: none;">
+                            <h4 class="dn-panel-title-sm mt-2 mb-2"><i class="bi bi-eye"></i> Preview of Exact Duplicate
+                                Rows</h4>
+                            <!-- Duplicate preview table will be injected here -->
+                        </div>
+
+                        <div class="d-flex gap-2 mb-4">
+                            <button class="btn dn-btn-primary btn-sm" id="dnRemoveFullDuplicatesBtn">
+                                <i class="bi bi-trash"></i> Remove Fully Identical Rows (100% Match)
+                            </button>
+                        </div>
+
+                        <!-- 2. Subset / Business-Key Duplicate Detection & Deduplication -->
+                        <div class="p-3 border rounded bg-body-tertiary" id="dnSubDuplicatesContainer"
+                            style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <div>
+                                    <h4 class="dn-panel-title-sm mb-1"><i class="bi bi-key-fill text-warning me-1"></i>
+                                        Deduplicate by Key Columns (Subset Duplication)</h4>
+                                    <p class="dn-panel-sub small mb-0">Find or remove rows sharing the same values in
+                                        specific key columns (e.g. same Order ID, Customer ID, or Email).</p>
+                                </div>
+                                <span class="badge bg-secondary-subtle text-body border" id="dnDupSelectedColsCount">0
+                                    columns selected</span>
+                            </div>
+
+                            <!-- Search and Quick Selection Toolbar -->
+                            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                <div class="input-group input-group-sm flex-grow-1" style="max-width: 320px;">
+                                    <span class="input-group-text bg-white border-end-0"><i
+                                            class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="dnDupColSearchInput" class="form-control border-start-0"
+                                        placeholder="Filter columns...">
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    id="btnSelectAllDupCols"><i class="bi bi-check-all me-1"></i> Select All</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnClearDupCols"><i
+                                        class="bi bi-x-lg me-1"></i> Clear</button>
+                            </div>
+
+                            <!-- Column Selection Badges / Pills -->
+                            <div class="d-flex flex-wrap gap-2 p-2 border rounded bg-white mb-3"
+                                id="dnDuplicateColumnSelect" style="max-height: 160px; overflow-y: auto;">
                                 <!-- Column checkboxes will be injected here -->
                             </div>
-                            <div class="d-flex align-items-center gap-3">
-                                <button class="btn dn-btn-outline-dn btn-sm" id="dnFindSubDuplicatesBtn"><i
-                                        class="bi bi-search"></i> Analyze Groups</button>
+
+                            <!-- Actions for Subset Duplication -->
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <button class="btn dn-btn-outline-dn btn-sm" id="dnFindSubDuplicatesBtn">
+                                    <i class="bi bi-search"></i> Find Key Duplicates
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" id="dnRemoveSubDuplicatesKeepFirstBtn"
+                                    style="display: none;">
+                                    <i class="bi bi-trash"></i> Remove Duplicates (Keep First)
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" id="dnRemoveSubDuplicatesKeepLastBtn"
+                                    style="display: none;">
+                                    <i class="bi bi-trash"></i> Remove Duplicates (Keep Last)
+                                </button>
                             </div>
+
                             <div id="dnSubDuplicateResult" class="mt-3" style="display: none;">
                                 <!-- Results for subset duplicates will be shown here -->
+                            </div>
+                        </div>
+
+                        <!-- Next Step Banner after Duplicate Inspection -->
+                        <div class="dn-panel-footer border-top mt-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div class="small text-muted">Finished with duplicate checks? Proceed to review and drop
+                                    unwanted columns.</div>
+                                <button type="button" class="btn dn-btn-primary btn-sm" id="dnDupGoToDropColsBtn">
+                                    <i class="bi bi-arrow-down-circle me-1"></i> Next Step: Review &amp; Drop Columns
+                                     &rarr;
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -591,19 +674,20 @@
                         <div class="dn-panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
                                 <h3 class="dn-panel-title">
-                                    <i class="bi bi-trash3 text-danger me-2"></i>3C. Manage &amp; Drop Unwanted Columns
+                                    <i class="bi bi-trash3 text-danger me-2"></i> Manage &amp; Drop Unwanted Columns
                                 </h3>
                                 <p class="dn-panel-sub mb-0">Select columns to remove from your dataset. Columns tagged
                                     with <span
                                         class="badge bg-danger-subtle text-danger border border-danger-subtle">(Not
                                         Required)</span> are low-value or zero-variance candidates for removal.</p>
                             </div>
-                            <div class="d-flex gap-2">
-                                <button id="dnAutoCleanAllRecommendedBtn" class="btn dn-btn-primary btn-sm">
-                                    <i class="bi bi-magic me-1"></i> ⚡ Auto-Clean All Recommended
-                                </button>
+                            <div class="d-flex gap-2 flex-wrap">
                                 <button id="dnConfirmDropColumnsBtn" class="btn dn-btn-danger btn-sm" disabled>
                                     <i class="bi bi-trash me-1"></i> Remove Selected Columns
+                                </button>
+                                <button type="button" id="dnSkipToCleanedPreviewBtn"
+                                    class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-arrow-down me-1"></i> View Cleaned Data &amp; Download
                                 </button>
                             </div>
                         </div>
@@ -625,12 +709,14 @@
                         <div class="dn-panel-head">
                             <div>
                                 <h3 class="dn-panel-title">
-                                    <i class="bi bi-check-circle text-success me-1"></i> Cleaned Data Preview
+                                    <i class="bi bi-check-circle text-success me-1"></i> Cleaned Data Preview &amp;
+                                    Export
                                 </h3>
-                                <p class="dn-panel-sub">Preview of data after cleaning transformations.</p>
+                                <p class="dn-panel-sub">Cumulative preview showing all applied transformations (imputed
+                                    missing values, removed duplicates &amp; dropped columns).</p>
                             </div>
                             <span class="dn-badge-status ok">
-                                <i class="bi bi-check-circle"></i> Cleaned
+                                <i class="bi bi-check-circle"></i> Cleaned &amp; Ready
                             </span>
                         </div>
 
@@ -645,19 +731,19 @@
                             <div class="col-6 col-md-3">
                                 <div class="dn-kpi-card">
                                     <div class="dn-kpi-label">Missing After</div>
-                                    <div class="dn-kpi-value" id="dnMissingAfter">0</div>
+                                    <div class="dn-kpi-value text-success" id="dnMissingAfter">0</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
                                 <div class="dn-kpi-card">
                                     <div class="dn-kpi-label">Values Fixed</div>
-                                    <div class="dn-kpi-value" id="dnValuesFixed">0</div>
+                                    <div class="dn-kpi-value text-primary" id="dnValuesFixed">0</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
                                 <div class="dn-kpi-card">
                                     <div class="dn-kpi-label">Rows Removed</div>
-                                    <div class="dn-kpi-value" id="dnRowsRemoved">0</div>
+                                    <div class="dn-kpi-value text-danger" id="dnRowsRemoved">0</div>
                                 </div>
                             </div>
                         </div>
@@ -666,20 +752,28 @@
                         <div class="table-responsive" id="dnCleanedDataPreviewContent"></div>
 
                         <div class="dn-panel-footer">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                                 <div class="d-flex gap-4">
                                     <div class="dn-overview-item">
-                                        <span class="dn-overview-label">Rows</span>
+                                        <span class="dn-overview-label">Current Rows</span>
                                         <span class="dn-overview-value" id="dnCleanedRows">0</span>
                                     </div>
                                     <div class="dn-overview-item">
-                                        <span class="dn-overview-label">Columns</span>
+                                        <span class="dn-overview-label">Current Columns</span>
                                         <span class="dn-overview-value" id="dnCleanedCols">0</span>
                                     </div>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <a href="#" id="dnDownloadAfterDropBtn" class="btn dn-btn-success btn-sm"
-                                        style="display: none;"><i class="bi bi-download"></i> Download Cleaned CSV</a>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="#" id="dnDownloadCleanedCsvBtn" class="btn dn-btn-success btn-sm">
+                                        <i class="bi bi-file-earmark-arrow-down-fill me-1"></i> Download Cleaned CSV
+                                    </a>
+                                    <a href="#" id="dnDownloadCleanedXlsxBtn" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-file-earmark-excel-fill me-1"></i> Download Excel (.xlsx)
+                                    </a>
+                                    <button type="button" id="dnProceedToEdaBtn" class="btn dn-btn-primary btn-sm">
+                                        <i class="bi bi-arrow-right-circle me-1"></i> Proceed to Step 4: Statistical EDA
+                                        &rarr;
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -694,9 +788,6 @@
                                 STATISTICAL EDA</span>
                             <h2 class="h4 fw-bold mb-0">Statistical Summary &amp; AI Data Profiling</h2>
                         </div>
-                        <span
-                            class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">Workflow
-                            Step 4 of 8</span>
                     </div>
 
                     <!-- Statistical Summary (hidden by default) -->
@@ -780,8 +871,6 @@
                                 MATRIX</span>
                             <h2 class="h4 fw-bold mb-0">Correlation Matrix &amp; Feature Relationships</h2>
                         </div>
-                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">Workflow
-                            Step 5 of 8</span>
                     </div>
 
                     <!-- Correlation Analysis Panel (hidden by default) -->
@@ -861,8 +950,6 @@
                                 VISUALIZATIONS &amp; CHARTS</span>
                             <h2 class="h4 fw-bold mb-0">Custom Chart Builder &amp; Dynamic Visualizations</h2>
                         </div>
-                        <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2">Workflow Step 6
-                            of 8</span>
                     </div>
 
                     <!-- Interactive Custom Chart Builder Panel (hidden by default until dataset loaded) -->
@@ -943,9 +1030,6 @@
                                 &amp; ML</span>
                             <h2 class="h4 fw-bold mb-0">Pattern Detection &amp; Machine Learning</h2>
                         </div>
-                        <span
-                            class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2">Workflow
-                            Step 7 of 8</span>
                     </div>
 
                     <!-- Pattern & trend detection + AI insights -->
@@ -1027,6 +1111,132 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Step 7 Live Model Predictions & Output Panel -->
+                        <div class="mt-4 pt-3 border-top" id="step7PredictionResultsContainer">
+                            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-primary-subtle text-primary border px-2.5 py-1.5 fw-bold"
+                                        id="step7ModelBadge">
+                                        <i class="bi bi-cpu-fill me-1"></i> Live Model Predictions
+                                    </span>
+                                    <span class="small text-secondary fw-semibold" id="step7ModelTarget">Target
+                                        Variable: <strong class="text-body" id="step7TargetName">--</strong></span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-primary fw-semibold dn-clickable-tool"
+                                        data-tool="regression" id="btnStep7TrainModel">
+                                        <i class="bi bi-play-fill me-1"></i> Train / Re-Run Model
+                                    </button>
+                                    <button class="btn btn-sm btn-primary fw-semibold" data-bs-toggle="modal"
+                                        data-bs-target="#modalMlStudio">
+                                        <i class="bi bi-arrows-fullscreen me-1"></i> Open Full ML Studio
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Empty State (before model is trained) -->
+                            <div class="p-4 text-center rounded-3 bg-light-subtle border border-dashed"
+                                id="step7PredictionsEmptyState">
+                                <div class="mb-2 text-primary fs-3"><i class="bi bi-calculator"></i></div>
+                                <h6 class="fw-bold mb-1">Model Predictions Output Area</h6>
+                                <p class="text-secondary small mb-3">Train a Linear Regression or ML model to
+                                    automatically display predicted values (&hat;y), regression mathematical equations,
+                                    and accuracy error metrics right here.</p>
+                                <button class="btn btn-sm btn-primary px-3 py-1.5 fw-semibold dn-clickable-tool"
+                                    data-tool="regression">
+                                    <i class="bi bi-play-fill me-1"></i> Train Model &amp; Predict Now
+                                </button>
+                            </div>
+
+                            <!-- Active Predictions Content -->
+                            <div class="d-none" id="step7PredictionsActiveContent">
+                                <!-- Model Summary Strip -->
+                                <div class="row g-2 mb-3">
+                                    <div class="col-12 col-md-4">
+                                        <div class="p-2.5 rounded-2 border bg-body h-100">
+                                            <div class="text-muted extra-small fw-semibold text-uppercase">R² Accuracy
+                                                Score</div>
+                                            <div class="fs-4 fw-bold text-primary" id="step7R2Value">--</div>
+                                            <div class="extra-small text-secondary" id="step7R2Sub">Model Goodness of
+                                                Fit</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <div class="p-2.5 rounded-2 border bg-body h-100">
+                                            <div class="text-muted extra-small fw-semibold text-uppercase">Mean Absolute
+                                                Error (MAE)</div>
+                                            <div class="fs-4 fw-bold text-dark" id="step7MaeValue">--</div>
+                                            <div class="extra-small text-secondary" id="step7MaeSub">Average Deviation
+                                                Metric</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <div class="p-2.5 rounded-2 border bg-body h-100">
+                                            <div class="text-muted extra-small fw-semibold text-uppercase">Regression
+                                                Formula</div>
+                                            <div class="font-monospace small fw-bold text-success text-truncate mt-1"
+                                                id="step7FormulaText">--</div>
+                                            <div class="extra-small text-secondary" id="step7InterceptText">Intercept
+                                                (&beta;0): --</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sample Predictions Table -->
+                                <div class="card border mb-3 shadow-sm">
+                                    <div
+                                        class="card-header bg-light-subtle d-flex justify-content-between align-items-center py-2">
+                                        <span class="fw-bold small text-body"><i
+                                                class="bi bi-table me-1.5 text-primary"></i> Model Predicted Values
+                                            Sample (&hat;y)</span>
+                                        <span class="badge bg-secondary-subtle text-secondary border"
+                                            id="step7PredCountBadge">0 Predictions</span>
+                                    </div>
+                                    <div class="table-responsive" style="max-height: 280px;">
+                                        <table class="table table-hover table-sm align-middle mb-0 text-nowrap"
+                                            style="font-size: 0.85rem;">
+                                            <thead class="table-light sticky-top" id="step7PredThead">
+                                                <tr>
+                                                    <th># Record</th>
+                                                    <th>Actual Value (y)</th>
+                                                    <th>Predicted Value (&hat;y)</th>
+                                                    <th>Difference (&Delta;)</th>
+                                                    <th class="text-end">Prediction Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="step7PredTbody">
+                                                <!-- Populated via JS -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Instant Single Predictor -->
+                                <div class="p-3 rounded-3 border bg-light-subtle" id="step7InstantPredictorBox">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <span class="fw-bold small"><i
+                                                class="bi bi-lightning-charge-fill text-warning me-1"></i> Quick Instant
+                                            Single-Record Predictor</span>
+                                        <span class="extra-small text-muted">Test custom inputs with active trained
+                                            model</span>
+                                    </div>
+                                    <div class="row g-2 align-items-end" id="step7InstantInputsRow">
+                                        <!-- Dynamic feature inputs inserted via JS -->
+                                    </div>
+                                    <div class="mt-2 text-end">
+                                        <button class="btn btn-sm btn-success fw-semibold px-3"
+                                            id="btnStep7CalculatePrediction">
+                                            <i class="bi bi-calculator me-1"></i> Calculate Predicted Value
+                                        </button>
+                                    </div>
+                                    <div class="mt-2 p-2 rounded-2 bg-success-subtle text-success border border-success-subtle fw-bold d-none text-center"
+                                        id="step7InstantPredictionResult">
+                                        <!-- Instant result rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div> <!-- End #step-insights -->
 
@@ -1038,9 +1248,6 @@
                                 STEP 8: REPORTS &amp; EXPORT</span>
                             <h2 class="h4 fw-bold mb-0">Multi-Format Export &amp; Quick Actions</h2>
                         </div>
-                        <span
-                            class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-2">Workflow
-                            Step 8 of 8</span>
                     </div>
 
                     <!-- Multi-Format Report Downloads -->
@@ -1048,7 +1255,6 @@
                         <div class="dn-panel-head">
                             <h3 class="dn-panel-title"><i class="bi bi-file-earmark-arrow-down"></i> Multi-Format
                                 Executive Reports</h3>
-                            <span class="dn-badge dn-badge-success">Advanced</span>
                         </div>
                         <p class="text-secondary small mb-3">Download complete automated executive reports in your
                             preferred format:</p>
@@ -1310,119 +1516,114 @@
     <!-- ===================== ASK YOUR DATA AI CHATBOT MODAL ===================== -->
     <div class="modal fade" id="askDataModal" tabindex="-1" aria-labelledby="askDataModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered dn-chat-modal-dialog modal-dialog-scrollable">
-            <div class="modal-content dn-panel border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-content border-0 shadow-lg rounded-3 overflow-hidden">
                 <!-- Header -->
-                <div class="modal-header border-bottom px-4 py-3 bg-body-tertiary">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="dn-ai-avatar-orb">
-                            <i class="bi bi-robot fs-4"></i>
-                            <span class="dn-ai-pulse-dot" title="DataNova AI Copilot Online"></span>
+                <div class="modal-header border-bottom px-4 py-3 bg-body">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                            style="width: 38px; height: 38px; font-size: 1.1rem;">
+                            <i class="bi bi-robot"></i>
                         </div>
                         <div>
                             <div class="d-flex align-items-center gap-2">
-                                <h5 class="modal-title fw-bold mb-0" id="askDataModalLabel">DataNova AI Copilot</h5>
-                                <span class="badge bg-primary bg-gradient text-white rounded-pill px-2 py-0.5" style="font-size: 10px; letter-spacing: 0.5px;">v2.5 AI TURBO</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-2 mt-0.5">
-                                <span id="dnChatDatasetBadge" class="badge bg-body text-secondary border small d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 11px;">
-                                    <i class="bi bi-file-earmark-spreadsheet-fill text-primary"></i>
-                                    <span id="dnChatDatasetName">Checking active dataset...</span>
+                                <h6 style="margin-left: 10px;" class="modal-title fw-bold mb-0 text-body fs-6"
+                                    id="askDataModalLabel">AI Assistant</h6>
+                                <span id="dnChatDatasetBadge"
+                                    class="text-secondary small d-inline-flex align-items-center gap-1"
+                                    style="font-size: 11px;">
+                                    <span id="dnChatDatasetName">Checking dataset...</span>
                                 </span>
                             </div>
                         </div>
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
-                        <!-- Language Selector -->
-                        <div class="d-flex align-items-center gap-1 bg-body rounded-pill border px-2 py-1 shadow-sm">
-                            <i class="bi bi-translate text-primary small"></i>
-                            <select id="dnAskLanguage" class="form-select form-select-sm border-0 bg-transparent shadow-none py-0 ps-1 pe-4" style="font-size: 12px; cursor: pointer;">
-                                <option value="en" selected>English</option>
-                                <option value="hi">हिन्दी (Hindi)</option>
-                                <option value="mr">मराठी (Marathi)</option>
-                            </select>
-                        </div>
 
                         <!-- Reset / Clear Chat -->
-                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1" id="dnBtnClearChat" title="Reset / Start New Conversation">
-                            <i class="bi bi-arrow-counterclockwise me-1"></i><span class="d-none d-sm-inline">New Chat</span>
+                        <button style="margin-left: 400px;" type="button"
+                            class="btn btn-sm btn-outline-secondary rounded-2 px-2.5 py-1 d-flex align-items-center gap-1"
+                            id="dnBtnClearChat" title="New Chat">
+                            <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline">New Chat</span>
                         </button>
 
                         <!-- Close Button -->
-                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close" id="closeAskData"></button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"
+                            id="closeAskData"></button>
                     </div>
                 </div>
 
                 <!-- Body -->
-                <div class="modal-body px-4 py-3 dn-ask-data-body bg-body" style="min-height: 480px; max-height: 65vh; display: flex; flex-direction: column;">
-                    
+                <div class="modal-body px-4 py-3 dn-ask-data-body bg-body"
+                    style="min-height: 440px; max-height: 62vh; display: flex; flex-direction: column;">
+
                     <!-- Chat Stream Box -->
                     <div id="dnChatStreamBox" class="dn-chat-stream-box flex-grow-1 mb-2">
-                        
+
                         <!-- Welcome Hero Screen (visible when chat is empty) -->
-                        <div id="dnChatWelcomeHero" class="dn-chat-hero my-auto">
-                            <div class="dn-chat-hero-icon">
-                                <i class="bi bi-stars"></i>
+                        <div id="dnChatWelcomeHero" class="dn-chat-hero my-auto text-center py-4">
+                            <div class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center mb-3"
+                                style="width: 54px; height: 54px; font-size: 1.5rem;">
+                                <i class="bi bi-chat-square-text-fill"></i>
                             </div>
-                            <h5 class="fw-bold mb-1 text-body">Ask Anything About Your Dataset</h5>
-                            <p class="text-secondary small mb-3 mx-auto" style="max-width: 540px;">
-                                DataNova AI examines your dataset's columns, distributions, summary statistics, and correlations to answer your analytical questions in real-time.
+                            <h5 class="fw-bold mb-1 text-body">How can I help with your data today?</h5>
+                            <p class="text-secondary small mb-4 mx-auto" style="max-width: 440px;">
+                                Ask any analytical question or select a suggested topic below:
                             </p>
 
-                            <!-- Suggested Questions 2x2 Grid -->
-                            <div class="row g-2 text-start">
+                            <!-- Clean 2x2 Suggested Cards -->
+                            <div class="row g-2 text-start mb-2" style="margin-left: 100px;">
                                 <div class="col-12 col-md-6">
-                                    <div class="dn-chat-starter-card dn-suggested-q" data-question="Which product, item, or category has the highest sales or volume?">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <div class="bg-success bg-opacity-10 text-success rounded-3 p-1 px-2 small">
-                                                <i class="bi bi-graph-up-arrow"></i>
+                                    <div class="p-3 border rounded-3 bg-body-tertiary cursor-pointer dn-suggested-q h-100"
+                                        data-question="Give me a high-level statistical summary and key metrics of this dataset.">
+                                        <div class="d-flex align-items-center gap-2.5">
+                                            <i class="bi bi-speedometer2 text-primary fs-5"></i>
+                                            <div>
+                                                <div class="fw-semibold small text-body">Statistical Summary</div>
+                                                <div class="text-secondary small" style="font-size: 11px;">Key metrics
+                                                    &amp; overview</div>
                                             </div>
-                                            <span class="fw-semibold small text-body">Top Performer / Highest Sales</span>
-                                        </div>
-                                        <div class="text-secondary text-truncate small" style="font-size: 11px;">
-                                            Which product or category has the highest sales?
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="col-12 col-md-6">
-                                    <div class="dn-chat-starter-card dn-suggested-q" data-question="Which region, territory, or customer segment performs best?">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-1 px-2 small">
-                                                <i class="bi bi-geo-alt"></i>
+                                    <div class="p-3 border rounded-3 bg-body-tertiary cursor-pointer dn-suggested-q h-100"
+                                        data-question="Which product, item, or category has the highest sales or volume?">
+                                        <div class="d-flex align-items-center gap-2.5">
+                                            <i class="bi bi-graph-up-arrow text-success fs-5"></i>
+                                            <div>
+                                                <div class="fw-semibold small text-body">Top Performers</div>
+                                                <div class="text-secondary small" style="font-size: 11px;">Highest
+                                                    volume &amp; sales</div>
                                             </div>
-                                            <span class="fw-semibold small text-body">Best Performing Segment</span>
-                                        </div>
-                                        <div class="text-secondary text-truncate small" style="font-size: 11px;">
-                                            Which region or segment performs best?
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="col-12 col-md-6">
-                                    <div class="dn-chat-starter-card dn-suggested-q" data-question="Are there any unusual values, negative numbers, or statistical anomalies in this dataset?">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-1 px-2 small">
-                                                <i class="bi bi-exclamation-triangle"></i>
+                                    <div class="p-3 border rounded-3 bg-body-tertiary cursor-pointer dn-suggested-q h-100"
+                                        data-question="Are there any unusual values, negative numbers, or statistical anomalies in this dataset?">
+                                        <div class="d-flex align-items-center gap-2.5">
+                                            <i class="bi bi-shield-exclamation text-warning fs-5"></i>
+                                            <div>
+                                                <div class="fw-semibold small text-body">Outliers &amp; Anomalies</div>
+                                                <div class="text-secondary small" style="font-size: 11px;">Find
+                                                    irregular entries</div>
                                             </div>
-                                            <span class="fw-semibold small text-body">Anomaly & Outlier Check</span>
-                                        </div>
-                                        <div class="text-secondary text-truncate small" style="font-size: 11px;">
-                                            Are there any unusual values or outliers?
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="col-12 col-md-6">
-                                    <div class="dn-chat-starter-card dn-suggested-q" data-question="What is the overall trend, distribution summary, and key takeaway?">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <div class="bg-info bg-opacity-10 text-info rounded-3 p-1 px-2 small">
-                                                <i class="bi bi-bar-chart-line"></i>
+                                    <div class="p-3 border rounded-3 bg-body-tertiary cursor-pointer dn-suggested-q h-100"
+                                        data-question="What key business recommendations and action items do you suggest based on this dataset?">
+                                        <div class="d-flex align-items-center gap-2.5">
+                                            <i class="bi bi-lightbulb text-info fs-5"></i>
+                                            <div>
+                                                <div class="fw-semibold small text-body">Strategic Recommendations</div>
+                                                <div class="text-secondary small" style="font-size: 11px;">Actionable
+                                                    findings</div>
                                             </div>
-                                            <span class="fw-semibold small text-body">Overall Distribution & Trend</span>
-                                        </div>
-                                        <div class="text-secondary text-truncate small" style="font-size: 11px;">
-                                            What is the overall trend and growth?
                                         </div>
                                     </div>
                                 </div>
@@ -1434,66 +1635,52 @@
 
                         <!-- Typing Indicator -->
                         <div id="dnAiTypingIndicator" class="dn-chat-msg-row ai" style="display: none;">
-                            <div class="dn-ai-avatar-orb" style="width: 34px; height: 34px; border-radius: 10px; font-size: 0.9rem;">
+                            <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                                style="width: 32px; height: 32px; font-size: 0.85rem;">
                                 <i class="bi bi-robot"></i>
                             </div>
                             <div class="dn-typing-indicator">
                                 <span class="dn-typing-dot"></span>
                                 <span class="dn-typing-dot"></span>
                                 <span class="dn-typing-dot"></span>
-                                <span class="text-secondary ms-2 small" style="font-size: 11px;">Analyzing dataset statistics & correlations...</span>
+                                <span class="text-secondary ms-2 small" style="font-size: 11px;">Analyzing
+                                    data...</span>
                             </div>
                         </div>
 
                     </div>
 
-                    <!-- Quick Prompt Chips Strip -->
-                    <div id="dnChatQuickChips" class="d-flex align-items-center gap-1.5 overflow-x-auto py-1 mb-2 no-scrollbar" style="white-space: nowrap;">
-                        <span class="text-secondary small me-1 flex-shrink-0" style="font-size: 11px;"><i class="bi bi-stars text-primary me-1"></i>Quick Queries:</span>
-                        <button type="button" class="dn-quick-chip-btn dn-chip-prompt" data-prompt="Give me a high-level statistical summary of this dataset.">
-                            <i class="bi bi-speedometer2 text-primary"></i>Summary
-                        </button>
-                        <button type="button" class="dn-quick-chip-btn dn-chip-prompt" data-prompt="What are the top 5 highest performing entries?">
-                            <i class="bi bi-trophy-fill text-warning"></i>Top 5
-                        </button>
-                        <button type="button" class="dn-quick-chip-btn dn-chip-prompt" data-prompt="Detect any missing values, anomalies or outliers.">
-                            <i class="bi bi-shield-exclamation text-danger"></i>Outliers
-                        </button>
-                        <button type="button" class="dn-quick-chip-btn dn-chip-prompt" data-prompt="Analyze growth trajectories and distribution patterns.">
-                            <i class="bi bi-graph-up text-success"></i>Patterns
-                        </button>
-                        <button type="button" class="dn-quick-chip-btn dn-chip-prompt" data-prompt="What key business recommendations do you suggest?">
-                            <i class="bi bi-lightbulb text-info"></i>Recommendations
-                        </button>
+                    <!-- Hidden Chips Container for JS event compatibility -->
+                    <div id="dnChatQuickChips" style="display: none;">
+                        <button type="button" class="dn-chip-prompt"
+                            data-prompt="Give me a high-level statistical summary of this dataset.">Summary</button>
                     </div>
 
-                    <!-- Floating Smart Input Capsule -->
-                    <form id="dnAskForm" novalidate class="mt-auto">
-                        <div class="dn-chat-input-capsule">
-                            <i class="bi bi-chat-square-dots-fill text-primary fs-5 ms-1"></i>
-                            <input
-                                type="text"
-                                id="dnAskInput"
-                                class="form-control border-0 bg-transparent shadow-none px-2 fs-6 text-body"
-                                placeholder="Ask anything about your dataset... (e.g. Which category is most profitable?)"
-                                autocomplete="off"
-                                required
-                            >
-                            
+                    <!-- Clean Input Area -->
+                    <form id="dnAskForm" novalidate class="mt-auto pt-2 border-top">
+                        <div class="input-group input-group-lg rounded-3 border overflow-hidden bg-body shadow-sm">
+                            <input type="text" id="dnAskInput"
+                                class="form-control border-0 bg-transparent shadow-none fs-6 text-body ps-3"
+                                placeholder="Ask a question about your dataset..." autocomplete="off" required>
+
                             <!-- Clear Input Button -->
-                            <button type="button" class="btn btn-link text-secondary p-0 me-1" id="dnBtnClearInput" style="display:none;" title="Clear Text">
+                            <button type="button" class="btn btn-link text-secondary p-0 me-2" id="dnBtnClearInput"
+                                style="display:none;" title="Clear Text">
                                 <i class="bi bi-x-circle-fill"></i>
                             </button>
 
                             <!-- Voice Input Button (Web Speech API) -->
-                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0 flex-shrink-0" id="dnBtnVoiceInput" style="width:34px;height:34px;" title="Voice Typing (Speak in English/Hindi/Marathi)">
-                                <i class="bi bi-mic-fill"></i>
+                            <button type="button" class="btn btn-link text-secondary px-2 border-0" id="dnBtnVoiceInput"
+                                title="Voice Typing">
+                                <i class="bi bi-mic-fill fs-5"></i>
                             </button>
 
                             <!-- Ask / Send Button -->
-                            <button type="submit" class="btn btn-primary rounded-pill px-3 py-1.5 fw-semibold d-flex align-items-center gap-1.5 shadow-sm flex-shrink-0" id="btnSubmitAskAI">
+                            <button type="submit"
+                                class="btn btn-primary px-4 fw-semibold d-flex align-items-center gap-1.5"
+                                id="btnSubmitAskAI">
                                 <i class="bi bi-send-fill small"></i>
-                                <span class="d-none d-sm-inline">Ask AI</span>
+                                <span>Send</span>
                             </button>
                         </div>
                     </form>
@@ -1501,14 +1688,11 @@
                 </div>
 
                 <!-- Footer -->
-                <div class="modal-footer border-top px-4 py-2 bg-body-tertiary d-flex align-items-center justify-content-between">
+                <div
+                    class="modal-footer border-top px-4 py-2 bg-body-tertiary d-flex align-items-center justify-content-between">
                     <small class="text-secondary" style="font-size: 11px;">
-                        <i class="bi bi-shield-check text-success me-1"></i>
-                        <span>In-Memory Analytics • Zero Data Persistence</span>
-                    </small>
-                    <small class="text-secondary font-monospace" style="font-size: 11px;">
-                        <i class="bi bi-cpu text-primary me-1"></i>
-                        <span>DataNova Engine v2.5</span>
+                        <i class="bi bi-shield-check text-success me-1"></i> DataNova AI • Responses are generated from
+                        your dataset statistics
                     </small>
                 </div>
             </div>
@@ -1555,13 +1739,16 @@
                             {{ (user.first_name|default('U'))[0] }}{{ (user.last_name|default(''))[0] if user and
                             user.last_name else '' }}
                         </div>
-                        <h5 class="mb-0 userProfileFullNameDisplay">{{ user.first_name|default('User') }} {{ user.last_name|default('') }}</h5>
+                        <h5 class="mb-0 userProfileFullNameDisplay">{{ user.first_name|default('User') }} {{
+                            user.last_name|default('') }}</h5>
                         <div class="mt-1">
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle userProfileRoleBadge">
+                            <span
+                                class="badge bg-primary-subtle text-primary border border-primary-subtle userProfileRoleBadge">
                                 {{ (user.role|default('Analyst'))|capitalize }} Role
                             </span>
                             <span class="badge bg-secondary-subtle text-body border ms-1">
-                                <i class="bi bi-building me-1 text-primary"></i>{{ user.organization|default('General') }}
+                                <i class="bi bi-building me-1 text-primary"></i>{{ user.organization|default('General')
+                                }}
                             </span>
                         </div>
                     </div>
@@ -1570,46 +1757,60 @@
                         <div class="row g-3">
                             <div class="col-6">
                                 <label class="form-label small fw-semibold text-black">First Name</label>
-                                <input type="text" class="form-control userProfileFirstName" value="{{ user.first_name|default('') }}" required placeholder="First name">
+                                <input type="text" class="form-control userProfileFirstName"
+                                    value="{{ user.first_name|default('') }}" required placeholder="First name">
                                 <div class="invalid-feedback">First name is required.</div>
                             </div>
                             <div class="col-6">
                                 <label class="form-label small fw-semibold text-black">Last Name</label>
-                                <input type="text" class="form-control userProfileLastName" value="{{ user.last_name|default('') }}" placeholder="Last name">
+                                <input type="text" class="form-control userProfileLastName"
+                                    value="{{ user.last_name|default('') }}" placeholder="Last name">
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-semibold text-black">Email Address</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-envelope"></i></span>
-                                    <input type="email" class="form-control bg-light border-start-0 userProfileEmail" value="{{ user.email|default('') }}" readonly>
+                                    <span class="input-group-text bg-light text-muted border-end-0"><i
+                                            class="bi bi-envelope"></i></span>
+                                    <input type="email" class="form-control bg-light border-start-0 userProfileEmail"
+                                        value="{{ user.email|default('') }}" readonly>
                                 </div>
-                                <small class="text-secondary" style="font-size: 0.75rem;"><i class="bi bi-lock-fill"></i> Email address is permanent.</small>
+                                <small class="text-secondary" style="font-size: 0.75rem;"><i
+                                        class="bi bi-lock-fill"></i> Email address is permanent.</small>
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-semibold text-black">Organization / Company</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-building"></i></span>
-                                    <input type="text" class="form-control bg-light border-start-0 userProfileOrganization" value="{{ user.organization|default('General') }}" readonly>
+                                    <span class="input-group-text bg-light text-muted border-end-0"><i
+                                            class="bi bi-building"></i></span>
+                                    <input type="text"
+                                        class="form-control bg-light border-start-0 userProfileOrganization"
+                                        value="{{ user.organization|default('General') }}" readonly>
                                 </div>
-                                <small class="text-secondary" style="font-size: 0.72rem;"><i class="bi bi-lock-fill"></i> Organization cannot be changed by user (Contact Administrator).</small>
+                                <small class="text-secondary" style="font-size: 0.72rem;"><i
+                                        class="bi bi-lock-fill"></i> Organization cannot be changed by user (Contact
+                                    Administrator).</small>
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-semibold text-black">Phone / Mobile</label>
                                 <div class="input-group">
                                     <span class="input-group-text border-end-0"><i class="bi bi-telephone"></i></span>
-                                    <input type="tel" class="form-control border-start-0 userProfilePhone" value="{{ user.phone|default('') }}" placeholder="+91 9876543210">
+                                    <input type="tel" class="form-control border-start-0 userProfilePhone"
+                                        value="{{ user.phone|default('') }}" placeholder="+91 9876543210">
                                 </div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-semibold text-black">Bio / About</label>
-                                <textarea class="form-control userProfileBio" rows="2" placeholder="Tell your team about yourself...">{{ user.bio|default('') }}</textarea>
+                                <textarea class="form-control userProfileBio" rows="2"
+                                    placeholder="Tell your team about yourself...">{{ user.bio|default('') }}</textarea>
                             </div>
                         </div>
                         <div class="alert alert-danger mt-3 d-none p-2 small userProfileErrorAlert"></div>
                         <div class="mt-4 text-end">
-                            <button type="button" class="btn btn-sm btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-sm btn-secondary me-2"
+                                data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn-sm btn-primary dn-btn-primary btnSubmitUserProfile">
-                                <span class="spinner-border spinner-border-sm me-1 d-none userProfileSpinner" role="status"></span>
+                                <span class="spinner-border spinner-border-sm me-1 d-none userProfileSpinner"
+                                    role="status"></span>
                                 <i class="bi bi-check-circle me-1 userProfileSaveIcon"></i>Save Changes
                             </button>
                         </div>
@@ -1619,11 +1820,15 @@
                     <div class="mt-4 p-3 bg-body-tertiary rounded text-start border">
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div>
-                                <strong class="d-block small text-dark"><i class="bi bi-trash3 text-danger me-1"></i>Project Cache &amp; Session</strong>
-                                <span class="text-muted" style="font-size: 0.76rem;">Wipes active dataset memory, temporary chart buffers, and cached analysis.</span>
+                                <strong class="d-block small text-dark"><i
+                                        class="bi bi-trash3 text-danger me-1"></i>Project Cache &amp; Session</strong>
+                                <span class="text-muted" style="font-size: 0.76rem;">Wipes active dataset memory,
+                                    temporary chart buffers, and cached analysis.</span>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold" id="btnAnalystClearCacheSession">
+                        <button type="button"
+                            class="btn btn-sm btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold"
+                            id="btnAnalystClearCacheSession">
                             <i class="bi bi-arrow-counterclockwise"></i> Clear Cache &amp; Session
                         </button>
                     </div>
@@ -1654,15 +1859,19 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold" id="lblPrefChart">Default Chart Rendering Engine</label>
+                            <label class="form-label small fw-semibold" id="lblPrefChart">Default Chart Rendering
+                                Engine</label>
                             <select class="form-select form-select-sm" id="prefChartTypeSelect">
-                                <option value="interactive_3d" id="optPrefChart3D" selected>3D Dynamic &amp; Interactive Charts (Plotly)
+                                <option value="interactive_3d" id="optPrefChart3D" selected>3D Dynamic &amp; Interactive
+                                    Charts (Plotly)
                                 </option>
-                                <option value="2d_standard" id="optPrefChart2D">2D Standard High-Res Visualizations</option>
+                                <option value="2d_standard" id="optPrefChart2D">2D Standard High-Res Visualizations
+                                </option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold" id="lblPrefAILang">Dashboard &amp; AI Language</label>
+                            <label class="form-label small fw-semibold" id="lblPrefAILang">Dashboard &amp; AI
+                                Language</label>
                             <select class="form-select form-select-sm" id="prefAILangSelect">
                                 <option value="en" selected>English</option>
                                 <option value="hi">हिंदी (Hindi)</option>
@@ -1673,7 +1882,8 @@
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" role="switch" id="prefAutoEdaToggle"
                                     checked>
-                                <label class="form-check-label small" id="lblPrefAutoEda" for="prefAutoEdaToggle">Auto-generate Statistical
+                                <label class="form-check-label small" id="lblPrefAutoEda"
+                                    for="prefAutoEdaToggle">Auto-generate Statistical
                                     EDA after uploading dataset</label>
                             </div>
                         </div>
@@ -1681,7 +1891,8 @@
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" role="switch"
                                     id="prefAutoRefreshTasksToggle" checked>
-                                <label class="form-check-label small" id="lblPrefAutoRefresh" for="prefAutoRefreshTasksToggle">Auto-sync
+                                <label class="form-check-label small" id="lblPrefAutoRefresh"
+                                    for="prefAutoRefreshTasksToggle">Auto-sync
                                     assigned work and task updates</label>
                             </div>
                         </div>
@@ -1710,8 +1921,6 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-4">
-                        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-diagram-3 me-2"></i>8-Step Data Analysis
-                            Workflow</h6>
                         <div class="row g-2 small">
                             <div class="col-md-6">
                                 <div class="p-2 border rounded bg-body-tertiary"><strong>1. Upload Dataset:</strong>
@@ -1766,6 +1975,74 @@
             </div>
         </div>
     </div>
+    <!-- ===================== GOOGLE SHEET IMPORT MODAL ===================== -->
+    <div class="modal fade" id="dnGoogleSheetModal" tabindex="-1" aria-labelledby="dnGoogleSheetModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content dn-panel p-4">
+                <div class="modal-header border-0 pb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="dn-kpi-icon"
+                            style="background:#0F9D58;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;">
+                            <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+                        </span>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" id="dnGoogleSheetModalLabel">Import Google Sheet</h5>
+                            <p class="text-muted small mb-0">Analyze public Google Spreadsheets directly in DataNova</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div
+                        class="alert alert-info border-0 bg-success-subtle text-success-emphasis rounded-3 p-3 mb-3 d-flex gap-2 align-items-start">
+                        <i class="bi bi-info-circle-fill fs-5 mt-1 flex-shrink-0 text-success"></i>
+                        <div class="small">
+                            <strong>How to make your Google Sheet accessible:</strong>
+                            <ol class="mb-0 ps-3 mt-1">
+                                <li>In Google Sheets, click the <strong>Share</strong> button at top right.</li>
+                                <li>Under <i>General Access</i>, change to <strong>"Anyone with the link can
+                                        view"</strong>.</li>
+                                <li>Copy and paste the full share URL below.</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <form id="dnGSheetForm" novalidate>
+                        <div class="mb-3">
+                            <label for="dnGSheetUrlInput" class="form-label fw-semibold small text-body">Google Sheet
+                                Link / Share URL</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-body-tertiary border-end-0 text-success">
+                                    <i class="bi bi-link-45deg fs-5"></i>
+                                </span>
+                                <input type="url" class="form-control border-start-0 ps-0" id="dnGSheetUrlInput"
+                                    placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqcuVfb/edit"
+                                    required>
+                                <button type="submit" class="btn btn-success px-4 fw-semibold" id="dnImportGSheetBtn">
+                                    <i class="bi bi-cloud-download me-1"></i> Fetch &amp; Analyze
+                                </button>
+                            </div>
+                            <div class="invalid-feedback" id="dnGSheetFeedback">Please enter a valid Google Sheet URL.
+                            </div>
+                        </div>
+                    </form>
+                    <div id="dnGSheetStatus" class="mt-3 p-3 rounded bg-body-tertiary d-none">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="spinner-border spinner-border-sm text-success" role="status"
+                                id="dnGSheetSpinner"></div>
+                            <span class="small fw-semibold" id="dnGSheetMsg">Fetching spreadsheet structure and
+                                profiling dataset...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                        data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ===================== PREVIOUS DATASETS MODAL ===================== -->
     <div class="modal fade" id="previousDatasetsModal" tabindex="-1" aria-labelledby="previousDatasetsModalLabel"
         aria-hidden="true">
@@ -2228,10 +2505,14 @@
                         <!-- 7. Python Pipeline Code Tab (Read-Only Viewer Friendly) -->
                         <div class="tab-pane fade" id="tab-sd-code" role="tabpanel">
                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-filetype-py me-1"></i> Auto-Generated Python &amp; Data Pipeline Script</h6>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopySdCodeSnippet"><i class="bi bi-clipboard me-1"></i> Copy Code</button>
+                                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-filetype-py me-1"></i>
+                                    Auto-Generated Python &amp; Data Pipeline Script</h6>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    id="btnCopySdCodeSnippet"><i class="bi bi-clipboard me-1"></i> Copy Code</button>
                             </div>
-                            <pre class="p-3 bg-dark text-light rounded font-monospace small" style="max-height: 400px; overflow-y: auto; tab-size: 4;" id="sdPipelineCodeContainer"># Loading pipeline code...</pre>
+                            <pre class="p-3 bg-dark text-light rounded font-monospace small"
+                                style="max-height: 400px; overflow-y: auto; tab-size: 4;"
+                                id="sdPipelineCodeContainer"># Loading pipeline code...</pre>
                         </div>
                     </div>
 
@@ -2264,40 +2545,61 @@
     </div>
 
     <!-- ===================== PYTHON CODE & JUPYTER STUDIO MODAL ===================== -->
-    <div class="modal fade" id="pythonCodeStudioModal" tabindex="-1" aria-labelledby="pythonCodeStudioModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal fade" id="pythonCodeStudioModal" tabindex="-1" aria-labelledby="pythonCodeStudioModalLabel"
+        aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 94%;">
             <div class="modal-content dn-modal-custom border-0 shadow-lg">
-                <div class="modal-header border-bottom py-3 d-flex justify-content-between align-items-center bg-body-tertiary">
+                <div
+                    class="modal-header border-bottom py-3 d-flex justify-content-between align-items-center bg-body-tertiary">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="p-2 rounded bg-primary-subtle text-primary fs-5"><i class="bi bi-filetype-py"></i></span>
+                        <span class="p-2 rounded bg-primary-subtle text-primary fs-5"><i
+                                class="bi bi-filetype-py"></i></span>
                         <div>
-                            <h5 class="modal-title fw-bold mb-0" id="pythonCodeStudioModalLabel">Python Code Studio &amp; Jupyter Notebook</h5>
+                            <h5 class="modal-title fw-bold mb-0" id="pythonCodeStudioModalLabel">Python Code Studio
+                                &amp; Jupyter Notebook</h5>
                             <div class="small text-secondary d-flex align-items-center gap-2 mt-1">
-                                <span id="codeStudioDatasetBadge" class="badge bg-secondary-subtle text-secondary border">Dataset: Loading...</span>
-                                <span id="codeStudioRoleBadge" class="badge bg-primary-subtle text-primary border border-primary-subtle">Analyst Studio</span>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-cpu me-1"></i>Python 3.10 Engine</span>
+                                <span id="codeStudioDatasetBadge"
+                                    class="badge bg-secondary-subtle text-secondary border">Dataset: Loading...</span>
+                                <span id="codeStudioRoleBadge"
+                                    class="badge bg-primary-subtle text-primary border border-primary-subtle">Analyst
+                                    Studio</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle"><i
+                                        class="bi bi-cpu me-1"></i>Python 3.10 Engine</span>
                             </div>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopyStudioCode" title="Copy code to clipboard"><i class="bi bi-clipboard me-1"></i> Copy Code</button>
-                        <button type="button" class="btn btn-sm btn-outline-warning" id="btnResetStudioCode" title="Reset code to auto-generated pipeline"><i class="bi bi-arrow-counterclockwise me-1"></i> Reset Pipeline Code</button>
-                        
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopyStudioCode"
+                            title="Copy code to clipboard"><i class="bi bi-clipboard me-1"></i> Copy Code</button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" id="btnResetStudioCode"
+                            title="Reset code to auto-generated pipeline"><i
+                                class="bi bi-arrow-counterclockwise me-1"></i> Reset Pipeline Code</button>
+
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-download me-1"></i> Download
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                <li><a class="dropdown-item" href="#" id="btnDownloadIpynbStudio"><i class="bi bi-journal-code text-warning me-2"></i> Jupyter Notebook (.ipynb)</a></li>
-                                <li><a class="dropdown-item" href="#" id="btnDownloadPyStudio"><i class="bi bi-filetype-py text-primary me-2"></i> Python Script (.py)</a></li>
+                                <li><a class="dropdown-item" href="#" id="btnDownloadIpynbStudio"><i
+                                            class="bi bi-journal-code text-warning me-2"></i> Jupyter Notebook
+                                        (.ipynb)</a></li>
+                                <li><a class="dropdown-item" href="#" id="btnDownloadPyStudio"><i
+                                            class="bi bi-filetype-py text-primary me-2"></i> Python Script (.py)</a>
+                                </li>
                             </ul>
                         </div>
-                        
-                        <button type="button" class="btn btn-sm dn-btn-primary px-3 d-inline-flex align-items-center gap-1" id="btnRunStudioCode" title="Execute Python Code (Shortcut: Ctrl + Enter)">
-                            <i class="bi bi-play-fill"></i> Run Code &amp; Sync Vis <kbd class="bg-white text-dark ms-1 px-1 py-0 rounded small fw-bold" style="font-size:0.68rem; opacity:0.9;">Ctrl+Enter</kbd>
+
+                        <button type="button"
+                            class="btn btn-sm dn-btn-primary px-3 d-inline-flex align-items-center gap-1"
+                            id="btnRunStudioCode" title="Execute Python Code (Shortcut: Ctrl + Enter)">
+                            <i class="bi bi-play-fill"></i> Run Code &amp; Sync Vis <kbd
+                                class="bg-white text-dark ms-1 px-1 py-0 rounded small fw-bold"
+                                style="font-size:0.68rem; opacity:0.9;">Ctrl+Enter</kbd>
                         </button>
-                        
-                        <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
                 </div>
                 <div class="modal-body p-3">
@@ -2305,19 +2607,27 @@
                         <!-- Left Column: Code Editor -->
                         <div class="col-lg-7">
                             <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2 px-3">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2 px-3">
                                     <div class="d-flex align-items-center gap-2 small">
-                                        <span class="d-inline-block rounded-circle bg-danger" style="width:10px;height:10px;"></span>
-                                        <span class="d-inline-block rounded-circle bg-warning" style="width:10px;height:10px;"></span>
-                                        <span class="d-inline-block rounded-circle bg-success" style="width:10px;height:10px;"></span>
+                                        <span class="d-inline-block rounded-circle bg-danger"
+                                            style="width:10px;height:10px;"></span>
+                                        <span class="d-inline-block rounded-circle bg-warning"
+                                            style="width:10px;height:10px;"></span>
+                                        <span class="d-inline-block rounded-circle bg-success"
+                                            style="width:10px;height:10px;"></span>
                                         <span class="ms-2 font-monospace text-light">pipeline_analytics.py</span>
                                     </div>
-                                    <span class="badge bg-secondary font-monospace small" id="editorLineCountBadge">1 lines | Ctrl+Enter to Run</span>
+                                    <span class="badge bg-secondary font-monospace small" id="editorLineCountBadge">1
+                                        lines | Ctrl+Enter to Run</span>
                                 </div>
-                                <div class="card-body p-0 position-relative bg-dark" style="border-radius: 0 0 8px 8px;">
+                                <div class="card-body p-0 position-relative bg-dark"
+                                    style="border-radius: 0 0 8px 8px;">
                                     <div class="dn-code-editor-wrapper">
                                         <div id="pythonStudioLineNumbers" class="dn-line-numbers">1</div>
-                                        <textarea id="pythonStudioCodeEditor" class="form-control font-monospace dn-code-textarea" spellcheck="false" placeholder="# Write or edit your Python pipeline code here...&#10;# Tip: Press Ctrl + Enter to quickly run and sync visualizations."></textarea>
+                                        <textarea id="pythonStudioCodeEditor"
+                                            class="form-control font-monospace dn-code-textarea" spellcheck="false"
+                                            placeholder="# Write or edit your Python pipeline code here...&#10;# Tip: Press Ctrl + Enter to quickly run and sync visualizations."></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -2327,49 +2637,77 @@
                         <div class="col-lg-5">
                             <div class="card h-100 border-0 shadow-sm">
                                 <div class="card-header bg-body-tertiary py-2 px-3 border-bottom">
-                                    <ul class="nav nav-pills card-header-pills gap-1" id="studioOutputTabs" role="tablist">
+                                    <ul class="nav nav-pills card-header-pills gap-1" id="studioOutputTabs"
+                                        role="tablist">
                                         <li class="nav-item">
-                                            <button class="nav-link active btn-sm py-1 px-3" id="tab-studio-terminal-btn" data-bs-toggle="pill" data-bs-target="#tab-studio-terminal" type="button" role="tab"><i class="bi bi-terminal me-1"></i> Console Output</button>
+                                            <button class="nav-link active btn-sm py-1 px-3 fw-semibold"
+                                                id="tab-studio-plots-btn" data-bs-toggle="pill"
+                                                data-bs-target="#tab-studio-plots" type="button" role="tab"><i
+                                                    class="bi bi-image me-1"></i> Visual Plots <span
+                                                    class="badge bg-primary ms-1" id="studioPlotsBadge"
+                                                    style="display:none;">0</span></button>
                                         </li>
                                         <li class="nav-item">
-                                            <button class="nav-link btn-sm py-1 px-3" id="tab-studio-plots-btn" data-bs-toggle="pill" data-bs-target="#tab-studio-plots" type="button" role="tab"><i class="bi bi-image me-1"></i> Generated Plots <span class="badge bg-primary ms-1" id="studioPlotsBadge" style="display:none;">0</span></button>
+                                            <button class="nav-link btn-sm py-1 px-3 fw-semibold"
+                                                id="tab-studio-preview-btn" data-bs-toggle="pill"
+                                                data-bs-target="#tab-studio-preview" type="button" role="tab"><i
+                                                    class="bi bi-table me-1"></i> Table View</button>
                                         </li>
                                         <li class="nav-item">
-                                            <button class="nav-link btn-sm py-1 px-3" id="tab-studio-preview-btn" data-bs-toggle="pill" data-bs-target="#tab-studio-preview" type="button" role="tab"><i class="bi bi-table me-1"></i> DataFrame Preview</button>
+                                            <button class="nav-link btn-sm py-1 px-3 fw-semibold"
+                                                id="tab-studio-terminal-btn" data-bs-toggle="pill"
+                                                data-bs-target="#tab-studio-terminal" type="button" role="tab"><i
+                                                    class="bi bi-terminal me-1"></i> Console Log</button>
                                         </li>
                                     </ul>
                                 </div>
                                 <div class="card-body p-3">
-                                    <div class="tab-content" id="studioOutputTabContent">
-                                        <!-- 1. Console Output Tab -->
-                                        <div class="tab-pane fade show active" id="tab-studio-terminal" role="tabpanel">
-                                            <div id="studioExecutionStatusBanner" class="alert alert-info py-2 px-3 small mb-2 d-flex align-items-center justify-content-between">
-                                                <span><i class="bi bi-info-circle me-1"></i> Ready to execute Python code.</span>
-                                                <span class="badge bg-info-subtle text-info font-monospace" id="studioExecTimeBadge">Idle</span>
-                                            </div>
-                                            <div class="bg-black text-success p-3 rounded font-monospace small" id="studioTerminalOutput" style="min-height: 400px; max-height: 440px; overflow-y: auto; white-space: pre-wrap; font-size: 0.82rem; border: 1px solid rgba(255,255,255,0.1);"># DataNova Python Execution Environment Ready...
-# Click 'Run Code & Sync Vis' to execute data transformations and generate charts.
-</div>
-                                        </div>
+                                    <!-- Dynamic Execution Status Banner -->
+                                    <div id="studioExecutionStatusBanner"
+                                        class="alert alert-info py-2 px-3 small mb-2 d-flex align-items-center justify-content-between">
+                                        <span><i class="bi bi-info-circle me-1"></i> Ready to execute Python
+                                            code.</span>
+                                        <span class="badge bg-info-subtle text-info font-monospace"
+                                            id="studioExecTimeBadge">Idle</span>
+                                    </div>
 
-                                        <!-- 2. Generated Plots Tab -->
-                                        <div class="tab-pane fade" id="tab-studio-plots" role="tabpanel">
-                                            <div id="studioPlotsContainer" class="d-flex flex-column gap-3" style="max-height: 440px; overflow-y: auto;">
+                                    <div class="tab-content" id="studioOutputTabContent">
+                                        <!-- 1. Generated Plots Tab (Default Active) -->
+                                        <div class="tab-pane fade show active" id="tab-studio-plots" role="tabpanel">
+                                            <div id="studioPlotsContainer" class="d-flex flex-column gap-3"
+                                                style="max-height: 440px; overflow-y: auto;">
                                                 <div class="text-center py-5 text-muted small">
                                                     <i class="bi bi-bar-chart-steps fs-1 d-block mb-2 opacity-50"></i>
-                                                    No plots generated yet. Run code containing <code>plt.show()</code> or plotting commands to render figures here.
+                                                    Click <strong>"Run Code &amp; Sync Vis"</strong> to execute pipeline
+                                                    and generate charts.
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <!-- 3. DataFrame Preview Tab -->
+                                        <!-- 2. DataFrame Preview Tab -->
                                         <div class="tab-pane fade" id="tab-studio-preview" role="tabpanel">
                                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                                <span class="small text-secondary fw-semibold">Live DataFrame Snapshot (First 10 Rows)</span>
-                                                <span class="badge bg-secondary-subtle text-secondary" id="studioDfShapeBadge">0 rows x 0 cols</span>
+                                                <span class="small text-secondary fw-semibold">Live Cleaned DataFrame
+                                                    Snapshot (First 10 Rows)</span>
+                                                <span class="badge bg-secondary-subtle text-secondary"
+                                                    id="studioDfShapeBadge">0 rows x 0 cols</span>
                                             </div>
-                                            <div class="table-responsive border rounded" style="max-height: 380px;" id="studioPreviewTableContainer">
-                                                <div class="p-4 text-center text-muted small">Execute code to see live dataset table preview.</div>
+                                            <div class="table-responsive border rounded bg-body shadow-sm"
+                                                style="max-height: 400px; overflow: auto;"
+                                                id="studioPreviewTableContainer">
+                                                <div class="p-4 text-center text-muted small">Execute code to see live
+                                                    dataset table preview in tabular format.</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 3. Console Output Tab -->
+                                        <div class="tab-pane fade" id="tab-studio-terminal" role="tabpanel">
+                                            <div class="bg-black text-success p-3 rounded font-monospace small"
+                                                id="studioTerminalOutput"
+                                                style="min-height: 400px; max-height: 420px; overflow-y: auto; white-space: pre-wrap; font-size: 0.82rem; border: 1px solid rgba(255,255,255,0.1);">
+                                                # DataNova Python Execution Environment Ready...
+                                                # Click 'Run Code & Sync Vis' to execute data transformations and
+                                                generate charts.
                                             </div>
                                         </div>
                                     </div>
@@ -2378,13 +2716,768 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top py-2 px-3 d-flex justify-content-between align-items-center bg-body-tertiary">
-                    <small class="text-secondary"><i class="bi bi-shield-check text-success me-1"></i> Data modifications in Code Studio automatically synchronize with Dashboard Visualizations &amp; Reports.</small>
+                <div
+                    class="modal-footer border-top py-2 px-3 d-flex justify-content-between align-items-center bg-body-tertiary">
+                    <small class="text-secondary"><i class="bi bi-shield-check text-success me-1"></i> Data
+                        modifications in Code Studio automatically synchronize with Dashboard Visualizations &amp;
+                        Reports.</small>
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close Studio</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- ================= 10. ADVANCED ML & PREDICTIVE STUDIO MODAL ================= -->
+    <div class="modal fade" id="dnMlStudioModal" tabindex="-1" aria-labelledby="dnMlStudioModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 1180px;">
+            <div class="modal-content shadow-lg border-0">
+                <!-- Modal Header -->
+                <div
+                    class="modal-header bg-body-tertiary border-bottom py-2.5 px-4 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-2 d-flex align-items-center justify-content-center"
+                            style="background: linear-gradient(135deg, #6366F1, #8B5CF6); color: white; width: 40px; height: 40px;">
+                            <i class="bi bi-cpu fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" id="dnMlStudioModalLabel">DataNova Predictive Studio
+                            </h5>
+                            <div class="small text-secondary d-flex align-items-center gap-2">
+                                <span id="mlStudioDatasetBadge" class="badge bg-primary-subtle text-primary border"><i
+                                        class="bi bi-database me-1"></i> Active Dataset</span>
+                                <span id="mlStudioModelBadge" class="badge bg-success-subtle text-success border">Linear
+                                    Regression (OLS)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button"
+                            class="btn btn-sm btn-outline-success fw-semibold d-flex align-items-center gap-1.5"
+                            id="btnOpenSavedModelsModal">
+                            <i class="bi bi-bookmark-check-fill"></i> Saved Models (<span
+                                id="savedModelsCountBadge">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="modal-body p-4 bg-body">
+                    <!-- 1. Modality Navigation Pills -->
+                    <ul class="nav nav-pills nav-fill p-1.5 bg-body-tertiary rounded-3 border mb-4" id="mlModalityNav"
+                        role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link active py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                id="ml-nav-regression" data-modality="regression" type="button">
+                                <i class="bi bi-graph-up text-primary"></i> Linear Regression
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                id="ml-nav-classification" data-modality="classification" type="button">
+                                <i class="bi bi-diagram-3 text-info"></i> Classification
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                id="ml-nav-clustering" data-modality="clustering" type="button">
+                                <i class="bi bi-bounding-box-circles text-warning"></i> Clustering
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                id="ml-nav-forecasting" data-modality="forecasting" type="button">
+                                <i class="bi bi-cpu text-success"></i> Forecasting
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button
+                                class="nav-link py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                id="ml-nav-anomaly" data-modality="anomaly" type="button">
+                                <i class="bi bi-exclamation-diamond text-danger"></i> Anomaly Detection
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Model Incompatibility Warning Banner -->
+                    <div class="alert alert-warning border border-warning-subtle shadow-sm mb-4 d-none"
+                        id="mlIncompatibleWarningBox">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle p-2 bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                                style="width: 42px; height: 42px; min-width: 42px;">
+                                <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-warning-emphasis" id="mlIncompatibleTitle">Model Not
+                                    Applicable for Active Dataset</h6>
+                                <p class="small mb-0 text-secondary" id="mlIncompatibleReason">This model type cannot be
+                                    trained on the selected dataset because required column conditions are not met.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Interactive Hyperparameters & Feature Configuration Card -->
+                    <div class="card border shadow-sm mb-4 bg-body-tertiary">
+                        <div class="card-body p-3">
+                            <div class="row g-3 align-items-end">
+                                <!-- Dynamic Target Column / Value Column Selector -->
+                                <div class="col-12 col-md-4" id="mlTargetColGroup">
+                                    <label class="form-label small fw-semibold text-secondary mb-1"
+                                        id="mlTargetColLabel">Target Column (y)</label>
+                                    <select class="form-select form-select-sm" id="mlTargetColSelect">
+                                        <option value="">Detecting best target...</option>
+                                    </select>
+                                </div>
+
+                                <!-- Dynamic Date Column Selector (for forecasting) -->
+                                <div class="col-12 col-md-4 d-none" id="mlDateColGroup">
+                                    <label class="form-label small fw-semibold text-secondary mb-1">Date / Time
+                                        Column</label>
+                                    <select class="form-select form-select-sm" id="mlDateColSelect">
+                                        <option value="">Automatic chronological index</option>
+                                    </select>
+                                </div>
+
+                                <!-- Modality Parameter (K / Horizon / Contamination) -->
+                                <div class="col-12 col-md-3" id="mlParamGroup">
+                                    <label class="form-label small fw-semibold text-secondary mb-1"
+                                        id="mlParamLabel">Forecast Horizon</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control" id="mlParamInput" value="14" min="2"
+                                            max="100">
+                                        <span class="input-group-text small" id="mlParamUnit">Periods</span>
+                                    </div>
+                                </div>
+
+                                <!-- Run Model Button -->
+                                <div class="col-12 col-md-5 d-flex gap-2">
+                                    <button
+                                        class="btn btn-sm btn-primary flex-grow-1 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                        id="btnRunMlStudio">
+                                        <i class="bi bi-play-fill fs-6"></i> <span>Run Model &amp; Predict</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" id="btnResetMlDefaults"
+                                        title="Reset Recommended Features">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Feature Columns Multi-Select Pills -->
+                                <div class="col-12" id="mlFeaturesGroup">
+                                    <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <label class="form-label small fw-semibold text-secondary mb-0">Predictor
+                                                Features (X)</label>
+                                            <button type="button"
+                                                class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill small"
+                                                id="btnSmartSelectFeatures"
+                                                title="Auto-select logically relevant continuous numeric features with high correlation">
+                                                <i class="bi bi-magic me-1"></i> Smart Auto-Select Logically Relevant
+                                                Features
+                                            </button>
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-secondary"
+                                            id="mlSelectedFeaturesCount">0 features selected</span>
+                                    </div>
+                                    <div class="p-2 border rounded-2 bg-body d-flex flex-wrap gap-1.5"
+                                        id="mlFeaturePillsContainer" style="max-height: 100px; overflow-y: auto;">
+                                        <span class="text-muted small">Loading dataset features...</span>
+                                    </div>
+                                    <div class="small text-muted mt-1" id="mlFeatureSelectionHint">
+                                        <i class="bi bi-info-circle me-1 text-primary"></i> Non-predictive ID columns
+                                        are excluded. High correlation features are highlighted for optimal Linear
+                                        Regression accuracy.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Dynamic Execution Status / Loading Spinner -->
+                    <div id="mlExecutionSpinner" class="d-none text-center py-5">
+                        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Training ML Model...</span>
+                        </div>
+                        <h6 class="fw-bold mb-1">Fitting Model &amp; Computing Predictions...</h6>
+                        <p class="text-secondary small mb-0">Training multivariate estimators, generating confidence
+                            intervals, and evaluating test metrics.</p>
+                    </div>
+
+                    <!-- 4. ML Results Workspace -->
+                    <div id="mlResultsContainer">
+                        <!-- Model Equation & Formula Card (Linear Regression) -->
+                        <div class="card border shadow-sm mb-4 bg-primary-subtle text-primary border-primary-subtle"
+                            id="mlFormulaCard">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div
+                                        class="fw-bold small text-uppercase tracking-wider d-flex align-items-center gap-2">
+                                        <i class="bi bi-calculator fs-6"></i> Linear Regression Mathematical Equation
+                                    </div>
+                                    <span class="badge bg-primary text-white font-monospace small"
+                                        id="mlInterceptBadge">Intercept: --</span>
+                                </div>
+                                <div class="p-2.5 rounded-2 bg-body font-monospace text-body fw-semibold small shadow-inner border text-break"
+                                    id="mlFormulaText">
+                                    Target = β0 + (β1 × Feature1) + (β2 × Feature2)...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Model KPIs Summary Cards -->
+                        <div class="row g-3 mb-4" id="mlKpiCardsRow">
+                            <div class="col-6 col-md-3">
+                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
+                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi1Label">R²
+                                        Determination</div>
+                                    <div class="fs-3 fw-bold text-primary mt-1" id="mlKpi1Value">--</div>
+                                    <div class="small text-muted" id="mlKpi1Sub">Model Goodness of Fit</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
+                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi2Label">MAE
+                                        Error</div>
+                                    <div class="fs-3 fw-bold text-success mt-1" id="mlKpi2Value">--</div>
+                                    <div class="small text-muted" id="mlKpi2Sub">Mean Absolute Deviation</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
+                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi3Label">RMSE
+                                        Error</div>
+                                    <div class="fs-3 fw-bold text-info mt-1" id="mlKpi3Value">--</div>
+                                    <div class="small text-muted" id="mlKpi3Sub">Root Mean Squared Error</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
+                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi4Label">Sample
+                                        Size</div>
+                                    <div class="fs-3 fw-bold text-secondary mt-1" id="mlKpi4Value">--</div>
+                                    <div class="small text-muted" id="mlKpi4Sub">Evaluated Test Rows</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Plotly Visual Analytics Panel with Multi-Chart Tabs -->
+                        <div class="card border shadow-sm mb-4">
+                            <div
+                                class="card-header bg-body-tertiary py-2 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <div class="fw-semibold small d-flex align-items-center gap-2">
+                                    <i class="bi bi-graph-up-arrow text-primary"></i>
+                                    <span id="mlChartTitle">Interactive Model Visualization &amp; Diagnostics</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2" id="mlChartTabButtons">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary active py-1 px-2.5 small"
+                                            id="btnTabScatter">Actual vs Predicted</button>
+                                        <button type="button" class="btn btn-outline-primary py-1 px-2.5 small"
+                                            id="btnTabResidual">Residual Errors</button>
+                                        <button type="button" class="btn btn-outline-primary py-1 px-2.5 small"
+                                            id="btnTabCoef">Feature Slopes (β)</button>
+                                    </div>
+                                    <span class="badge bg-body text-secondary border">Plotly Interactive</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-2">
+                                <div id="mlPlotlyContainer" style="min-height: 380px; width: 100%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Plain-Language Human Explanations Box -->
+                        <div class="card border shadow-sm mb-4 bg-body-tertiary" id="mlHumanExplanationsSection">
+                            <div
+                                class="card-header bg-body border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
+                                <div class="fw-bold small text-primary d-flex align-items-center gap-2">
+                                    <i class="bi bi-lightbulb-fill text-warning fs-6"></i> Model Summary &amp;
+                                    Plain-Language Business Interpretation
+                                </div>
+                                <span class="badge bg-success-subtle text-success border">Easy-to-Understand
+                                    Guide</span>
+                            </div>
+                            <div class="card-body p-3.5">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <div class="p-3 rounded-3 border bg-body h-100">
+                                            <h6
+                                                class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
+                                                <i class="bi bi-pie-chart-fill text-primary"></i> Variance &amp; Error
+                                                Explanation
+                                            </h6>
+                                            <p class="small mb-2 text-body" id="expR2Text">
+                                                Loading model variance explanation...
+                                            </p>
+                                            <p class="small mb-0 text-muted" id="expErrorText">
+                                                Loading average prediction error...
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <div class="p-3 rounded-3 border bg-body h-100">
+                                            <h6
+                                                class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
+                                                <i class="bi bi-compass-fill text-info"></i> How to Read Output Graphs
+                                            </h6>
+                                            <ul class="list-unstyled small mb-0 text-body d-flex flex-column gap-1.5"
+                                                id="expGraphGuideList">
+                                                <li><i class="bi bi-check-circle-fill text-success me-1"></i> Dots close
+                                                    to green line mean high accuracy.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="p-3 rounded-3 border bg-body">
+                                            <h6
+                                                class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
+                                                <i class="bi bi-sliders text-warning"></i> Feature Slopes &amp; Unit
+                                                Impact Analysis
+                                            </h6>
+                                            <div class="d-flex flex-column gap-1 small text-body"
+                                                id="expSlopesContainer">
+                                                <!-- Dynamic Slope Explanations -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Feature Importances / Driver Ranking -->
+                        <div class="card border shadow-sm mb-4" id="mlImportanceSection">
+                            <div class="card-header bg-body-tertiary py-2 px-3 border-bottom">
+                                <div class="fw-semibold small d-flex align-items-center gap-2">
+                                    <i class="bi bi-bar-chart-line text-warning"></i>
+                                    <span id="mlImportanceTitle">Key Drivers &amp; Relative Impact Weights</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-3" id="mlImportanceBars">
+                                <!-- Dynamic progress bars -->
+                            </div>
+                        </div>
+
+                        <!-- 5. Predictions & Decision Table ("What was Predicted") -->
+                        <div class="card border shadow-sm mb-2" id="mlPredictionsSection">
+                            <div
+                                class="card-header bg-body-tertiary py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-table text-success fs-6"></i>
+                                    <span class="fw-bold small" id="mlTableTitle">Model Predictions &amp; Decision
+                                        Output</span>
+                                    <span class="badge bg-primary-subtle text-primary border"
+                                        id="mlPredictionsCountBadge">50 Predictions</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="input-group input-group-sm" style="width: 220px;">
+                                        <span class="input-group-text bg-body border-end-0"><i
+                                                class="bi bi-search text-secondary"></i></span>
+                                        <input type="text" class="form-control border-start-0"
+                                            id="mlSearchPredictionsInput" placeholder="Filter predictions...">
+                                    </div>
+                                    <button
+                                        class="btn btn-sm btn-outline-primary fw-semibold d-flex align-items-center gap-1"
+                                        id="btnExportPredictionsCsv">
+                                        <i class="bi bi-download"></i> Export CSV
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                                <table
+                                    class="table table-hover table-striped table-sm align-middle mb-0 font-monospace small"
+                                    id="mlPredictionsTable">
+                                    <thead class="table-light sticky-top" id="mlPredictionsThead">
+                                        <!-- Dynamic Thead -->
+                                    </thead>
+                                    <tbody id="mlPredictionsTbody">
+                                        <!-- Dynamic Rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div
+                    class="modal-footer border-top py-2.5 px-4 d-flex justify-content-between align-items-center bg-body-tertiary">
+                    <small class="text-secondary"><i class="bi bi-shield-check text-success me-1"></i> Predictions
+                        calculated using Ordinary Least Squares (OLS) linear statistical pipeline.</small>
+                    <div class="d-flex gap-2">
+                        <button type="button"
+                            class="btn btn-sm btn-success fw-semibold d-flex align-items-center gap-1.5"
+                            id="btnSaveCurrentModel">
+                            <i class="bi bi-save2-fill"></i> Save Trained Model
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 11. SAVED MODELS & INSTANT PREDICTOR MODAL ================= -->
+    <div class="modal fade" id="dnSavedModelsModal" tabindex="-1" aria-labelledby="dnSavedModelsModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div
+                    class="modal-header bg-success-subtle py-2.5 px-4 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2.5 text-success">
+                        <i class="bi bi-bookmark-star-fill fs-5"></i>
+                        <h5 class="modal-title fw-bold mb-0" id="dnSavedModelsModalLabel">Saved Regression Models</h5>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div class="modal-body p-4 bg-body">
+                    <!-- Nav Tabs: Saved Models List vs Instant Predictor -->
+                    <ul class="nav nav-tabs mb-3" id="savedModelsNavTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-semibold" id="tab-saved-list" data-bs-toggle="tab"
+                                data-bs-target="#pane-saved-list" type="button">
+                                <i class="bi bi-list-stars me-1"></i> Saved Models List
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-semibold" id="tab-instant-predict" data-bs-toggle="tab"
+                                data-bs-target="#pane-instant-predict" type="button">
+                                <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> Instant Predictor (No
+                                Retraining Required)
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="savedModelsTabContent">
+                        <!-- Pane 1: Saved Models List -->
+                        <div class="tab-pane fade show active" id="pane-saved-list" role="tabpanel">
+                            <div id="savedModelsListContainer">
+                                <div class="text-center py-4 text-muted">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div> Loading saved
+                                    models...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pane 2: Instant Predictor Form -->
+                        <div class="tab-pane fade" id="pane-instant-predict" role="tabpanel">
+                            <div class="card border shadow-sm p-3 mb-3 bg-body-tertiary">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 class="fw-bold mb-0 text-primary" id="instantPredictModelTitle">Select a saved
+                                        model from the list first</h6>
+                                    <span class="badge bg-primary-subtle text-primary border"
+                                        id="instantPredictTargetBadge">Target: --</span>
+                                </div>
+                                <p class="small text-secondary mb-0" id="instantPredictFormulaText">Equation: y = β0 +
+                                    β1X1...</p>
+                            </div>
+
+                            <form id="instantPredictForm" class="row g-3">
+                                <div class="col-12" id="instantPredictInputsContainer">
+                                    <div class="text-muted small py-3 text-center">Select a model from the "Saved Models
+                                        List" tab to load input fields.</div>
+                                </div>
+                                <div class="col-12 d-flex justify-content-end gap-2 mt-3">
+                                    <button type="submit"
+                                        class="btn btn-primary btn-sm fw-semibold d-flex align-items-center gap-1.5"
+                                        id="btnRunInstantPredict" disabled>
+                                        <i class="bi bi-lightning-fill"></i> Calculate Instant Prediction
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Instant Prediction Result Box -->
+                            <div class="card border border-success shadow-sm mt-3 d-none" id="instantPredictResultCard">
+                                <div class="card-body p-3 bg-success-subtle text-success rounded-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="fw-semibold small text-uppercase">Predicted Result (<span
+                                                id="ipTargetName">Target</span>)</span>
+                                        <span class="badge bg-success text-white">Instant Output</span>
+                                    </div>
+                                    <div class="fs-2 fw-bold text-success mt-1" id="instantPredictOutputValue">--</div>
+                                    <div class="small text-body mt-2 border-top pt-2">
+                                        <strong>Calculation Factor Breakdown:</strong>
+                                        <div class="font-monospace small mt-1" id="instantPredictBreakdownList">
+                                            <!-- Factors list -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compare Datasets Modal -->
+    <div class="modal fade" id="dnCompareDatasetsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content dn-panel p-3">
+                <div class="modal-header border-0 pb-2">
+                    <div>
+                        <h5 class="modal-title fw-bold"><i class="bi bi-columns-gap text-primary me-2"></i>Compare Platform Datasets</h5>
+                        <p class="small text-secondary mb-0">Upload two CSV/Excel files directly, paste Google Sheet URLs, or compare existing platform datasets.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="dnCompareDatasetsForm">
+                        <!-- Mode Selection Nav Pills -->
+                        <ul class="nav nav-pills gap-2 mb-3" id="compareModeTabNav" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active py-1 px-3 fw-semibold small" id="compareModeUploadTab" data-bs-toggle="pill" data-bs-target="#compareModeUploadPane" type="button" role="tab">
+                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload 2 Files (CSV / Excel)
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link py-1 px-3 fw-semibold small" id="compareModeIdTab" data-bs-toggle="pill" data-bs-target="#compareModeIdPane" type="button" role="tab">
+                                    <i class="bi bi-database-fill me-1"></i> By Dataset ID / Platform Name
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link py-1 px-3 fw-semibold small" id="compareModeGSheetTab" data-bs-toggle="pill" data-bs-target="#compareModeGSheetPane" type="button" role="tab">
+                                    <i class="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i> Google Sheets URL / Link
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="compareModeTabContent">
+                            <!-- TAB 1: File Upload Mode -->
+                            <div class="tab-pane fade show active" id="compareModeUploadPane" role="tabpanel">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-primary text-white rounded-pill px-2 py-1">File 1</span>
+                                                <label class="form-label small fw-bold mb-0">Primary Dataset File</label>
+                                            </div>
+                                            <input type="file" id="compareFile1Input" class="form-control form-control-sm" accept=".csv,.xlsx,.xls,.json">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-filetype-csv me-1"></i>Supports .csv, .xlsx, .xls</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-info text-dark rounded-pill px-2 py-1">File 2</span>
+                                                <label class="form-label small fw-bold mb-0">Secondary Dataset File</label>
+                                            </div>
+                                            <input type="file" id="compareFile2Input" class="form-control form-control-sm" accept=".csv,.xlsx,.xls,.json">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-filetype-csv me-1"></i>Supports .csv, .xlsx, .xls</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TAB 2: Dataset ID Mode -->
+                            <div class="tab-pane fade" id="compareModeIdPane" role="tabpanel">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Primary Dataset ID / Name</label>
+                                        <input type="text" id="compareDs1Input" class="form-control form-control-sm" placeholder="Dataset 1 ID (e.g. 1)">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Secondary Dataset ID / Name</label>
+                                        <input type="text" id="compareDs2Input" class="form-control form-control-sm" placeholder="Dataset 2 ID (e.g. 2)">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TAB 3: Google Sheets URL Mode -->
+                            <div class="tab-pane fade" id="compareModeGSheetPane" role="tabpanel">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-success text-white rounded-pill px-2 py-1">GSheet 1</span>
+                                                <label class="form-label small fw-bold mb-0">Primary Google Sheet URL</label>
+                                            </div>
+                                            <input type="url" id="compareGSheet1Input" class="form-control form-control-sm" placeholder="https://docs.google.com/spreadsheets/d/...">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-info-circle me-1"></i>Ensure share setting is set to "Anyone with the link can view".</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-body-tertiary h-100">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-info text-dark rounded-pill px-2 py-1">GSheet 2</span>
+                                                <label class="form-label small fw-bold mb-0">Secondary Google Sheet URL</label>
+                                            </div>
+                                            <input type="url" id="compareGSheet2Input" class="form-control form-control-sm" placeholder="https://docs.google.com/spreadsheets/d/...">
+                                            <div class="form-text small text-secondary mt-1"><i class="bi bi-info-circle me-1"></i>Ensure share setting is set to "Anyone with the link can view".</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="compareDatasetsAlert" class="alert alert-danger p-2 small d-none mb-3"></div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="small text-muted"><i class="bi bi-lightning-charge text-warning me-1"></i>Side-by-side schema, quality &amp; row comparison</span>
+                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary" id="btnSubmitCompare"><i class="bi bi-arrow-left-right me-1"></i>Run Comparison</button>
+                        </div>
+                    </form>
+
+                    <!-- Results Section -->
+                    <div id="compareResultsContainer" class="d-none border-top pt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <h6 class="fw-bold mb-0 text-success"><i class="bi bi-bar-chart-steps me-1"></i>Comparison Results</h6>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="compOverviewBadge">Comparison Ready</span>
+                        </div>
+                        <div class="table-responsive mb-3">
+                            <table class="table dn-table align-middle text-center small mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-start">Metric / Parameter</th>
+                                        <th id="compHeadDs1" class="text-primary fw-bold">Dataset 1</th>
+                                        <th id="compHeadDs2" class="text-info fw-bold">Dataset 2</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-list-ol me-1 text-secondary"></i>Total Rows</td>
+                                        <td id="compRows1" class="fw-bold">0</td>
+                                        <td id="compRows2" class="fw-bold">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-layout-three-columns me-1 text-secondary"></i>Total Columns</td>
+                                        <td id="compCols1" class="fw-bold">0</td>
+                                        <td id="compCols2" class="fw-bold">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-hdd me-1 text-secondary"></i>Memory Size</td>
+                                        <td id="compMem1">0 KB</td>
+                                        <td id="compMem2">0 KB</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-exclamation-circle me-1 text-warning"></i>Missing Data Points</td>
+                                        <td id="compMiss1">0</td>
+                                        <td id="compMiss2">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-copy me-1 text-secondary"></i>Duplicate Rows</td>
+                                        <td id="compDup1">0</td>
+                                        <td id="compDup2">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-start"><i class="bi bi-shield-check me-1 text-success"></i>Data Quality Grade</td>
+                                        <td id="compGrade1"><span class="badge bg-primary-subtle text-primary border border-primary-subtle">A+ (100)</span></td>
+                                        <td id="compGrade2"><span class="badge bg-info-subtle text-info border border-info-subtle">A+ (100)</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Column Breakdown Sections -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-12">
+                                <div class="p-2 border rounded-2 bg-body-tertiary">
+                                    <div class="small fw-semibold mb-1 text-success"><i class="bi bi-intersect me-1"></i>Common Overlapping Columns (<span id="compCommonCount">0</span>):</div>
+                                    <div id="compCommonPills" class="d-flex flex-wrap gap-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+                                    <div class="small fw-semibold mb-1 text-primary"><i class="bi bi-box-arrow-in-left me-1"></i>Only in <span id="compOnlyName1">Dataset 1</span> (<span id="compOnlyCount1">0</span>):</div>
+                                    <div id="compOnly1Pills" class="d-flex flex-wrap gap-1"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+                                    <div class="small fw-semibold mb-1 text-info"><i class="bi bi-box-arrow-in-right me-1"></i>Only in <span id="compOnlyName2">Dataset 2</span> (<span id="compOnlyCount2">0</span>):</div>
+                                    <div id="compOnly2Pills" class="d-flex flex-wrap gap-1"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schema / Data Types Compatibility Accordion -->
+                        <div class="border rounded-2 p-2" id="compSchemaSection">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small fw-bold"><i class="bi bi-table me-1"></i>Column Schema &amp; Data Types Comparison</span>
+                            </div>
+                            <div class="table-responsive" style="max-height: 180px; overflow-y: auto;">
+                                <table class="table table-sm dn-table small mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Column</th>
+                                            <th>Type (Dataset 1)</th>
+                                            <th>Type (Dataset 2)</th>
+                                            <th>Match Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="compSchemaTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Round Chatbot Button (Fixed Right Bottom Corner) -->
+    <style>
+        .dn-floating-ask-ai-btn {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            z-index: 1055;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background-color: #F3E8FF;
+            color: #7E22CE;
+            border: 2px solid #E9D5FF;
+            box-shadow: 0 6px 20px rgba(126, 34, 206, 0.3), 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .dn-floating-ask-ai-btn:hover {
+            transform: translateY(-4px) scale(1.08);
+            background-color: #7E22CE;
+            color: #FFFFFF;
+            border-color: #6B21A8;
+            box-shadow: 0 10px 28px rgba(126, 34, 206, 0.5);
+        }
+
+        .dn-floating-ask-ai-btn .bi {
+            font-size: 1.45rem;
+            transition: transform 0.2s ease;
+        }
+
+        .dn-floating-ask-ai-btn:hover .bi {
+            transform: scale(1.1);
+        }
+
+        .dn-floating-ask-ai-btn .dn-floating-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #2563EB;
+            color: #FFFFFF;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 10px;
+            border: 2px solid #FFFFFF;
+            line-height: 1;
+        }
+    </style>
+    <button class="dn-floating-ask-ai-btn dn-open-ask-modal" type="button" title="Ask AI Copilot"
+        aria-label="Ask AI Copilot">
+        <i class="bi bi-chat-dots-fill"></i>
+        <span class="dn-floating-badge">AI</span>
+    </button>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
