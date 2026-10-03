@@ -3,13 +3,27 @@
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 30,
+        "includeFiles": [
+          "templates/**",
+          "static/**",
+          "datanova/**",
+          "database/**"
+        ]
+      }
     }
   ],
   "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "api/index.py"
     }
   ]
 }
+
