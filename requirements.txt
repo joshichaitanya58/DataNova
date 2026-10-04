@@ -1,7 +1,7 @@
 # Web Framework
-Flask>=3.1.0
-werkzeug>=3.1.0
-gunicorn>=23.0.0
+#Flask>=3.1.0
+#werkzeug>=3.1.0
+#gunicorn>=23.0.0
 
 # Environment Configuration
 python-dotenv>=1.0.1
@@ -33,13 +33,13 @@ lxml>=5.0.0
 scipy>=1.14.1
 
 # Machine Learning & Analytics
-scikit-learn>=1.5.2
+#scikit-learn>=1.5.2
 
 # Excel File Support
 openpyxl>=3.1.5
 
 # HTTP Requests
-requests>=2.32.3
+#requests>=2.32.3
 
 # Time-series Forecasting
 statsmodels>=0.14.4
