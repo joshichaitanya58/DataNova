@@ -42,8 +42,8 @@ def create_app():
         secret_key = 'datanova-production-default-secret-key-please-set-in-env'
         logging.warning("SECRET_KEY is not set in environment. Using fallback secret key.")
 
-    # Determine safe upload folder for local or serverless/Vercel environments
-    if os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'):
+    # Determine safe upload folder for local or cloud hosting (Render / PaaS)
+    if os.getenv('RENDER') or os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'):
         upload_folder = os.path.join(tempfile.gettempdir(), 'uploads')
     else:
         upload_folder = os.path.join(app.instance_path, 'uploads')
@@ -60,7 +60,7 @@ def create_app():
     )
 
     try:
-        if not os.getenv('VERCEL'):
+        if not (os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME')):
             os.makedirs(app.instance_path, exist_ok=True)
         os.makedirs(upload_folder, exist_ok=True)
     except OSError as e:
