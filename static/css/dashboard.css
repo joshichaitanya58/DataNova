@@ -1,7 +1,7 @@
 /* ==========================================================================
    DataNova — Shared Dashboard Stylesheet
    Used by: admin_dashboard.html, manager_dashboard.html,
-            analyst_dashboard.html, viewer_dashboard.html
+            analyst_dashboard.html, developer_dashboard.html
    ========================================================================== */
 
 :root {
@@ -258,7 +258,7 @@ a {
     color: var(--dn-cyan);
 }
 
-.dn-role-viewer {
+.dn-role-developer {
     background: rgba(16, 185, 129, 0.12);
     color: var(--dn-green);
 }
@@ -441,11 +441,11 @@ a {
 @keyframes dnSearchTargetPulse {
     0% {
         box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.6);
-        background-color: rgba(79, 70, 229, 0.15) !important;
+        background-color: rgba(79, 70, 229, 0.15);
     }
     50% {
         box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.2);
-        background-color: rgba(79, 70, 229, 0.08) !important;
+        background-color: rgba(79, 70, 229, 0.08);
     }
     100% {
         box-shadow: 0 0 0 0 transparent;
@@ -1110,6 +1110,57 @@ a {
     color: var(--dn-ink-faint);
     font-size: 0.82rem;
     margin: 0;
+}
+
+/* ---- Professional Uniform Data Source Pills ---- */
+.dn-source-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 16px;
+    background: #ffffff;
+    border: 1px solid var(--dn-border, #E2E8F0);
+    border-radius: 999px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+}
+
+.dn-source-pill:hover {
+    transform: translateY(-2px);
+    border-color: #4F46E5;
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.14);
+    background: #ffffff;
+}
+
+.dn-source-pill .dn-source-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+
+.dn-source-pill .dn-source-text {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    line-height: 1.15;
+}
+
+.dn-source-pill .dn-source-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--dn-ink-strong, #1E293B);
+}
+
+.dn-source-pill .dn-source-sub {
+    font-size: 0.68rem;
+    color: var(--dn-ink-faint, #64748B);
 }
 
 /* ---- Chat / Ask Your Data ---- */
@@ -2120,7 +2171,7 @@ html {
 
 /* ==========================================================================
    Smooth Scrolling & Dashboard Section Navigation Highlights
-   (Manager, Admin, Viewer, Analyst)
+   (Manager, Admin, Developer, Analyst)
    ========================================================================== */
 html {
     scroll-behavior: smooth;
@@ -2148,7 +2199,7 @@ html {
 #adminApiUsageSection,
 #adminSecuritySection,
 #adminQuickActionsSection,
-/* Viewer Dashboard Sections */
+/* Developer Dashboard Sections */
 #dashboardOverview,
 #assignedTasksPanel,
 #shared,
@@ -2685,4 +2736,4 @@ html {
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
-
+

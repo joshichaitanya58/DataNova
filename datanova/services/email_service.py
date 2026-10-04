@@ -23,7 +23,13 @@ def send_smtp_email(to_email: str, subject: str, body_text: str, body_html: str 
     Returns (success_boolean, message_string).
     """
     try:
-        settings = override_settings if override_settings is not None else current_app.config.get('SYSTEM_SETTINGS', {})
+        if override_settings is not None:
+            settings = override_settings
+        else:
+            try:
+                settings = current_app.config.get('SYSTEM_SETTINGS', {}) if current_app else {}
+            except Exception:
+                settings = {}
 
         # 1. Resolve Host
         smtp_host = (

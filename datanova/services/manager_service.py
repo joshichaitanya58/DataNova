@@ -500,7 +500,7 @@ def get_available_platform_users(conn=None, manager_id=None, organization=None) 
                 query += " AND u.organization = %s"
                 params.append(organization)
             if manager_id:
-                query += " AND u.id != %s AND u.role != 'admin' AND u.id NOT IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)"
+                query += " AND u.id != %s AND u.role NOT IN ('admin', 'developer') AND u.id NOT IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)"
                 params.extend([manager_id, manager_id])
             query += " ORDER BY u.created_at DESC, u.first_name ASC"
             cursor.execute(query, tuple(params))
@@ -565,7 +565,7 @@ def get_manager_tasks(conn=None, manager_id=None) -> list:
 
 
 def get_user_assigned_tasks(conn=None, user_id=None) -> list:
-    """Fetches all tasks assigned to a specific user (Analyst/Viewer) along with manager and dataset info."""
+    """Fetches all tasks assigned to a specific user (Analyst/Developer) along with manager and dataset info."""
     if not conn or not user_id:
         return []
     ensure_manager_tables_exist(conn)
@@ -615,7 +615,9 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
     active_datasets_count = 0
     reports_generated_count = 0
     team_members = []
+    available_users = []
     manager_tasks = []
+    datasets_list = []
     team_activity = []
 
     # Fetch database counts, team members, tasks, and real activity if conn provided
@@ -623,24 +625,66 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
         ensure_manager_tables_exist(conn)
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*) as count FROM datasets")
-                active_datasets_count = (cursor.fetchone() or {}).get('count', 0)
+                if user_id:
+                    cursor.execute("""
+                        SELECT COUNT(*) as count FROM datasets d
+                        JOIN users u ON d.user_id = u.id
+                        WHERE (
+                            d.user_id = %s
+                            OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
+                            OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
+                            OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                        )
+                    """, (user_id, user_id, user_id, user_id))
+                    active_datasets_count = (cursor.fetchone() or {}).get('count', 0)
 
-                cursor.execute("SELECT COUNT(*) as count FROM reports")
-                reports_generated_count = (cursor.fetchone() or {}).get('count', 0)
+                    cursor.execute("""
+                        SELECT COUNT(*) as count FROM reports r
+                        JOIN users u ON r.user_id = u.id
+                        WHERE (
+                            r.user_id = %s
+                            OR r.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
+                            OR r.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
+                            OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                        )
+                    """, (user_id, user_id, user_id, user_id))
+                    reports_generated_count = (cursor.fetchone() or {}).get('count', 0)
 
-                # Fetch real database activity from datasets, reports, and shared dashboards
-                cursor.execute("""
-                    (SELECT u.first_name, u.last_name, 'uploaded dataset' as act_type, d.file_name as item_name, d.uploaded_at as event_time
-                     FROM datasets d JOIN users u ON d.user_id = u.id ORDER BY d.uploaded_at DESC LIMIT 3)
-                    UNION ALL
-                    (SELECT u.first_name, u.last_name, 'generated report' as act_type, r.report_name as item_name, r.created_at as event_time
-                     FROM reports r JOIN users u ON r.user_id = u.id ORDER BY r.created_at DESC LIMIT 3)
-                    UNION ALL
-                    (SELECT u.first_name, u.last_name, 'shared dashboard' as act_type, s.title as item_name, s.created_at as event_time
-                     FROM shared_dashboards s JOIN users u ON s.owner_id = u.id ORDER BY s.created_at DESC LIMIT 3)
-                    ORDER BY event_time DESC LIMIT 5
-                """)
+                    cursor.execute("""
+                        (SELECT u.first_name, u.last_name, 'uploaded dataset' as act_type, d.file_name as item_name, d.uploaded_at as event_time
+                         FROM datasets d JOIN users u ON d.user_id = u.id
+                         WHERE (d.user_id = %s OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
+                         ORDER BY d.uploaded_at DESC LIMIT 3)
+                        UNION ALL
+                        (SELECT u.first_name, u.last_name, 'generated report' as act_type, r.report_name as item_name, r.created_at as event_time
+                         FROM reports r JOIN users u ON r.user_id = u.id
+                         WHERE (r.user_id = %s OR r.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR r.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
+                         ORDER BY r.created_at DESC LIMIT 3)
+                        UNION ALL
+                        (SELECT u.first_name, u.last_name, 'shared dashboard' as act_type, s.title as item_name, s.created_at as event_time
+                         FROM shared_dashboards s JOIN users u ON s.owner_id = u.id
+                         WHERE (s.owner_id = %s OR s.owner_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR s.owner_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
+                         ORDER BY s.created_at DESC LIMIT 3)
+                        ORDER BY event_time DESC LIMIT 5
+                    """, (user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id))
+                else:
+                    cursor.execute("SELECT COUNT(*) as count FROM datasets")
+                    active_datasets_count = (cursor.fetchone() or {}).get('count', 0)
+
+                    cursor.execute("SELECT COUNT(*) as count FROM reports")
+                    reports_generated_count = (cursor.fetchone() or {}).get('count', 0)
+
+                    cursor.execute("""
+                        (SELECT u.first_name, u.last_name, 'uploaded dataset' as act_type, d.file_name as item_name, d.uploaded_at as event_time
+                         FROM datasets d JOIN users u ON d.user_id = u.id ORDER BY d.uploaded_at DESC LIMIT 3)
+                        UNION ALL
+                        (SELECT u.first_name, u.last_name, 'generated report' as act_type, r.report_name as item_name, r.created_at as event_time
+                         FROM reports r JOIN users u ON r.user_id = u.id ORDER BY r.created_at DESC LIMIT 3)
+                        UNION ALL
+                        (SELECT u.first_name, u.last_name, 'shared dashboard' as act_type, s.title as item_name, s.created_at as event_time
+                         FROM shared_dashboards s JOIN users u ON s.owner_id = u.id ORDER BY s.created_at DESC LIMIT 3)
+                        ORDER BY event_time DESC LIMIT 5
+                    """)
                 act_rows = cursor.fetchall() or []
                 for row in act_rows:
                     fn = row.get('first_name', 'User')
@@ -662,13 +706,28 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
         datasets_list = []
         try:
             with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT d.id, d.file_name, d.row_count, d.column_count, d.uploaded_at, d.user_id,
-                           u.first_name, u.last_name, u.role
-                    FROM datasets d
-                    JOIN users u ON d.user_id = u.id
-                    ORDER BY d.uploaded_at DESC LIMIT 50
-                """)
+                if user_id:
+                    cursor.execute("""
+                        SELECT d.id, d.file_name, d.row_count, d.column_count, d.uploaded_at, d.user_id,
+                               u.first_name, u.last_name, u.role
+                        FROM datasets d
+                        JOIN users u ON d.user_id = u.id
+                        WHERE (
+                            d.user_id = %s
+                            OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
+                            OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
+                            OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                        )
+                        ORDER BY d.uploaded_at DESC LIMIT 50
+                    """, (user_id, user_id, user_id, user_id))
+                else:
+                    cursor.execute("""
+                        SELECT d.id, d.file_name, d.row_count, d.column_count, d.uploaded_at, d.user_id,
+                               u.first_name, u.last_name, u.role
+                        FROM datasets d
+                        JOIN users u ON d.user_id = u.id
+                        ORDER BY d.uploaded_at DESC LIMIT 50
+                    """)
                 datasets_list = _fetchall_dict(cursor)
         except Exception as e:
             logger.warning(f"Could not load datasets for manager: {e}")
@@ -676,14 +735,30 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
         platform_reports = []
         try:
             with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT r.id, r.report_name, r.report_type, r.created_at, r.dataset_id,
-                           d.file_name as dataset_file_name, u.first_name, u.last_name, u.role
-                    FROM reports r
-                    LEFT JOIN datasets d ON r.dataset_id = d.id
-                    LEFT JOIN users u ON r.user_id = u.id
-                    ORDER BY r.created_at DESC LIMIT 25
-                """)
+                if user_id:
+                    cursor.execute("""
+                        SELECT r.id, r.report_name, r.report_type, r.created_at, r.dataset_id,
+                               d.file_name as dataset_file_name, u.first_name, u.last_name, u.role
+                        FROM reports r
+                        LEFT JOIN datasets d ON r.dataset_id = d.id
+                        LEFT JOIN users u ON r.user_id = u.id
+                        WHERE (
+                            r.user_id = %s
+                            OR r.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
+                            OR r.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
+                            OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                        )
+                        ORDER BY r.created_at DESC LIMIT 25
+                    """, (user_id, user_id, user_id, user_id))
+                else:
+                    cursor.execute("""
+                        SELECT r.id, r.report_name, r.report_type, r.created_at, r.dataset_id,
+                               d.file_name as dataset_file_name, u.first_name, u.last_name, u.role
+                        FROM reports r
+                        LEFT JOIN datasets d ON r.dataset_id = d.id
+                        LEFT JOIN users u ON r.user_id = u.id
+                        ORDER BY r.created_at DESC LIMIT 25
+                    """)
                 rows_rep = _fetchall_dict(cursor)
                 for r_item in rows_rep:
                     fn = r_item.get('first_name', 'User')
@@ -726,7 +801,21 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
     if (df is None or df.empty) and conn:
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT id, user_id FROM datasets ORDER BY uploaded_at DESC LIMIT 1")
+                if user_id:
+                    cursor.execute("""
+                        SELECT d.id, d.user_id 
+                        FROM datasets d
+                        JOIN users u ON d.user_id = u.id
+                        WHERE (
+                            d.user_id = %s
+                            OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
+                            OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
+                            OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                        )
+                        ORDER BY d.uploaded_at DESC LIMIT 1
+                    """, (user_id, user_id, user_id, user_id))
+                else:
+                    cursor.execute("SELECT id, user_id FROM datasets ORDER BY uploaded_at DESC LIMIT 1")
                 latest_ds = cursor.fetchone()
                 if latest_ds:
                     from ..api import load_dataframe
@@ -976,7 +1065,7 @@ def generate_ml_clustering(df: Optional[pd.DataFrame], n_clusters: int = 3) -> D
 
 
 def assign_manager_task(conn, manager_id: int, assigned_to_id: int, task_title: str, priority: str = 'Medium', due_date: Optional[str] = None, description: Optional[str] = '', dataset_id: Optional[int] = None) -> Dict[str, Any]:
-    """Assigns a new task to a team member with optional attached dataset."""
+    """Assigns a new task to a team member with optional attached dataset and sends email notification."""
     ensure_manager_tables_exist(conn)
     if not conn:
         return {'success': False, 'message': 'Database connection unavailable.'}
@@ -988,19 +1077,69 @@ def assign_manager_task(conn, manager_id: int, assigned_to_id: int, task_title: 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending')
             """, (manager_id, assigned_to_id, task_title, priority or 'Medium', parsed_due, description or '', dataset_id))
             conn.commit()
-            return {'success': True, 'message': 'Task assigned successfully!'}
+
+            # --- Trigger Notifications & Email Notification to Assigned User ---
+            try:
+                cursor.execute("SELECT id, first_name, last_name, email FROM users WHERE id = %s", (assigned_to_id,))
+                assignee = cursor.fetchone()
+                cursor.execute("SELECT id, first_name, last_name, email FROM users WHERE id = %s", (manager_id,))
+                manager = cursor.fetchone()
+
+                if assignee and assignee.get('email'):
+                    mgr_name = f"{manager.get('first_name', 'Manager')} {manager.get('last_name', '')}".strip() if manager else "Manager"
+                    assignee_name = f"{assignee.get('first_name', 'User')} {assignee.get('last_name', '')}".strip()
+                    
+                    # 1. In-App Notification
+                    cursor.execute("""
+                        INSERT INTO notifications (user_id, title, message, type)
+                        VALUES (%s, %s, %s, 'info')
+                    """, (assigned_to_id, f"New Task Assigned: {task_title}", f"You have been assigned a new task '{task_title}' by {mgr_name}."))
+                    conn.commit()
+
+                    # 2. SMTP Email Notification
+                    from .email_service import send_smtp_email
+                    subject = f"📋 [DataNova Task Assigned] {task_title}"
+                    body_text = f"Hello {assignee_name},\n\nYou have been assigned a new task on DataNova:\n\nTask: {task_title}\nPriority: {priority}\nDue Date: {parsed_due or 'Not specified'}\nAssigned By: {mgr_name}\nDescription: {description or 'No details provided'}\n\nPlease log in to your DataNova dashboard to review and complete the task."
+                    body_html = f"""
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
+                        <h2 style="color: #4F46E5; margin-top: 0;">📋 New Task Assigned</h2>
+                        <p style="color: #334155; font-size: 15px;">Hello <strong>{assignee_name}</strong>,</p>
+                        <p style="color: #475569; font-size: 14px;"><strong>{mgr_name}</strong> has assigned a new task to you on the DataNova platform:</p>
+                        
+                        <div style="background-color: #f8fafc; border-left: 4px solid #4F46E5; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                            <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 16px;">{task_title}</h3>
+                            <p style="margin: 4px 0; color: #475569; font-size: 13px;"><strong>Priority:</strong> <span style="color: #d97706;">{priority}</span></p>
+                            <p style="margin: 4px 0; color: #475569; font-size: 13px;"><strong>Due Date:</strong> {parsed_due or 'Not specified'}</p>
+                            <p style="margin: 8px 0 0 0; color: #334155; font-size: 13px;"><strong>Details:</strong> {description or 'No details provided'}</p>
+                        </div>
+                        
+                        <p style="color: #64748b; font-size: 13px;">Please log in to your DataNova dashboard to review and submit this task.</p>
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center;">
+                            DataNova Smart Analytics Platform &bull; Automated Task Dispatch
+                        </div>
+                    </div>
+                    """
+                    send_smtp_email(assignee['email'], subject, body_text, body_html)
+            except Exception as notify_err:
+                logger.warning(f"Failed to send task assignment email/notification: {notify_err}")
+
+            return {'success': True, 'message': 'Task assigned successfully! Notification email dispatched to assigned user.'}
     except Exception as e:
         logger.warning(f"Error assigning task: {e}")
         return {'success': False, 'message': f'Failed to assign task: {e}'}
 
 
 def update_manager_task_status(conn, manager_id: int, task_id: int, status: str, remark: Optional[str] = None) -> Dict[str, Any]:
-    """Updates the status of an assigned task and optionally records a remark."""
+    """Updates the status of an assigned task and optionally records a remark. Sends email notification when task is completed."""
     ensure_manager_tables_exist(conn)
     if not conn:
         return {'success': False, 'message': 'Database connection unavailable.'}
     try:
         with conn.cursor() as cursor:
+            # Fetch existing task details for email lookup
+            cursor.execute("SELECT id, manager_id, assigned_to_id, task_title, status FROM manager_tasks WHERE id = %s", (task_id,))
+            task = cursor.fetchone()
+
             if remark is not None:
                 cursor.execute("""
                     UPDATE manager_tasks
@@ -1014,6 +1153,53 @@ def update_manager_task_status(conn, manager_id: int, task_id: int, status: str,
                     WHERE id = %s AND (manager_id = %s OR assigned_to_id = %s)
                 """, (status, task_id, manager_id, manager_id))
             conn.commit()
+
+            # --- Trigger Email Notification to Manager when Task is Completed ---
+            if task and status in ('Completed', 'Submitted'):
+                try:
+                    cursor.execute("SELECT id, first_name, last_name, email FROM users WHERE id = %s", (task['manager_id'],))
+                    manager = cursor.fetchone()
+                    cursor.execute("SELECT id, first_name, last_name, email FROM users WHERE id = %s", (task['assigned_to_id'],))
+                    assignee = cursor.fetchone()
+
+                    if manager and manager.get('email'):
+                        mgr_name = f"{manager.get('first_name', 'Manager')} {manager.get('last_name', '')}".strip()
+                        assignee_name = f"{assignee.get('first_name', 'User')} {assignee.get('last_name', '')}".strip() if assignee else "Team Member"
+                        t_title = task.get('task_title', 'Assigned Task')
+
+                        # 1. In-App Notification to Manager
+                        cursor.execute("""
+                            INSERT INTO notifications (user_id, title, message, type)
+                            VALUES (%s, %s, %s, 'success')
+                        """, (task['manager_id'], f"Task Completed: {t_title}", f"{assignee_name} has completed the task '{t_title}'."))
+                        conn.commit()
+
+                        # 2. SMTP Email Notification to Manager
+                        from .email_service import send_smtp_email
+                        subject = f"✅ [DataNova Task Completed] {t_title}"
+                        body_text = f"Hello {mgr_name},\n\n{assignee_name} has completed the assigned task '{t_title}'.\n\nRemark/Notes: {remark or 'Task finished successfully.'}\n\nPlease check your DataNova Manager Dashboard for details."
+                        body_html = f"""
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
+                            <h2 style="color: #10B981; margin-top: 0;">✅ Task Completed &amp; Submitted</h2>
+                            <p style="color: #334155; font-size: 15px;">Hello <strong>{mgr_name}</strong>,</p>
+                            <p style="color: #475569; font-size: 14px;"><strong>{assignee_name}</strong> has successfully completed and submitted the task:</p>
+                            
+                            <div style="background-color: #f0fdf4; border-left: 4px solid #10B981; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                                <h3 style="margin: 0 0 10px 0; color: #065f46; font-size: 16px;">{t_title}</h3>
+                                <p style="margin: 4px 0; color: #047857; font-size: 13px;"><strong>Status:</strong> Completed</p>
+                                <p style="margin: 8px 0 0 0; color: #1e293b; font-size: 13px;"><strong>Submission Remark:</strong> {remark or 'Task finished successfully.'}</p>
+                            </div>
+                            
+                            <p style="color: #64748b; font-size: 13px;">You can view the full task report and submitted artifacts in your Manager Dashboard.</p>
+                            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center;">
+                                DataNova Smart Analytics Platform &bull; Automated Task Tracking
+                            </div>
+                        </div>
+                        """
+                        send_smtp_email(manager['email'], subject, body_text, body_html)
+                except Exception as notify_err:
+                    logger.warning(f"Failed to send task completion email/notification: {notify_err}")
+
             return {'success': True, 'message': f'Task status updated to {status}.'}
     except Exception as e:
         logger.warning(f"Error updating task status: {e}")
@@ -1114,13 +1300,28 @@ def get_dataset_revenue_breakdown(conn, manager_id: Optional[int] = None) -> Dic
 
     try:
         with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT d.id, d.user_id, d.file_name, d.file_path, d.row_count, d.column_count, d.uploaded_at,
-                       u.first_name, u.last_name, u.email, u.role
-                FROM datasets d
-                JOIN users u ON d.user_id = u.id
-                ORDER BY d.uploaded_at DESC
-            """)
+            if manager_id:
+                cursor.execute("""
+                    SELECT d.id, d.user_id, d.file_name, d.file_path, d.row_count, d.column_count, d.uploaded_at,
+                           u.first_name, u.last_name, u.email, u.role
+                    FROM datasets d
+                    JOIN users u ON d.user_id = u.id
+                    WHERE (
+                        d.user_id = %s
+                        OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
+                        OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
+                        OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                    )
+                    ORDER BY d.uploaded_at DESC
+                """, (manager_id, manager_id, manager_id, manager_id))
+            else:
+                cursor.execute("""
+                    SELECT d.id, d.user_id, d.file_name, d.file_path, d.row_count, d.column_count, d.uploaded_at,
+                           u.first_name, u.last_name, u.email, u.role
+                    FROM datasets d
+                    JOIN users u ON d.user_id = u.id
+                    ORDER BY d.uploaded_at DESC
+                """)
             rows = _fetchall_dict(cursor)
 
         for r in rows:

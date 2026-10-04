@@ -16,6 +16,7 @@ import json
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional, Tuple
+from database.db_connector import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -1252,7 +1253,6 @@ def ensure_trained_models_table(conn):
 
 def save_trained_model(user_id: int, dataset_id: int, model_data: Dict[str, Any], custom_name: Optional[str] = None) -> Dict[str, Any]:
     """Persists a trained model result into the database for future re-use without re-training."""
-    from database.db_connector import get_db_connection
     conn = get_db_connection()
     if not conn:
         return {"success": False, "message": "Database connection failed."}
@@ -1293,7 +1293,6 @@ def save_trained_model(user_id: int, dataset_id: int, model_data: Dict[str, Any]
 
 def get_saved_models(user_id: int, dataset_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """Retrieves all saved models for a user and optional dataset."""
-    from database.db_connector import get_db_connection
     conn = get_db_connection()
     if not conn:
         return []
@@ -1346,7 +1345,6 @@ def get_saved_models(user_id: int, dataset_id: Optional[int] = None) -> List[Dic
 
 def predict_with_saved_model(model_id: int, user_id: int, input_features: Dict[str, float]) -> Dict[str, Any]:
     """Generates an instant prediction using a saved model without retraining."""
-    from database.db_connector import get_db_connection
     conn = get_db_connection()
     if not conn:
         return {"success": False, "message": "Database connection error."}
@@ -1404,7 +1402,6 @@ def predict_with_saved_model(model_id: int, user_id: int, input_features: Dict[s
 
 def delete_saved_model(model_id: int, user_id: int) -> Dict[str, Any]:
     """Deletes a saved model."""
-    from database.db_connector import get_db_connection
     conn = get_db_connection()
     if not conn:
         return {"success": False, "message": "Database error."}

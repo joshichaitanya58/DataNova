@@ -314,3 +314,15 @@ def analyze_dataset(df, generate_ai=False):
 
     logger.info("Pipeline analysis completed successfully.")
     return pipeline_result
+
+
+def generate_all_visualizations(df, semantic_types=None):
+    """
+    Generates all recommended visualizations for a dataset using chart_service.
+    """
+    if semantic_types is None:
+        try:
+            semantic_types = classify_dataframe(df)
+        except Exception:
+            semantic_types = {}
+    return generate_automatic_charts(df, semantic_types)

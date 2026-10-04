@@ -49,6 +49,7 @@
                 <a href="#dnCompareDatasetsModal" class="dn-nav-link" data-action="compare-data"><i class="bi bi-columns-gap"></i> Compare Data</a>
 
                 <div class="dn-nav-section-label">Account</div>
+                <a href="#" class="dn-nav-link" data-bs-toggle="modal" data-bs-target="#contactAdminModal"><i class="bi bi-headset"></i> Contact Admin</a>
                 <a href="{{ url_for('auth.logout') }}" class="dn-nav-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
             </nav>
 
@@ -112,6 +113,7 @@
                     </div>
                     <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
                         <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userProfileModal"><i class="bi bi-person"></i> My Profile</a>
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#contactAdminModal"><i class="bi bi-headset"></i> Contact Admin</a>
                         <a class="dropdown-item" href="#teamSection"><i class="bi bi-people"></i> Team Members</a>
                         <div class="dropdown-divider"></div>
                         <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
@@ -235,7 +237,6 @@
                             <select id="teamRoleFilter" class="form-select form-select-sm" style="width: auto;">
                                 <option value="all">All Roles</option>
                                 <option value="analyst">Analyst</option>
-                                <option value="viewer">Viewer</option>
                                 <option value="manager">Manager</option>
                             </select>
                         </div>
@@ -1046,7 +1047,7 @@
                                     <option value="" disabled>No unassigned active users available. (Use Register New User below)</option>
                                 {% endif %}
                             </select>
-                            <div class="form-text small text-secondary mt-1">Select any registered active Analyst or Viewer on DataNova to assign to your team.</div>
+                            <div class="form-text small text-secondary mt-1">Select any registered active Analyst on DataNova to assign to your team.</div>
                         </div>
 
                         <!-- Secondary Optional: Register New User -->
@@ -1078,7 +1079,6 @@
                                     <label class="form-label small fw-semibold text-black">Team Role</label>
                                     <select id="addMemberRole" class="form-select">
                                         <option value="analyst">Analyst</option>
-                                        <option value="viewer">Viewer</option>
                                     </select>
                                 </div>
                             </div>
@@ -1802,6 +1802,57 @@
         }
     });
     </script>
+
+    <!-- CONTACT ADMIN MODAL -->
+    <div class="modal fade" id="contactAdminModal" tabindex="-1" aria-labelledby="contactAdminModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content dn-panel p-4">
+                <div class="modal-header border-0 pb-2">
+                    <h5 class="modal-title fw-bold" id="contactAdminModalLabel">
+                        <i class="bi bi-headset text-primary me-2"></i>Contact Administrator
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-secondary small mb-3">Send a direct support inquiry, bug report, or feature request to the Platform Administrator.</p>
+                    <div id="contactAdminAlert" class="alert alert-danger py-2 small mb-3" style="display: none;"></div>
+                    <form id="contactAdminForm" novalidate>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Category</label>
+                            <select class="form-select" id="contactAdminCategory" name="category">
+                                <option value="General Inquiry">General Inquiry</option>
+                                <option value="Bug Report">Bug Report / Issue</option>
+                                <option value="Feature Request">Feature Request</option>
+                                <option value="Account & Security">Account &amp; Security Help</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Subject / Title</label>
+                            <input type="text" class="form-control" id="contactAdminSubject" name="subject" placeholder="e.g. Issue uploading dataset / Access request" required>
+                        </div>
+                        <div class="mb-3" id="contactAdminImageGroup" style="display: none;">
+                            <label class="form-label small fw-semibold d-flex align-items-center justify-content-between">
+                                <span><i class="bi bi-image me-1 text-primary"></i>Attach Image / Screenshot</span>
+                                <span class="badge bg-secondary-subtle text-secondary fw-normal">Optional</span>
+                            </label>
+                            <input type="file" class="form-control" id="contactAdminImage" name="attachment" accept="image/*,.ico,.svg,.pdf,.doc,.docx,.csv,.txt">
+                            <div class="form-text text-muted" style="font-size: 0.75rem;">Supported formats: PNG, JPG, JPEG, WEBP, GIF, ICO, SVG, PDF, DOC, CSV (Max 5MB)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Message Details</label>
+                            <textarea class="form-control" id="contactAdminMessage" name="message" rows="4" placeholder="Describe your request or issue in detail..." required></textarea>
+                        </div>
+                        <div class="text-end mt-4">
+                            <button type="button" class="btn btn-sm btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary">
+                                <i class="bi bi-send-fill me-1"></i> Send Message
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

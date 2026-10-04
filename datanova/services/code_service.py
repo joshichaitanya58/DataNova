@@ -145,6 +145,16 @@ def _safe_col_list(cols: list[str]) -> str:
 # Pipeline code generation
 # --------------------------------------------------------------------------
 
+def generate_eda_code(
+    df: pd.DataFrame | None,
+    semantic_types: dict[str, str] | None = None,
+    dataset_name: str = "dataset.csv",
+    dataset_id: int | str | None = None
+) -> str:
+    """Generates automated EDA pipeline Python code."""
+    return generate_pipeline_code(df, semantic_types=semantic_types, dataset_name=dataset_name, dataset_id=dataset_id)
+
+
 def generate_pipeline_code(
     df: pd.DataFrame | None,
     semantic_types: dict[str, str] | None = None,

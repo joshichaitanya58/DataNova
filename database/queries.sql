@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(50) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'viewer',
+    role VARCHAR(20) NOT NULL DEFAULT 'developer',
     organization VARCHAR(100) NOT NULL DEFAULT 'General',
     phone VARCHAR(30) DEFAULT NULL,
     bio TEXT DEFAULT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS api_usage_logs (
 CREATE TABLE IF NOT EXISTS shared_dashboards (
     id INT AUTO_INCREMENT PRIMARY KEY,
     owner_id INT NOT NULL,
-    shared_with_role VARCHAR(20) DEFAULT NULL, -- 'all', 'viewer', 'manager', 'analyst'
+    shared_with_role VARCHAR(20) DEFAULT NULL, -- 'all', 'developer', 'manager', 'analyst'
     shared_with_user_id INT DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -122,4 +122,22 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_notifs_user (user_id, is_read)
 );
+
+-- Contact Admin / Support Messages Table
+CREATE TABLE IF NOT EXISTS contact_admin_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    user_name VARCHAR(150) NOT NULL,
+    user_email VARCHAR(150) NOT NULL,
+    user_role VARCHAR(50) DEFAULT 'user',
+    subject VARCHAR(255) NOT NULL,
+    category VARCHAR(50) DEFAULT 'General Inquiry',
+    message TEXT NOT NULL,
+    attachment_url VARCHAR(500) DEFAULT NULL,
+    status VARCHAR(20) DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_contact_user (user_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 

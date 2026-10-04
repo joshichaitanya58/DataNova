@@ -1,0 +1,1234 @@
+{% set sdk_base_url = request.host_url.rstrip('/') %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Dashboard &mdash; DataNova API Platform</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/favicon.png') }}">
+
+    <style>
+        /* Professional Card Shadows & Sleek Styling */
+        .dn-card {
+            background: var(--bs-body-bg, #ffffff);
+            border: 1px solid rgba(226, 232, 240, 0.85);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dn-card:hover {
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1), 0 4px 10px rgba(15, 23, 42, 0.04);
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.35);
+        }
+
+        html[data-bs-theme="dark"] .dn-card {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        html[data-bs-theme="dark"] .dn-card:hover {
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55), 0 0 15px rgba(99, 102, 241, 0.25);
+            border-color: rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .dn-card-subtitle {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: #64748b;
+        }
+
+        html[data-bs-theme="dark"] .dn-card-subtitle {
+            color: #94a3b8;
+        }
+
+        .dev-code-box {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: #e6edf3;
+            padding: 16px;
+            font-size: 0.88rem;
+            position: relative;
+            overflow-x: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .dev-copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #94a3b8;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .dev-copy-btn:hover {
+            background: var(--dn-primary, #4f46e5);
+            color: #ffffff;
+        }
+
+        .dev-api-key-container {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px dashed rgba(79, 70, 229, 0.4);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--dn-cyan, #06b6d4);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dev-json-response {
+            font-family: 'JetBrains Mono', monospace;
+            background: #090d16;
+            color: #4ade80;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            padding: 14px;
+            max-height: 380px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .dev-code-expandable {
+            max-height: 270px;
+            overflow: hidden !important;
+            position: relative;
+            transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dev-code-expandable::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 90px;
+            background: linear-gradient(180deg, rgba(13, 17, 23, 0) 0%, rgba(13, 17, 23, 0.92) 65%, #0d1117 100%);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .dev-code-expandable.is-expanded {
+            max-height: 5000px !important;
+            overflow-x: auto !important;
+        }
+
+        .dev-code-expandable.is-expanded::after {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .btn-more-code {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(124, 58, 237, 0.15));
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: #a5b4fc;
+            font-weight: 600;
+            font-size: 0.82rem;
+            padding: 7px 20px;
+            border-radius: 30px;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+        }
+
+        .btn-more-code:hover {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #ffffff;
+            border-color: #818cf8;
+            box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dn-app">
+        <div class="dn-sidebar-overlay"></div>
+
+        <!-- ===================== SIDEBAR ===================== -->
+        <aside class="dn-sidebar">
+            <a href="{{ url_for('dashboards.developer_dashboard') }}" class="dn-sidebar-brand">
+                <span class="dn-brand-icon"><i class="bi bi-cpu-fill"></i></span>
+                <span class="dn-brand-text">Data<span class="dn-brand-accent">Nova</span></span>
+            </a>
+
+            <nav class="dn-sidebar-scroll">
+                <div class="dn-nav-section-label">Developer Portal</div>
+                <a href="#devOverviewSection" class="dn-nav-link active" data-action="nav-tab"
+                    data-target="#tabOverview">
+                    <i class="bi bi-grid-1x2-fill"></i> Overview
+                </a>
+                <a href="#devCredentialsSection" class="dn-nav-link" data-action="nav-tab"
+                    data-target="#tabCredentials">
+                    <i class="bi bi-key-fill"></i> API Key Management
+                </a>
+
+                <div class="dn-nav-section-label">Developer Tools</div>
+
+                <a href="#devAnalyticsSection" class="dn-nav-link" data-action="nav-tab" data-target="#tabAnalytics">
+                    <i class="bi bi-activity"></i> API Call Logs
+                </a>
+
+                <a href="#devQuickstartSection" class="dn-nav-link" data-action="nav-tab" data-target="#tabQuickstart">
+                    <i class="bi bi-journal-code"></i> Integration SDK
+                </a>
+
+                <div class="dn-nav-section-label">Account</div>
+                <a href="#" class="dn-nav-link" data-bs-toggle="modal" data-bs-target="#userProfileModal">
+                    <i class="bi bi-person-gear"></i> Profile &amp; Settings
+                </a>
+                <a href="#" class="dn-nav-link" data-bs-toggle="modal" data-bs-target="#contactAdminModal">
+                    <i class="bi bi-headset"></i> Contact Admin
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="dn-nav-link dn-danger">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </nav>
+
+            <div class="dn-sidebar-footer">
+                <span class="dn-role-pill dn-role-developer"><i class="bi bi-code-slash"></i> DEVELOPER ACCESS</span>
+            </div>
+        </aside>
+
+        <!-- ===================== MAIN CONTENT ===================== -->
+        <div class="dn-main">
+
+            <!-- Topbar -->
+            <header class="dn-topbar">
+                <button class="dn-sidebar-toggle-btn" aria-label="Toggle sidebar"><i class="bi bi-list"></i></button>
+
+                <div class="dn-topbar-search">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="devTopbarSearchInput"
+                        placeholder="Search API endpoints, request IDs, parameters..." autocomplete="off">
+                </div>
+
+                <div class="dn-topbar-spacer"></div>
+
+                <button class="dn-icon-btn d-none d-sm-inline-flex" aria-label="Help" data-action="help"><i
+                        class="bi bi-question-circle"></i></button>
+                <button class="dn-icon-btn dn-theme-toggle" aria-label="Toggle dark mode"><i
+                        class="bi bi-moon-stars"></i></button>
+
+                <!-- Notifications Dropdown -->
+                <div class="dropdown">
+                    <button class="dn-icon-btn dropdown-toggle-no-caret" data-bs-toggle="dropdown"
+                        aria-label="Notifications">
+                        <i class="bi bi-bell"></i>
+                        <span class="dn-notif-dot"></span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
+                        <div class="dn-dropdown-header-custom"><strong>Developer Notifications</strong></div>
+                        <div class="dn-notif-item">
+                            <div class="dn-notif-icon"><i class="bi bi-shield-check text-success"></i></div>
+                            <div>
+                                <div class="dn-notif-text">DataNova REST API v1 System Operational.</div>
+                                <div class="dn-notif-time">Just now</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Profile Dropdown -->
+                <div class="dropdown">
+                    <div class="dn-user-trigger" data-bs-toggle="dropdown">
+                        <span class="dn-avatar">{{ (user.first_name|default('D'))[0] }}{{
+                            (user.last_name|default(''))[0] if user and user.last_name else '' }}</span>
+                        <div>
+                            <div class="dn-user-trigger-name">{{ user.first_name|default('Developer') }} {{
+                                user.last_name|default('') }}</div>
+                            <div class="dn-user-trigger-role">{{ (user.role|default('Developer'))|capitalize }}</div>
+                        </div>
+                        <i class="bi bi-chevron-down small text-secondary"></i>
+                    </div>
+                    <div class="dropdown-menu dropdown-menu-end dn-dropdown-menu">
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userProfileModal"><i
+                                class="bi bi-person"></i> Profile</a>
+                        <a class="dropdown-item" href="#devCredentialsSection"
+                            onclick="switchDevTab('#tabCredentials')"><i class="bi bi-key"></i> API Key Settings</a>
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#contactAdminModal"><i
+                                class="bi bi-headset"></i> Contact Admin</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item dn-danger" href="{{ url_for('auth.logout') }}"><i
+                                class="bi bi-box-arrow-right"></i> Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content Scroll Area -->
+            <div class="dn-content">
+
+                <!-- Page Header -->
+                <div class="dn-page-header">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                            <h1 class="dn-page-title mb-0">Developer Dashboard</h1>
+                            <!-- <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 font-monospace small">
+                                <i class="bi bi-circle-fill text-success me-1" style="font-size: 0.5rem; vertical-align: middle;"></i> API v1 Operational
+                            </span> -->
+                        </div>
+                        <p class="dn-page-subtitle">Build custom integrations, manage API keys, and consume DataNova
+                            REST APIs in your external software applications.</p>
+                    </div>
+                    <div class="dn-page-actions d-flex gap-2">
+                        <button class="btn btn-outline-success btn-sm fw-semibold" id="btnSendTestApiCall"
+                            title="Send a live test request using your API Key to record telemetry logs">
+                            <i class="bi bi-play-fill me-1"></i> Send Test Request
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI CARDS GRID -->
+                <div class="row g-3 mb-4">
+                    <!-- API Key Quick Card -->
+                    <div class="col-xl-3 col-md-6">
+                        <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="dn-card-subtitle text-uppercase"><i class="bi bi-shield-lock me-1"></i>
+                                    Active Key</span>
+
+                            </div>
+                            <div class="input-group input-group-sm my-2">
+                                <input type="password" id="maskedApiKeyInput"
+                                    class="form-control font-monospace text-primary bg-body-tertiary fw-semibold"
+                                    value="{{ api_key }}" readonly style="letter-spacing: 0.5px; font-size: 0.82rem;"
+                                    aria-label="API Key">
+                                <button class="btn btn-outline-secondary px-2" type="button"
+                                    id="toggleApiKeyVisibilityBtn" title="Reveal / Hide Key">
+                                    <i class="bi bi-eye-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-primary px-2" type="button" id="copyApiKeyBtn"
+                                    title="Copy Key Token">
+                                    <i class="bi bi-clipboard-fill"></i>
+                                </button>
+                            </div>
+                            <input type="hidden" id="rawApiKeyVal" value="{{ api_key }}">
+                            <div class="d-flex align-items-center justify-content-between mt-1">
+                                <button class="btn btn-link btn-sm p-0 text-primary text-decoration-none small"
+                                    onclick="switchDevTab('#tabCredentials')">
+                                    <i class="bi bi-gear-fill"></i> Manage Keys
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Requests -->
+                    <div class="col-xl-3 col-md-6">
+                        <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="dn-card-subtitle text-uppercase"><i class="bi bi-bar-chart-fill me-1"></i>
+                                    Total Calls</span>
+                                <span
+                                    class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Live
+                                </span>
+                            </div>
+                            <div class="my-2">
+                                <h2 class="fw-bold mb-0 text-primary" id="devTotalCallsVal">{{ metrics.total_api_calls
+                                    }}</h2>
+                            </div>
+                            <span class="text-secondary small"><i class="bi bi-clock-history me-1"></i> {{
+                                metrics.requests_today }} calls today</span>
+                        </div>
+                    </div>
+
+                    <!-- Success Rate -->
+                    <div class="col-xl-3 col-md-6">
+                        <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="dn-card-subtitle text-uppercase"><i
+                                        class="bi bi-check-circle-fill me-1"></i> Success Rate</span>
+                                <span class="badge bg-success-subtle text-success">200 OK</span>
+                            </div>
+                            <div class="my-2 d-flex align-items-baseline gap-2">
+                                <h2 class="fw-bold text-success mb-0" id="devSuccessRateVal">{{ metrics.success_rate }}%
+                                </h2>
+                            </div>
+                            <span class="text-secondary small"><i class="bi bi-cpu me-1"></i> {{
+                                metrics.successful_calls }} successful / {{ metrics.failed_calls }} failed</span>
+                        </div>
+                    </div>
+
+                    <!-- API Quota / Remaining Monthly Calls -->
+                    <div class="col-xl-3 col-md-6">
+                        <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="dn-card-subtitle text-uppercase"><i
+                                        class="bi bi-lightning-charge-fill me-1"></i>
+                                    API Quota</span>
+                                <span class="badge bg-info-subtle text-info">REST v1</span>
+                            </div>
+                            <div class="my-2 d-flex align-items-baseline gap-2">
+                                <h2 class="fw-bold text-info mb-0" id="devRemainingQuotaVal">{{
+                                    "{:,}".format(metrics.remaining_quota) if metrics.remaining_quota is defined else
+                                    (2000 - metrics.total_api_calls) }}</h2>
+                                <span class="text-secondary small fw-medium">req / mo</span>
+                            </div>
+                            <span class="text-secondary small"><i class="bi bi-arrow-repeat me-1"></i> Quota: {{
+                                metrics.rate_limit }} ({{ metrics.monthly_calls|default(0) }} used)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAIN TAB CONTAINER -->
+                <div class="dn-card p-4">
+                    <ul class="nav nav-tabs dn-tabs mb-4" id="devMainTabNav">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="tabOverview-btn" onclick="switchDevTab('#tabOverview')">
+                                <i class="bi bi-grid-1x2-fill me-2"></i> Overview &amp; Quickstart
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="tabCredentials-btn" onclick="switchDevTab('#tabCredentials')">
+                                <i class="bi bi-key-fill me-2"></i> API Key Management
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="tabQuickstart-btn" onclick="switchDevTab('#tabQuickstart')">
+                                <i class="bi bi-journal-code me-2"></i> Integration SDK
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="tabAnalytics-btn" onclick="switchDevTab('#tabAnalytics')">
+                                <i class="bi bi-activity me-2"></i> API Call Logs
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="devTabContent">
+
+                        <!-- TAB 1: OVERVIEW & QUICKSTART -->
+                        <div class="tab-pane fade show active" id="tabOverview">
+                            <h5 class="fw-bold mb-3"><i class="bi bi-rocket-takeoff-fill text-primary me-2"></i> Quick
+                                Start Integration Methods</h5>
+                            <p class="text-secondary mb-4">Choose your preferred integration approach: Use the official
+                                Python SDK for automatic retry handling or consume the REST API directly.</p>
+
+                            <!-- SIDE-BY-SIDE INTEGRATION OPTIONS (OPTION A & OPTION B) -->
+                            <div class="row g-4 mb-4">
+                                <!-- OPTION A: PYTHON SDK (RECOMMENDED) -->
+                                <div class="col-lg-6">
+                                    <div
+                                        class="p-4 rounded border border-primary-subtle bg-primary-subtle bg-opacity-10 h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                                <span class="badge bg-primary text-white px-2 py-1"><i
+                                                        class="bi bi-star-fill me-1"></i> OPTION A (RECOMMENDED)</span>
+                                                <span
+                                                    class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i
+                                                        class="bi bi-box-seam me-1"></i> PyPI Package</span>
+                                            </div>
+                                            <h5 class="fw-bold text-primary mb-2"><i
+                                                    class="bi bi-filetype-py text-primary me-2"></i> DataNova Python SDK
+                                            </h5>
+                                            <p class="text-secondary small mb-3">Official SDK with automatic retries
+                                                (GET by default, POST opt-in), typed errors, and one method per
+                                                endpoint.</p>
+
+                                            <div class="dev-code-box mb-3">
+                                                <button class="dev-copy-btn" data-copy-target="#qsInstallSnippet"
+                                                    type="button"><i class="bi bi-clipboard"></i> Copy</button>
+                                                <pre id="qsInstallSnippet"
+                                                    class="m-0"><code>pip install datanova-sdk</code></pre>
+                                            </div>
+
+                                            <div class="dev-code-box position-relative">
+                                                <button class="dev-copy-btn" data-copy-target="#qsSdkPythonSnippet"
+                                                    type="button"><i class="bi bi-clipboard"></i> Copy</button>
+                                                <div id="overviewSdkCodeBox" class="dev-code-expandable">
+                                                    <pre id="qsSdkPythonSnippet" class="m-0"><code>from datanova_sdk import DataNovaClient, DataNovaAPIError
+
+# api_key / base_url can also come from DATANOVA_API_KEY / DATANOVA_BASE_URL
+try:
+    with DataNovaClient(api_key="{{ api_key }}", base_url="{{ sdk_base_url }}") as client:
+        # 1. Check system health
+        print(client.health())
+
+        # 2. Upload a dataset (CSV / Excel / JSON)
+        dataset = client.upload_dataset("sales.csv")
+        dataset_id = dataset["dataset_id"]
+
+        # 3. Run the complete automated analysis
+        analysis = client.run_auto_analysis(dataset_id, enable_ai=True)
+        analysis_id = analysis["analysis_id"]
+        print("Analysis status:", analysis.get("status"))
+
+        # --- More SDK Methods & Functions below ---
+        # 4. List datasets and preview schema & sample rows
+        datasets = client.list_datasets()
+        preview = client.preview_dataset(dataset_id)
+
+        # 5. Exploratory Data Analysis (EDA)
+        eda = client.run_eda(dataset_id, target_column="Revenue")
+
+        # 6. Data cleaning: imputation + duplicate removal
+        cleaned = client.clean_dataset(dataset_id, strategies={"Revenue": "median"}, remove_duplicates=True)
+
+        # 7. Interactive charts & visualizations
+        charts = client.generate_visualizations(dataset_id, chart_types=["histogram", "heatmap"])
+
+        # 8. Analysis report & auto-generated Python code
+        report = client.get_analysis_report(analysis_id)
+        code = client.get_analysis_code(analysis_id)
+
+        # 9. Ask a natural-language question about your data
+        answer = client.ask_question("What is the total revenue trend?", dataset_id=dataset_id)
+
+        # 10. Train supervised machine-learning models
+        classification = client.train_classification(dataset_id, target_column="IsHighValue")
+        regression = client.train_regression(dataset_id, target_column="Revenue")
+
+        # 11. Async pipeline execution & status polling
+        job = client.execute_pipeline(dataset_id, steps=[{"step": "clean"}, {"step": "eda"}])
+        status = client.get_pipeline_status(job["task_id"])
+
+        # 12. Developer API key management
+        new_key = client.generate_api_key("MobileAppKey", environment="live", scopes=["datasets:read"])
+        client.revoke_api_key(new_key.get("key_id"))
+except DataNovaAPIError as exc:
+    print(f"DataNova error: {exc}")</code></pre>
+                                                </div>
+                                                <div
+                                                    class="text-center mt-2 pt-2 border-top border-secondary border-opacity-25">
+                                                    <button type="button" id="btnToggleOverviewSdkCode"
+                                                        class="btn-more-code"
+                                                        onclick="toggleCodeSnippetExpand('overviewSdkCodeBox', 'btnToggleOverviewSdkCode')">
+                                                        <i class="bi bi-chevron-down me-1"></i> More (Show All Methods)
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 pt-2 border-top border-primary-subtle text-secondary small">
+                                            <i class="bi bi-shield-check text-success me-1"></i> Auto-Retry &amp;
+                                            Exponential Backoff Enabled
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- OPTION B: DIRECT REST API HTTP CALLS -->
+                                <div class="col-lg-6">
+                                    <div
+                                        class="p-4 rounded border bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                                <span
+                                                    class="badge bg-secondary-subtle text-secondary border px-2 py-1">OPTION
+                                                    B</span>
+                                                <span
+                                                    class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1"><i
+                                                        class="bi bi-globe me-1"></i> REST API</span>
+                                            </div>
+                                            <h5 class="fw-bold mb-2"><i class="bi bi-code-slash me-2"></i> Direct HTTP
+                                                API
+                                                Integration</h5>
+                                            <p class="text-secondary small mb-3">Pass your secret API Key token in the
+                                                HTTP
+                                                Request Header to authenticate requests directly.</p>
+
+                                            <div class="dev-code-box mb-3">
+                                                <button class="dev-copy-btn" data-copy-target="#qsHeaderSnippet"
+                                                    type="button"><i class="bi bi-clipboard"></i> Copy</button>
+                                                <pre id="qsHeaderSnippet" class="m-0"><code># Custom API Key Header (Recommended)
+X-API-Key: {{ api_key }}
+
+# Or Standard Bearer Authorization Header
+Authorization: Bearer {{ api_key }}</code></pre>
+                                            </div>
+
+                                            <div class="dev-code-box">
+                                                <button class="dev-copy-btn" data-copy-target="#qsPythonSnippet"
+                                                    type="button"><i class="bi bi-clipboard"></i> Copy</button>
+                                                <pre id="qsPythonSnippet" class="m-0"><code>import requests
+
+API_KEY = "{{ api_key }}"
+BASE_URL = "{{ sdk_base_url }}/api/v1"
+
+headers = {"X-API-Key": API_KEY}
+
+# List uploaded datasets
+response = requests.get(f"{BASE_URL}/datasets", headers=headers, timeout=60)
+response.raise_for_status()
+print("Datasets:", response.json())</code></pre>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 pt-2 border-top text-secondary small">
+                                            <i class="bi bi-lightning-charge text-warning me-1"></i> Direct HTTP JSON
+                                            Endpoint Consumption
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PLATFORM CAPABILITIES AT THE BOTTOM -->
+                            <div class="mt-4 pt-2">
+                                <h5 class="fw-bold mb-3"><i class="bi bi-shield-check text-success me-2"></i> Platform
+                                    Capabilities</h5>
+                                <div class="row g-3">
+                                    <div class="col-lg-3 col-md-6">
+                                        <div class="dn-card p-3 h-100">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <i class="bi bi-database-check text-info fs-4"></i>
+                                                <span class="badge bg-info-subtle text-info">Dataset API</span>
+                                            </div>
+                                            <h6 class="fw-bold mb-1">Dataset Lifecycle</h6>
+                                            <p class="text-secondary small mb-0">Upload CSV/Excel, inspect schemas,
+                                                column
+                                                data types &amp; sample records.</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
+                                        <div class="dn-card p-3 h-100">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <i class="bi bi-graph-up-arrow text-primary fs-4"></i>
+                                                <span class="badge bg-primary-subtle text-primary">EDA &amp;
+                                                    Clean</span>
+                                            </div>
+                                            <h6 class="fw-bold mb-1">Automated EDA</h6>
+                                            <p class="text-secondary small mb-0">Compute statistical summaries, missing
+                                                imputations &amp; correlations.</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
+                                        <div class="dn-card p-3 h-100">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <i class="bi bi-cpu-fill text-warning fs-4"></i>
+                                                <span class="badge bg-warning-subtle text-warning">AutoML API</span>
+                                            </div>
+                                            <h6 class="fw-bold mb-1">AutoML Training</h6>
+                                            <p class="text-secondary small mb-0">Train Classification &amp; Regression
+                                                with
+                                                evaluation metrics &amp; importance.</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
+                                        <div class="dn-card p-3 h-100">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <i class="bi bi-file-earmark-code-fill text-danger fs-4"></i>
+                                                <span class="badge bg-danger-subtle text-danger">Reports API</span>
+                                            </div>
+                                            <h6 class="fw-bold mb-1">Code &amp; Report Export</h6>
+                                            <p class="text-secondary small mb-0">Fetch auto-generated Python analysis
+                                                code
+                                                and executive JSON reports.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: CREDENTIALS & API KEYS MANAGEMENT -->
+                        <div class="tab-pane fade" id="tabCredentials">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1"><i class="bi bi-key-fill text-primary me-2"></i> API Key
+                                        Management</h5>
+                                    <p class="text-secondary mb-0">Manage test &amp; production API keys with SHA-256
+                                        secure hashing and granular permissions/scopes.</p>
+                                </div>
+                                <button class="btn btn-primary btn-sm fw-semibold" data-bs-toggle="modal"
+                                    data-bs-target="#createApiKeyModal">
+                                    <i class="bi bi-plus-lg me-1"></i> Create New API Key
+                                </button>
+                            </div>
+
+                            <!-- KPI Cards for API Key Management -->
+                            <div class="row g-3 my-2 mb-4">
+                                <div class="col-md-4">
+                                    <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="dn-card-subtitle text-uppercase"><i
+                                                    class="bi bi-key-fill text-primary me-1"></i> Total API Keys</span>
+                                            <span
+                                                class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Active
+                                                Credentials</span>
+                                        </div>
+                                        <div class="my-2">
+                                            <h3 class="fw-bold mb-0 text-primary" id="totalApiKeysCountVal">{{
+                                                keys|length
+                                                }}</h3>
+                                        </div>
+                                        <span class="text-secondary small"><i class="bi bi-shield-lock me-1"></i>
+                                            Multi-Scope Access Control</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="dn-card-subtitle text-uppercase"><i
+                                                    class="bi bi-shield-check text-success me-1"></i> Hash
+                                                Protection</span>
+                                            <span
+                                                class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">SHA-256
+                                                Verified</span>
+                                        </div>
+                                        <div class="my-2">
+                                            <h3 class="fw-bold text-success mb-0">Hashed Secret</h3>
+                                        </div>
+                                        <span class="text-secondary small"><i class="bi bi-eye-slash me-1"></i> Never
+                                            exposed after creation</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="dn-card-subtitle text-uppercase"><i
+                                                    class="bi bi-speedometer2 text-info me-1"></i> Rate-Limit
+                                                Quota</span>
+                                            <span
+                                                class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Monthly
+                                                Quota</span>
+                                        </div>
+                                        <div class="my-2">
+                                            <h3 class="fw-bold text-info mb-0">{{ metrics.rate_limit }}</h3>
+                                        </div>
+                                        <span class="text-secondary small"><i class="bi bi-hourglass-split me-1"></i>
+                                            Auto-resets monthly (2,000 req/mo)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive my-3">
+                                <table class="table dn-table align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Key Name</th>
+                                            <th>Environment</th>
+                                            <th>Key Prefix / Masked</th>
+                                            <th>Scopes</th>
+                                            <th>Status</th>
+                                            <th>Last Used</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="developerApiKeysTableBody">
+                                        {% for k in keys %}
+                                        <tr>
+                                            <td class="fw-bold">{{ k.key_name }}</td>
+                                            <td>
+                                                <span
+                                                    class="badge {% if k.environment == 'live' %}bg-success-subtle text-success{% else %}bg-warning-subtle text-warning{% endif %} border px-2 py-1 text-uppercase">
+                                                    {{ k.environment }}
+                                                </span>
+                                            </td>
+                                            <td class="font-monospace text-primary">{{ k.masked_key }}</td>
+                                            <td>
+                                                <span class="small text-secondary" title="{{ k.scopes|join(', ') }}">
+                                                    {{ k.scopes|length }} Scopes
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    class="badge {% if k.status == 'active' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                                                    {{ k.status|capitalize }}
+                                                </span>
+                                            </td>
+                                            <td class="small text-secondary">{{ k.last_used_at }}</td>
+                                            <td class="small text-secondary">{{ k.created_at }}</td>
+                                            <td>
+                                                {% if k.status == 'active' %}
+                                                <button class="btn btn-outline-danger btn-sm px-2 py-0"
+                                                    onclick="revokeKeyAction('{{ k.id }}')" title="Revoke Key">
+                                                    <i class="bi bi-x-circle"></i> Revoke
+                                                </button>
+                                                {% else %}
+                                                <span class="text-muted small">Revoked</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-3">No API keys generated
+                                                yet.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- TAB 4: INTEGRATION SDK & QUICKSTART GUIDE -->
+                        <div class="tab-pane fade" id="tabQuickstart">
+                            <div class="dn-card p-5 text-center my-4">
+                                <div class="mb-3">
+                                    <span
+                                        class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 fs-6">
+                                        <i class="bi bi-clock-history me-1"></i> Pending
+                                    </span>
+                                </div>
+                                <div class="text-warning mb-3">
+                                    <i class="bi bi-journal-code display-4"></i>
+                                </div>
+                                <h4 class="fw-bold text-body mb-2">DataNova Integration SDK</h4>
+                                <p class="text-secondary mb-4 mx-auto" style="max-width: 500px;">
+                                    This is pending. Integration SDK documentation, client libraries, and developer
+                                    tools are currently pending.
+                                </p>
+                                <div>
+                                    <span class="badge bg-secondary-subtle text-secondary px-3 py-2 font-monospace">
+                                        <i class="bi bi-info-circle me-1"></i> Status: This is pending
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 5: API LOGS -->
+                        <div class="tab-pane fade" id="tabAnalytics">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1"><i class="bi bi-activity text-primary me-2"></i> API Call
+                                        Logs &amp; Detailed Debugger</h5>
+                                    <p class="text-secondary mb-0">Real-time telemetry of requests called with your
+                                        account credentials. Click any request to inspect headers, parameters, and
+                                        payloads.</p>
+                                </div>
+                            </div>
+
+                            <!-- KPI Cards for API Call Logs & Telemetry -->
+                            <div class="row g-3 my-2 mb-4">
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="dn-card-subtitle text-uppercase"><i
+                                                    class="bi bi-activity text-primary me-1"></i> Total API Calls</span>
+                                            <span
+                                                class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Lifetime
+                                                Count</span>
+                                        </div>
+                                        <div class="my-2">
+                                            <h3 class="fw-bold text-primary mb-0">{{ metrics.total_api_calls }}</h3>
+                                        </div>
+                                        <span class="text-secondary small"><i class="bi bi-calendar-event me-1"></i> {{
+                                            metrics.requests_today }} requests today</span>
+                                    </div>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="dn-card-subtitle text-uppercase"><i
+                                                    class="bi bi-arrow-repeat text-info me-1"></i> 30-Day Monthly
+                                                Calls</span>
+                                            <span
+                                                class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Resets
+                                                Every 30 Days</span>
+                                        </div>
+                                        <div class="my-2">
+                                            <h3 class="fw-bold text-info mb-0">{{
+                                                metrics.monthly_calls|default(metrics.total_api_calls) }} / 2,000</h3>
+                                        </div>
+                                        <span class="text-secondary small"><i class="bi bi-hourglass-split me-1"></i> {{
+                                            metrics.remaining_quota|default(2000 - metrics.total_api_calls) }} calls
+                                            remaining</span>
+                                    </div>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="dn-card-subtitle text-uppercase"><i
+                                                    class="bi bi-exclamation-octagon-fill text-danger me-1"></i> Failed
+                                                Calls</span>
+                                            <span
+                                                class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">4xx
+                                                / 5xx Errors</span>
+                                        </div>
+                                        <div class="my-2">
+                                            <h3 class="fw-bold text-danger mb-0">{{ metrics.failed_calls }}</h3>
+                                        </div>
+                                        <span class="text-secondary small"><i
+                                                class="bi bi-check-circle text-success me-1"></i> {{
+                                            metrics.successful_calls }} successful ({{ metrics.success_rate }}%)</span>
+                                    </div>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <div class="dn-card p-3 h-100 d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="dn-card-subtitle text-uppercase"><i
+                                                    class="bi bi-stars text-warning me-1"></i> AI &amp; Q&amp;A
+                                                Calls</span>
+                                            <span
+                                                class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Gemini
+                                                AI</span>
+                                        </div>
+                                        <div class="my-2">
+                                            <h3 class="fw-bold text-warning mb-0">{{ metrics.ai_calls }}</h3>
+                                        </div>
+                                        <span class="text-secondary small"><i class="bi bi-chat-quote me-1"></i> Natural
+                                            language data queries</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table dn-table align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Request ID</th>
+                                            <th>Method</th>
+                                            <th>Endpoint</th>
+                                            <th>Status</th>
+                                            <th>Latency</th>
+                                            <th>Timestamp</th>
+                                            <th>Inspect</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="apiLogsTableBody">
+                                        {% for log in recent_logs %}
+                                        <tr>
+                                            <td class="font-monospace text-secondary small">{{ log.request_id }}</td>
+                                            <td><span class="badge bg-secondary font-monospace">{{ log.method }}</span>
+                                            </td>
+                                            <td class="font-monospace text-primary">{{ log.endpoint }}</td>
+                                            <td>
+                                                <span
+                                                    class="badge {% if log.status_code < 400 and log.status != 'failure' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} border px-2 py-1">
+                                                    {{ log.status_code }}
+                                                </span>
+                                            </td>
+                                            <td class="font-monospace small text-secondary">{{ log.response_time_ms }}
+                                                ms</td>
+                                            <td class="text-secondary small">{{ log.called_at }}</td>
+                                            <td>
+                                                <button class="btn btn-outline-primary btn-sm py-0 px-2 btn-inspect-log"
+                                                    data-log="{{ log|tojson|forceescape }}"
+                                                    onclick="inspectLogBtnClick(this)">
+                                                    <i class="bi bi-search"></i> Details
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted py-4">No API requests recorded
+                                                yet. Make an API request using your API key to view telemetry logs.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div> <!-- End #devTabContent -->
+                </div> <!-- End main tab card -->
+
+            </div> <!-- End .dn-content -->
+        </div> <!-- End .dn-main -->
+
+    </div> <!-- End .dn-app -->
+
+    <!-- CREATE API KEY MODAL -->
+    <div class="modal fade" id="createApiKeyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-key-fill text-primary me-2"></i> Create New API Key
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Key Name / Description</label>
+                        <input type="text" id="newKeyNameInput" class="form-control"
+                            placeholder="e.g. Production Mobile App Key">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Environment</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="newKeyEnv" id="envLive" value="live"
+                                    checked>
+                                <label class="form-check-label fw-bold text-success" for="envLive">Production
+                                    (Live)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="newKeyEnv" id="envTest" value="test">
+                                <label class="form-check-label fw-bold text-warning" for="envTest">Test /
+                                    Sandbox</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Permissions &amp; Scopes</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="form-check"><input class="form-check-input scope-chk" type="checkbox"
+                                        value="datasets:read" checked> <label
+                                        class="form-check-label small">datasets:read</label></div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check"><input class="form-check-input scope-chk" type="checkbox"
+                                        value="datasets:write" checked> <label
+                                        class="form-check-label small">datasets:write</label></div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check"><input class="form-check-input scope-chk" type="checkbox"
+                                        value="analysis:read" checked> <label
+                                        class="form-check-label small">analysis:read</label></div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check"><input class="form-check-input scope-chk" type="checkbox"
+                                        value="analysis:execute" checked> <label
+                                        class="form-check-label small">analysis:execute</label></div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check"><input class="form-check-input scope-chk" type="checkbox"
+                                        value="ml:execute" checked> <label
+                                        class="form-check-label small">ml:execute</label></div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check"><input class="form-check-input scope-chk" type="checkbox"
+                                        value="reports:read" checked> <label
+                                        class="form-check-label small">reports:read</label></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="submitCreateKeyBtn">Generate Key</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECRET KEY DISPLAYED ONCE MODAL -->
+    <div class="modal fade" id="newKeyCreatedModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success-subtle text-success">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i> API Key Generated</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        onclick="location.reload()"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <div class="alert alert-warning text-start small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> <strong>Important:</strong> Copy your
+                        secret API key now. For security reasons, you will not be able to view this full key again!
+                    </div>
+                    <div class="dev-api-key-container text-break my-3" id="modalRawKeyBox">
+                        dn_live_...
+                    </div>
+                    <button class="btn btn-primary btn-sm px-4 fw-bold" id="copyNewRawKeyBtn">
+                        <i class="bi bi-clipboard me-1"></i> Copy Secret API Key
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal"
+                        onclick="location.reload()">Done &amp; Reload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INSPECT LOG DETAIL MODAL -->
+    <div class="modal fade" id="inspectLogModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-search text-primary me-2"></i> Request Log Inspector
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3 p-3 bg-body-tertiary rounded">
+                        <div>
+                            <div class="fw-bold font-monospace" id="modalLogReqId">req_...</div>
+                            <small class="text-secondary" id="modalLogEndpoint">GET /api/v1/health</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success px-3 py-1 font-monospace" id="modalLogStatus">200 OK</span>
+                            <div class="small text-secondary mt-1" id="modalLogLatency">38 ms</div>
+                        </div>
+                    </div>
+
+                    <div class="dev-json-response">
+                        <pre id="modalLogDetailJson" class="m-0"><code>Loading...</code></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- USER PROFILE MODAL (SELF EDIT) -->
+    <div class="modal fade" id="userProfileModal" tabindex="-1" aria-labelledby="userProfileModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content dn-panel p-4">
+                <div class="modal-header border-0 pb-2">
+                    <h5 class="modal-title fw-bold" id="userProfileModalLabel">
+                        <i class="bi bi-person-badge-fill text-primary me-2"></i>My Profile
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <div class="dn-avatar mx-auto mb-2 userProfileAvatarBadge"
+                            style="width:64px;height:64px;font-size:1.5rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--dn-primary,#4F46E5),var(--dn-violet,#7C3AED));color:#fff;border-radius:50%;font-weight:700;">
+                            {{ (user.first_name|default('D'))[0] }}{{ (user.last_name|default(''))[0] if user and
+                            user.last_name else '' }}
+                        </div>
+                        <h5 class="fw-bold mb-1 userProfileFullNameDisplay">{{ user.first_name|default('Developer') }}
+                            {{ user.last_name|default('') }}</h5>
+                        <div class="mt-1">
+                            <span
+                                class="badge bg-primary-subtle text-primary border border-primary-subtle userProfileRoleBadge">
+                                Developer Role
+                            </span>
+                            <span class="badge bg-secondary-subtle text-body border ms-1">
+                                <i class="bi bi-building me-1 text-primary"></i>{{ user.organization|default('General')
+                                }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <form class="dnUserProfileForm" novalidate>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">First Name</label>
+                                <input type="text" class="form-control userProfileFirstName"
+                                    value="{{ user.first_name|default('') }}" required placeholder="First name">
+                                <div class="invalid-feedback">First name is required.</div>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">Last Name</label>
+                                <input type="text" class="form-control userProfileLastName"
+                                    value="{{ user.last_name|default('') }}" placeholder="Last name">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold">Email Address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-body-tertiary text-muted border-end-0"><i
+                                            class="bi bi-envelope"></i></span>
+                                    <input type="email"
+                                        class="form-control bg-body-tertiary border-start-0 userProfileEmail"
+                                        value="{{ user.email|default('') }}" readonly>
+                                </div>
+                                <small class="text-secondary" style="font-size: 0.75rem;"><i
+                                        class="bi bi-lock-fill"></i> Email address is permanent.</small>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold">Account Role &amp; Organization</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-body-tertiary text-muted border-end-0"><i
+                                            class="bi bi-shield-lock"></i></span>
+                                    <input type="text"
+                                        class="form-control bg-body-tertiary border-start-0 userProfileOrganization"
+                                        value="Developer — {{ user.organization|default('General') }}" readonly>
+                                </div>
+                                <small class="text-secondary" style="font-size: 0.72rem;"><i
+                                        class="bi bi-lock-fill"></i> Role &amp; Organization managed by
+                                    Administrator.</small>
+                            </div>
+                        </div>
+                        <div class="alert alert-danger mt-3 d-none p-2 small userProfileErrorAlert"></div>
+                        <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-sm btn-secondary me-2"
+                                data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary btnSubmitUserProfile">
+                                <span class="spinner-border spinner-border-sm me-1 d-none userProfileSpinner"
+                                    role="status"></span>
+                                <i class="bi bi-check-circle me-1 userProfileSaveIcon"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTACT ADMIN MODAL -->
+    <div class="modal fade" id="contactAdminModal" tabindex="-1" aria-labelledby="contactAdminModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content dn-panel p-4">
+                <div class="modal-header border-0 pb-2">
+                    <h5 class="modal-title fw-bold" id="contactAdminModalLabel">
+                        <i class="bi bi-headset text-primary me-2"></i>Contact Administrator
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-secondary small mb-3">Send a direct support inquiry, bug report, or feature request
+                        to the Platform Administrator.</p>
+                    <div id="contactAdminAlert" class="alert alert-danger py-2 small mb-3" style="display: none;"></div>
+                    <form id="contactAdminForm" novalidate>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Category</label>
+                            <select class="form-select" id="contactAdminCategory" name="category">
+                                <option value="General Inquiry">General Inquiry</option>
+                                <option value="Bug Report">Bug Report / Issue</option>
+                                <option value="Feature Request">Feature Request</option>
+                                <option value="Account & Security">Account &amp; Security Help</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Subject / Title</label>
+                            <input type="text" class="form-control" id="contactAdminSubject" name="subject"
+                                placeholder="e.g. Issue uploading dataset / Access request" required>
+                        </div>
+                        <div class="mb-3" id="contactAdminImageGroup" style="display: none;">
+                            <label
+                                class="form-label small fw-semibold d-flex align-items-center justify-content-between">
+                                <span><i class="bi bi-image me-1 text-primary"></i>Attach Image / Screenshot</span>
+                                <span class="badge bg-secondary-subtle text-secondary fw-normal">Optional</span>
+                            </label>
+                            <input type="file" class="form-control" id="contactAdminImage" name="attachment"
+                                accept="image/*,.ico,.svg,.pdf,.doc,.docx,.csv,.txt">
+                            <div class="form-text text-muted" style="font-size: 0.75rem;">Supported formats: PNG, JPG,
+                                JPEG, WEBP, GIF, ICO, SVG, PDF, DOC, CSV (Max 5MB)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Message Details</label>
+                            <textarea class="form-control" id="contactAdminMessage" name="message" rows="4"
+                                placeholder="Describe your request or issue in detail..." required></textarea>
+                        </div>
+                        <div class="text-end mt-4">
+                            <button type="button" class="btn btn-sm btn-secondary me-2"
+                                data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm btn-primary dn-btn-primary">
+                                <i class="bi bi-send-fill me-1"></i> Send Message
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/developer.js') }}?v=3.1"></script>
+</body>
+
+</html>

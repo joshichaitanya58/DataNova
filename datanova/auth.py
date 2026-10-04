@@ -12,9 +12,20 @@ from functools import wraps
 bp = Blueprint('auth', __name__)
 
 # Allowed roles for validation
-ALLOWED_ROLES = ['admin', 'manager', 'analyst', 'viewer']
-PUBLIC_ROLES = ['admin', 'manager', 'analyst', 'viewer']
+ALLOWED_ROLES = ['admin', 'manager', 'analyst', 'developer']
+PUBLIC_ROLES = ALLOWED_ROLES
 
+
+def get_role_dashboard_url(role):
+    """Returns the canonical dashboard route for a given user role."""
+    r = (role or 'developer').lower().strip()
+    if r == 'admin':
+        return url_for('dashboards.admin_dashboard')
+    elif r == 'manager':
+        return url_for('dashboards.manager_dashboard')
+    elif r == 'analyst':
+        return url_for('dashboards.analyst_dashboard')
+    return url_for('dashboards.developer_dashboard')
 
 
 def is_maintenance_active():
@@ -105,7 +116,7 @@ def roles_required(*allowed_roles):
                 flash('Please log in to access this page.', 'warning')
                 return redirect(url_for('auth.login'))
 
-            user_role = (session.get('role') or 'viewer').lower()
+            user_role = (session.get('role') or 'developer').lower()
             if is_maintenance_active() and user_role != 'admin':
                 if request.path.startswith('/api/') or request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json':
                     return jsonify({'success': False, 'message': 'System is currently under maintenance. Access is restricted to Admins.'}), 503
@@ -117,14 +128,7 @@ def roles_required(*allowed_roles):
                 if request.path.startswith('/api/') or request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json':
                     return jsonify({'success': False, 'message': 'Permission denied.'}), 403
                 flash('Access denied. You do not have permission to access this resource.', 'danger')
-                if user_role == 'admin':
-                    return redirect(url_for('dashboards.admin_dashboard'))
-                elif user_role == 'manager':
-                    return redirect(url_for('dashboards.manager_dashboard'))
-                elif user_role == 'analyst':
-                    return redirect(url_for('dashboards.analyst_dashboard'))
-                else:
-                    return redirect(url_for('dashboards.viewer_dashboard'))
+                return redirect(get_role_dashboard_url(user_role))
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -207,14 +211,7 @@ def login():
         session.pop('active_dataset_id', None)
 
         # Role-based dashboard redirect URL
-        if user_db_role == 'admin':
-            redirect_url = url_for('dashboards.admin_dashboard')
-        elif user_db_role == 'manager':
-            redirect_url = url_for('dashboards.manager_dashboard')
-        elif user_db_role == 'analyst':
-            redirect_url = url_for('dashboards.analyst_dashboard')
-        else:
-            redirect_url = url_for('dashboards.viewer_dashboard')
+        redirect_url = get_role_dashboard_url(user_db_role)
 
         return jsonify({
             'success': True,
@@ -222,7 +219,8 @@ def login():
             'redirect_url': redirect_url
         })
 
-    return render_template('login.html')
+    role = request.args.get('role', 'analyst').lower().strip()
+    return render_template('login.html', selected_role=role)
 
 
 @bp.route('/signup', methods=['GET', 'POST'])
@@ -255,15 +253,15 @@ def signup():
         
         # Respect configured Default Role on Signup from SYSTEM_SETTINGS if default is requested
         settings = current_app.config.get('SYSTEM_SETTINGS', {})
-        default_signup_role = settings.get('default_role', 'viewer').lower().strip()
+        default_signup_role = settings.get('default_role', 'developer').lower().strip()
         requested_role = data.get('role', '').lower().strip()
         role = requested_role if requested_role else default_signup_role
 
-        # Public signup is restricted to PUBLIC_ROLES (analyst, viewer, manager, admin if allowed)
+        # Public signup is restricted to PUBLIC_ROLES (analyst, developer, manager, admin if allowed)
         if role not in PUBLIC_ROLES and role != default_signup_role:
             return jsonify({
                 'success': False,
-                'message': 'Public registration is restricted to Analyst and Viewer roles only.'
+                'message': 'Public registration is restricted to Analyst and Developer roles.'
             }), 400
 
         success, msg, status_code = create_user_account(
@@ -286,7 +284,8 @@ def signup():
         else:
             return jsonify({'success': False, 'message': msg}), status_code
 
-    return render_template('signup.html')
+    role = request.args.get('role', 'analyst').lower().strip()
+    return render_template('signup.html', selected_role=role)
 
 
 @bp.route('/logout')
@@ -518,15 +517,7 @@ def google_callback():
                     session.pop('active_dataset_id', None)
 
                     flash(f"Welcome back, {session['first_name']}! Signed in with Google.", 'success')
-
-                    if user_role == 'admin':
-                        return redirect(url_for('dashboards.admin_dashboard'))
-                    elif user_role == 'manager':
-                        return redirect(url_for('dashboards.manager_dashboard'))
-                    elif user_role == 'analyst':
-                        return redirect(url_for('dashboards.analyst_dashboard'))
-                    else:
-                        return redirect(url_for('dashboards.viewer_dashboard'))
+                    return redirect(get_role_dashboard_url(user_role))
 
                 else:
                     # User does not exist, auto-register new Google user account
@@ -567,15 +558,7 @@ def google_callback():
                     session.pop('active_dataset_id', None)
 
                     flash(f"Account created successfully! Welcome to DataNova, {first_name}.", 'success')
-
-                    if role == 'admin':
-                        return redirect(url_for('dashboards.admin_dashboard'))
-                    elif role == 'manager':
-                        return redirect(url_for('dashboards.manager_dashboard'))
-                    elif role == 'analyst':
-                        return redirect(url_for('dashboards.analyst_dashboard'))
-                    else:
-                        return redirect(url_for('dashboards.viewer_dashboard'))
+                    return redirect(get_role_dashboard_url(role))
 
         finally:
             conn.close()

@@ -38,14 +38,32 @@ def _parse_setting_value(val_str: str):
     return val_str
 
 
+import time
+
+_SETTINGS_CACHE = None
+_SETTINGS_CACHE_TIME = 0.0
+CACHE_TTL_SECONDS = 5.0
+
+
+def invalidate_settings_cache():
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_TIME
+    _SETTINGS_CACHE = None
+    _SETTINGS_CACHE_TIME = 0.0
+
+
 def get_system_settings_from_db():
     """
     Reads key-value system settings directly from MySQL `system_settings` table.
-    Returns a dict of parsed settings or empty dict if DB is unreachable.
+    Caches parsed settings in memory with a 5-second TTL to eliminate redundant DB queries.
     """
+    global _SETTINGS_CACHE, _SETTINGS_CACHE_TIME
+    now = time.time()
+    if _SETTINGS_CACHE is not None and (now - _SETTINGS_CACHE_TIME) < CACHE_TTL_SECONDS:
+        return _SETTINGS_CACHE.copy()
+
     conn = get_db_connection(raise_on_error=False)
     if not conn:
-        return {}
+        return _SETTINGS_CACHE.copy() if _SETTINGS_CACHE is not None else {}
 
     settings = {}
     try:
@@ -57,8 +75,12 @@ def get_system_settings_from_db():
                 raw_val = row.get('setting_value')
                 if key:
                     settings[key] = _parse_setting_value(raw_val)
+        _SETTINGS_CACHE = settings.copy()
+        _SETTINGS_CACHE_TIME = now
     except Exception as e:
         logger.warning(f"Could not load system_settings from MySQL database: {e}")
+        if _SETTINGS_CACHE is not None:
+            settings = _SETTINGS_CACHE.copy()
     finally:
         try:
             conn.close()
@@ -98,6 +120,7 @@ def save_system_settings_to_db(settings_dict: dict, instance_path: str = None):
                         (str(key), str_val)
                     )
             conn.commit()
+            invalidate_settings_cache()
             logger.info("Successfully persisted system settings to MySQL database.")
         except Exception as e:
             logger.error(f"Error saving system settings to MySQL database: {e}")

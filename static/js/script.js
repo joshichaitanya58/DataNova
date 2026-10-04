@@ -119,3 +119,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 });
+
+/* Developer API Terminal Tab Switcher */
+window.switchDevTab = function (tabName, btn) {
+    var tabs = document.querySelectorAll('.dn-code-tab');
+    tabs.forEach(function (t) { t.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+
+    var snippets = document.querySelectorAll('.dn-code-snippet');
+    snippets.forEach(function (s) { s.style.display = 'none'; });
+
+    var target = document.getElementById('tab-' + tabName);
+    if (target) target.style.display = 'block';
+};

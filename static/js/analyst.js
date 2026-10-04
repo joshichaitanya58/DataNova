@@ -1104,6 +1104,61 @@ document.addEventListener('DOMContentLoaded', function () {
             fileInput.value = '';
         }
 
+        // --- Dropzone Click & Drag-and-Drop Event Listeners ---
+        uploadForm.addEventListener('click', function (e) {
+            const uploadPill = e.target.closest('[data-action="upload-file"]');
+            if (uploadPill) {
+                e.stopPropagation();
+                fileInput.click();
+                return;
+            }
+            if (e.target.closest('[data-bs-toggle]') || e.target.closest('.dn-source-pill')) {
+                return;
+            }
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files && fileInput.files.length > 0) {
+                uploadFile(fileInput.files[0]);
+            }
+        });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (evt) {
+            window.addEventListener(evt, function (e) {
+                e.preventDefault();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(function (evt) {
+            uploadForm.addEventListener(evt, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadForm.classList.add('is-dragover');
+            }, false);
+        });
+
+        ['dragleave', 'dragend'].forEach(function (evt) {
+            uploadForm.addEventListener(evt, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (evt === 'dragend' || !uploadForm.contains(e.relatedTarget)) {
+                    uploadForm.classList.remove('is-dragover');
+                }
+            }, false);
+        });
+
+        uploadForm.addEventListener('drop', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadForm.classList.remove('is-dragover');
+
+            var droppedFiles = e.dataTransfer ? e.dataTransfer.files : null;
+            if (droppedFiles && droppedFiles.length > 0) {
+                uploadFile(droppedFiles[0]);
+            }
+        }, false);
+
         // Handle "Upload Another" button click
         if (uploadAnotherBtn) {
             uploadAnotherBtn.addEventListener('click', function () {
@@ -1353,8 +1408,205 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (gsheetStatus) {
                         gsheetStatus.className = 'mt-3 p-3 rounded bg-danger-subtle text-danger border border-danger-subtle';
                         gsheetStatus.innerHTML = '<div class="d-flex align-items-center gap-2"><i class="bi bi-wifi-off fs-5 text-danger"></i><span class="small fw-semibold">Network error while fetching Google Sheet. Please check your connection and try again.</span></div>';
+                    }
+                });
+            });
+        }
+
+        /* ---------------------------------------------------------------------
+           MySQL Database Analysis Event Listeners & Functions
+           ------------------------------------------------------------------- */
+        var testMysqlBtn = document.getElementById('btnAnalystTestMysql');
+        var mysqlForm = document.getElementById('dnMysqlForm');
+
+        if (testMysqlBtn) {
+            testMysqlBtn.addEventListener('click', function (e) {
+                if (e && e.preventDefault) e.preventDefault();
+                console.log('[DataNova] "Test & Fetch Tables" clicked');
+
+                var statusEl = document.getElementById('analystMysqlStatus');
+                var tableSelect = document.getElementById('analystMysqlTableSelect');
+
+                var hostInput = document.getElementById('analystMysqlHost');
+                var portInput = document.getElementById('analystMysqlPort');
+                var userInput = document.getElementById('analystMysqlUser');
+                var passInput = document.getElementById('analystMysqlPassword');
+                var dbInput = document.getElementById('analystMysqlDatabase');
+
+                var host = hostInput ? hostInput.value.trim() : '';
+                var port = portInput ? portInput.value.trim() : '3306';
+                var user = userInput ? userInput.value.trim() : 'root';
+                var password = passInput ? passInput.value : '';
+                var database = dbInput ? dbInput.value.trim() : '';
+
+                if (!host || !database) {
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
+                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Please enter MySQL Host and Database Name.';
+                        statusEl.classList.remove('d-none');
+                    }
+                    return;
+                }
+
+                testMysqlBtn.disabled = true;
+                testMysqlBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Connecting...';
+
+                if (statusEl) {
+                    statusEl.className = 'alert alert-info shadow-sm mb-3';
+                    statusEl.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Connecting to MySQL server and fetching table metadata...';
+                    statusEl.classList.remove('d-none');
+                }
+
+                fetch('/api/mysql/test_connection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ host: host, port: port, user: user, password: password, database: database })
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    testMysqlBtn.disabled = false;
+                    testMysqlBtn.innerHTML = '<i class="bi bi-lightning-charge me-1"></i> Test &amp; Fetch Tables';
+
+                    if (data.success) {
+                        if (statusEl) {
+                            statusEl.className = 'alert alert-success shadow-sm mb-3';
+                            statusEl.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>' + data.message;
+                            statusEl.classList.remove('d-none');
+                        }
+
+                        if (tableSelect) {
+                            tableSelect.innerHTML = '<option value="">-- Select a MySQL Table --</option>';
+                            if (data.tables && data.tables.length > 0) {
+                                data.tables.forEach(function(t) {
+                                    var opt = document.createElement('option');
+                                    opt.value = t.name;
+                                    var rowStr = (t.estimated_rows !== undefined && t.estimated_rows !== 'N/A') ? ' (~' + t.estimated_rows + ' rows)' : '';
+                                    opt.textContent = t.name + rowStr;
+                                    tableSelect.appendChild(opt);
+                                });
+                            } else {
+                                var opt = document.createElement('option');
+                                opt.value = '';
+                                opt.textContent = 'No tables found in database';
+                                tableSelect.appendChild(opt);
+                            }
+                        }
                     } else {
-                        alert('Network error while importing Google Sheet. Please check the URL and try again.');
+                        if (statusEl) {
+                            statusEl.className = 'alert alert-danger shadow-sm mb-3';
+                            statusEl.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>' + (data.message || 'MySQL connection failed.');
+                            statusEl.classList.remove('d-none');
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    testMysqlBtn.disabled = false;
+                    testMysqlBtn.innerHTML = '<i class="bi bi-lightning-charge me-1"></i> Test &amp; Fetch Tables';
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
+                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Network Error: ' + err.message;
+                        statusEl.classList.remove('d-none');
+                    }
+                });
+            });
+        }
+
+        if (mysqlForm) {
+            mysqlForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var statusEl = document.getElementById('analystMysqlStatus');
+                var runBtn = document.getElementById('btnAnalystRunMysql');
+                var spinner = document.getElementById('analystMysqlSpinner');
+
+                var host = document.getElementById('analystMysqlHost').value.trim();
+                var port = document.getElementById('analystMysqlPort').value.trim();
+                var user = document.getElementById('analystMysqlUser').value.trim();
+                var password = document.getElementById('analystMysqlPassword').value;
+                var database = document.getElementById('analystMysqlDatabase').value.trim();
+                var tableSelect = document.getElementById('analystMysqlTableSelect').value;
+                var queryInput = document.getElementById('analystMysqlQuery').value.trim();
+                var limit = document.getElementById('analystMysqlLimit').value;
+
+                if (!host || !database) {
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
+                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>MySQL Host and Database Name are required.';
+                        statusEl.classList.remove('d-none');
+                    }
+                    return;
+                }
+
+                if (!tableSelect && !queryInput) {
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
+                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Please select a table or type a custom SQL query.';
+                        statusEl.classList.remove('d-none');
+                    }
+                    return;
+                }
+
+                if (runBtn) runBtn.disabled = true;
+                if (spinner) spinner.classList.remove('d-none');
+
+                if (statusEl) {
+                    statusEl.className = 'alert alert-info shadow-sm mb-3';
+                    statusEl.innerHTML = '<i class="bi bi-gear-wide-connected spin me-2"></i> Extracting MySQL data & executing automated EDA pipeline... Please wait.';
+                    statusEl.classList.remove('d-none');
+                }
+
+                if (processingLoader) processingLoader.style.display = 'flex';
+
+                fetch('/api/mysql/import_and_analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        host: host,
+                        port: port,
+                        user: user,
+                        password: password,
+                        database: database,
+                        table_name: tableSelect,
+                        query: queryInput,
+                        limit: limit
+                    })
+                })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (processingLoader) processingLoader.style.display = 'none';
+                    if (runBtn) runBtn.disabled = false;
+                    if (spinner) spinner.classList.add('d-none');
+
+                    if (data.success && data.preview_html) {
+                        // Close MySQL modal
+                        var modalEl = document.getElementById('dnMysqlModal');
+                        if (modalEl && window.bootstrap && bootstrap.Modal) {
+                            var modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                            modalInstance.hide();
+                        }
+
+                        var displayName = 'mysql:' + database + '.' + (tableSelect || 'query');
+                        populateDatasetWorkspace(data, data.file_name || displayName, true);
+                        addTooltipsToStatsTable();
+                    } else {
+                        var errText = (data.message || data.error || 'Failed to analyze MySQL dataset.').replace(/\n/g, '<br>');
+                        if (statusEl) {
+                            statusEl.className = 'alert alert-danger shadow-sm mb-3';
+                            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + errText;
+                        } else {
+                            alert(data.message || 'Failed to analyze MySQL dataset.');
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    if (processingLoader) processingLoader.style.display = 'none';
+                    if (runBtn) runBtn.disabled = false;
+                    if (spinner) spinner.classList.add('d-none');
+                    console.error('[DataNova] MySQL Analysis error:', err);
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
+                        statusEl.innerHTML = '<i class="bi bi-wifi-off me-2"></i>Network Error: ' + err.message;
+                    } else {
+                        alert('Network error while analyzing MySQL dataset.');
                     }
                 });
             });
@@ -2203,40 +2455,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
             });
         }
-
-        // Trigger file input click when the dropzone is clicked
-        uploadForm.addEventListener('click', function () {
-            fileInput.click();
-        });
-
-        // Handle file selection from the dialog
-        fileInput.addEventListener('change', function () {
-            if (fileInput.files.length > 0) {
-                uploadFile(fileInput.files[0]);
-            }
-        });
-
-        // Drag and drop events
-        ['dragenter', 'dragover'].forEach(function (evt) {
-            uploadForm.addEventListener(evt, function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadForm.classList.add('is-dragover');
-            });
-        });
-        ['dragleave', 'drop'].forEach(function (evt) {
-            uploadForm.addEventListener(evt, function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadForm.classList.remove('is-dragover');
-            });
-        });
-
-        uploadForm.addEventListener('drop', function (e) {
-            if (e.dataTransfer.files.length > 0) {
-                uploadFile(e.dataTransfer.files[0]);
-            }
-        });
     }
 
     // Helper function to render charts (used by EDA generation, dataset load, and 2D/3D mode toggling)
@@ -4168,7 +4386,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         teamMembersContainer.innerHTML = members.map(m => {
-            let roleBadge = '<span class="badge bg-secondary">Viewer</span>';
+            let roleBadge = '<span class="badge bg-secondary">Developer</span>';
             if (m.raw_role === 'manager') roleBadge = '<span class="badge bg-primary">Manager</span>';
             else if (m.raw_role === 'analyst') roleBadge = '<span class="badge bg-info text-dark">Analyst</span>';
             else if (m.raw_role === 'admin') roleBadge = '<span class="badge bg-danger">Admin</span>';
@@ -4330,7 +4548,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         submitTeamMembersContainer.innerHTML = members.map(m => {
-            let roleBadge = '<span class="badge bg-secondary">Viewer</span>';
+            let roleBadge = '<span class="badge bg-secondary">Developer</span>';
             if (m.raw_role === 'manager') roleBadge = '<span class="badge bg-primary">Manager</span>';
             else if (m.raw_role === 'analyst') roleBadge = '<span class="badge bg-info text-dark">Analyst</span>';
             else if (m.raw_role === 'admin') roleBadge = '<span class="badge bg-danger">Admin</span>';
@@ -4496,7 +4714,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- Shared Dashboards List & Viewer Detail Modal ---
+    // --- Shared Dashboards List & Developer Detail Modal ---
     const sharedDetailModalEl = document.getElementById('sharedDashboardDetailModal');
     let sharedDetailModalInstance = null;
     if (sharedDetailModalEl) {
@@ -5155,7 +5373,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     if (datasetBadgeEl) datasetBadgeEl.textContent = `Dataset: ${data.dataset_name || '#' + targetId}`;
                     if (roleBadgeEl) {
-                        roleBadgeEl.textContent = data.can_edit ? 'Analyst Studio (Edit & Run)' : 'Viewer (Read-Only)';
+                        roleBadgeEl.textContent = data.can_edit ? 'Analyst Studio (Edit & Run)' : 'Developer (Read-Only)';
                         roleBadgeEl.className = 'badge ' + (data.can_edit ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-secondary-subtle text-secondary border');
                     }
                     if (btnRunCode) btnRunCode.style.display = data.can_edit ? 'inline-block' : 'none';

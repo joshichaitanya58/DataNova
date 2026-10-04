@@ -106,8 +106,8 @@ def get_admin_dashboard_analytics(conn=None) -> Dict[str, Any]:
         'storage_used_formatted': '0 MB',
         'storage_used_gb': 0.0,
         'storage_percentage': 0.0,
-        'users_by_role': {'analyst': 0.0, 'manager': 0.0, 'viewer': 0.0, 'admin': 0.0},
-        'users_by_role_counts': {'analyst': 0, 'manager': 0, 'viewer': 0, 'admin': 0},
+        'users_by_role': {'analyst': 0.0, 'manager': 0.0, 'developer': 0.0, 'admin': 0.0},
+        'users_by_role_counts': {'analyst': 0, 'manager': 0, 'developer': 0, 'admin': 0},
         'recent_users': [],
         'recent_datasets': [],
         'system_activity': [],
@@ -186,7 +186,7 @@ def get_admin_dashboard_analytics(conn=None) -> Dict[str, Any]:
             role_rows = _fetchall_dict(cursor)
             total_u = max(kpi_data['total_users'], 1)
             for r in role_rows:
-                role_name = (r.get('role') or 'viewer').lower()
+                role_name = (r.get('role') or 'developer').lower()
                 cnt = int(r.get('count', 0))
                 if role_name in kpi_data['users_by_role_counts']:
                     kpi_data['users_by_role_counts'][role_name] = cnt

@@ -15,12 +15,15 @@ from . import (
     pipeline_service,
     feature_service,
     manager_service,
-    viewer_service,
+    developer_service,
     admin_service,
     analyst_service,
     report_service,
     code_service,
     ai_helper,
-    system_settings_service
+    system_settings_service,
+    gdrive_service,
+    mysql_analysis_service
 )
+
 

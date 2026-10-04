@@ -1,14 +1,14 @@
 from flask import Blueprint, render_template, session, flash, redirect, url_for, jsonify, current_app, request
 from .auth import login_required
 from database.db_connector import get_db_connection
-from .services import manager_service, viewer_service, admin_service, analyst_service
+from .services import manager_service, developer_service, admin_service, analyst_service
 
 bp = Blueprint('dashboards', __name__)
 
 
 def get_user_dashboard_redirect(role):
     """Returns the canonical dashboard URL for a given user role."""
-    role_clean = (role or 'viewer').lower().strip()
+    role_clean = (role or 'developer').lower().strip()
     if role_clean == 'admin':
         return url_for('dashboards.admin_dashboard')
     elif role_clean == 'manager':
@@ -16,7 +16,7 @@ def get_user_dashboard_redirect(role):
     elif role_clean == 'analyst':
         return url_for('dashboards.analyst_dashboard')
     else:
-        return url_for('dashboards.viewer_dashboard')
+        return url_for('dashboards.developer_dashboard')
 
 
 def verify_user_access(allowed_roles, target_dashboard_name="this"):
@@ -62,7 +62,7 @@ def verify_user_access(allowed_roles, target_dashboard_name="this"):
         flash('Your account has been deactivated. Please contact the system administrator.', 'danger')
         return None, None, redirect(url_for('auth.login'))
 
-    db_role = (user.get('role') or 'viewer').lower().strip()
+    db_role = (user.get('role') or 'developer').lower().strip()
     session['role'] = db_role  # Keep session synchronized with actual DB role
 
     # Maintenance mode check - block non-admins
@@ -155,7 +155,17 @@ def manager_dashboard():
             with conn.cursor() as cursor:
                 active_ds_id = session.get('active_dataset_id')
                 if not active_ds_id:
-                    cursor.execute("SELECT id FROM datasets ORDER BY uploaded_at DESC LIMIT 1")
+                    cursor.execute("""
+                        SELECT d.id FROM datasets d
+                        JOIN users u ON d.user_id = u.id
+                        WHERE (
+                            d.user_id = %s
+                            OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
+                            OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
+                            OR (u.organization = %s AND u.role = 'analyst')
+                        )
+                        ORDER BY d.uploaded_at DESC LIMIT 1
+                    """, (user['id'], user['id'], user['id'], user.get('organization', 'General')))
                     ds_row = cursor.fetchone()
                     if ds_row:
                         active_ds_id = ds_row['id']
@@ -227,39 +237,14 @@ def analyst_dashboard():
     )
 
 
-@bp.route('/dashboard/viewer')
+@bp.route('/dashboard/developer')
 @login_required
-def viewer_dashboard():
-    user, conn, err_redirect = verify_user_access(['admin', 'manager', 'analyst', 'viewer'], "Viewer")
+def developer_dashboard():
+    user, conn, err_redirect = verify_user_access(['admin', 'manager', 'analyst', 'developer'], "Developer")
     if err_redirect:
         return err_redirect
 
-    role = session.get('role', 'viewer')
-    df = None
-    if conn:
-        try:
-            with conn.cursor() as cursor:
-                active_ds_id = session.get('active_dataset_id')
-                if not active_ds_id:
-                    cursor.execute(
-                        "SELECT id FROM datasets WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 1",
-                        (session['id'],)
-                    )
-                    ds_row = cursor.fetchone()
-                    if ds_row:
-                        active_ds_id = ds_row['id']
-                        session['active_dataset_id'] = active_ds_id
-
-                if active_ds_id:
-                    try:
-                        from .api import load_dataframe
-                        df = load_dataframe(active_ds_id, session['id'])
-                    except Exception as ex:
-                        current_app.logger.warning(f"Could not load active dataframe for viewer dashboard: {ex}")
-        except Exception as e:
-            current_app.logger.error(f"Error loading viewer dataset: {e}")
-
-    analytics = viewer_service.get_viewer_dashboard_analytics(df, conn, session.get('id'), role)
+    data = developer_service.get_developer_dashboard_analytics(session.get('id'), conn)
 
     if conn:
         try:
@@ -268,13 +253,13 @@ def viewer_dashboard():
             pass
 
     return render_template(
-        'user/viewer_dashboard.html',
+        'user/developer_dashboard.html',
         user=user,
-        kpi=analytics['kpi'],
-        shared_dashboards=analytics['shared_dashboards'],
-        reports=analytics['reports'],
-        notifications=analytics['notifications'],
-        assigned_tasks=analytics.get('assigned_tasks', []),
-        analytics=analytics,
-        insights=analytics['insights']
+        api_key=data['api_key'],
+        keys=data.get('keys', []),
+        metrics=data['metrics'],
+        endpoints=data['endpoints'],
+        recent_logs=data['recent_logs'],
+        failed_logs=data.get('failed_logs', []),
+        daily_usage=data.get('daily_usage', [])
     )

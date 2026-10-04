@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import logging
 import traceback
 from flask import Flask, jsonify, request
@@ -12,11 +13,15 @@ def create_app():
     """
     Application factory to create and configure the Flask app.
     """
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    template_dir = os.path.join(base_dir, 'templates')
+    static_dir = os.path.join(base_dir, 'static')
+
     app = Flask(
         __name__,
         instance_relative_config=True,
-        template_folder='../templates',
-        static_folder='../static'
+        template_folder=template_dir,
+        static_folder=static_dir
     )
 
     # --- Configure Terminal Logging & Suppress Noisy 3rd-Party Debuggers ---
@@ -32,16 +37,13 @@ def create_app():
     from dotenv import load_dotenv
     load_dotenv()
 
-    secret_key = os.getenv('SECRET_KEY')
+    secret_key = os.getenv('SECRET_KEY') or os.getenv('FLASK_SECRET_KEY')
     if not secret_key:
-        raise RuntimeError(
-            "SECRET_KEY environment variable is not set. "
-            "Please set it in your .env file or environment."
-        )
+        secret_key = 'datanova-production-default-secret-key-please-set-in-env'
+        logging.warning("SECRET_KEY is not set in environment. Using fallback secret key.")
 
     # Determine safe upload folder for local or serverless/Vercel environments
     if os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'):
-        import tempfile
         upload_folder = os.path.join(tempfile.gettempdir(), 'uploads')
     else:
         upload_folder = os.path.join(app.instance_path, 'uploads')
@@ -63,7 +65,6 @@ def create_app():
         os.makedirs(upload_folder, exist_ok=True)
     except OSError as e:
         app.logger.warning(f"Could not create primary upload folder, using system temp dir: {e}")
-        import tempfile
         upload_folder = os.path.join(tempfile.gettempdir(), 'uploads')
         os.makedirs(upload_folder, exist_ok=True)
         app.config['UPLOAD_FOLDER'] = upload_folder
@@ -80,7 +81,7 @@ def create_app():
     default_settings = {
         # General
         'platform_name': 'DataNova Analytics Platform',
-        'default_role': 'viewer',
+        'default_role': 'developer',
         'max_file_size_mb': '50',
         'allowed_extensions': '.csv, .xlsx, .xls, .json',
         'allow_user_registration': True,
@@ -116,6 +117,16 @@ def create_app():
     app.register_blueprint(dashboards.bp)
     app.register_blueprint(api.bp, url_prefix='/api')
 
+    # Start background file retention cleanup (both local instance/uploads and Google Drive)
+    from .services import gdrive_service
+    if not (os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME')):
+        gdrive_service.start_background_retention_cleanup()
+    if gdrive_service.is_configured():
+        app.logger.info("Google Drive Cloud Storage: ACTIVE & CONFIGURED")
+    else:
+        app.logger.info("Google Drive Cloud Storage: PENDING CREDENTIALS (Local Instance Storage Fallback Active)")
+
+
     @app.route('/sw.js')
     def serve_sw():
         """Serves the Service Worker file to avoid 404 logs from browser requests."""
@@ -125,6 +136,24 @@ def create_app():
     def serve_favicon():
         """Serves the favicon file to avoid 404 logs from browser requests."""
         return app.send_static_file('assets/favicon.png')
+
+    @app.route('/static/uploads/<path:filename>')
+    def serve_uploaded_static_file(filename):
+        """Serves uploaded static files (support attachments, etc.) directly from Google Drive in memory."""
+        from flask import Response, send_from_directory
+        rel_path = gdrive_service.get_relative_drive_path(f"uploads/{filename}")
+        file_bytes = gdrive_service.get_file_bytes(rel_path)
+        if file_bytes:
+            import mimetypes
+            mime, _ = mimetypes.guess_type(filename)
+            return Response(file_bytes, mimetype=mime or 'application/octet-stream')
+
+        uploads_folder = os.path.join(app.static_folder, 'uploads')
+        if os.path.exists(os.path.join(uploads_folder, filename)):
+            return send_from_directory(uploads_folder, filename)
+        return "File not found", 404
+
+
 
     # --- High-Visibility Development Request & API Call Middleware ---
     import time
@@ -181,9 +210,10 @@ def create_app():
             if status_code >= 400:
                 tag = f"\033[91m[PAGE ERROR {status_code}]\033[0m"
                 print(f"{tag} {request.method} {request.path} | Time: {duration_ms}ms", flush=True)
-            elif not request.path.startswith('/static/'):
-                tag = f"\033[94m[PAGE]\033[0m"
-                print(f"{tag} {request.method} {request.path} ({status_code}) | Time: {duration_ms}ms", flush=True)
+        # Add Cache-Control for static assets to reduce browser response time
+        if request.path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=86400'
+
         return response
 
     # --- Clear Error & Traceback Terminal Formatting ---

@@ -1,6 +1,6 @@
 /* ==========================================================================
    DataNova — Common Dashboard Script & Unified Global State Bus
-   Single Source of Truth connecting Admin, Manager, Analyst, and Viewer.
+   Single Source of Truth connecting Admin, Manager, Analyst, and Developer.
    - Theme (dark/light) persistence
    - Sidebar toggle (desktop collapse + mobile offcanvas)
    - Cross-Dashboard State Bus Event Emitter & BroadcastChannel Sync
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     /* ---------------------------------------------------------------------
-       3. Unified DataNova Global Search Engine (Admin, Analyst, Manager, Viewer)
+       3. Unified DataNova Global Search Engine (Admin, Analyst, Manager, Developer)
        ------------------------------------------------------------------- */
     function initDataNovaGlobalSearch() {
         var searchContainer = document.querySelector('.dn-topbar-search');
@@ -318,8 +318,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // 3. Tasks & Workload (Manager, Analyst, Viewer)
-            document.querySelectorAll('#managerTaskTableBody tr[data-task-id], #viewerAssignedTasksTableBody tr[data-task-id], #assignedTasksList .card, #assignedTasksTableBody tr').forEach(function (el) {
+            // 3. Tasks & Workload (Manager, Analyst, Developer)
+            document.querySelectorAll('#managerTaskTableBody tr[data-task-id], #assignedTasksList .card, #assignedTasksTableBody tr').forEach(function (el) {
                 var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
                 var titleEl = el.querySelector('.fw-semibold, h6, .dn-task-title');
                 var title = titleEl ? titleEl.textContent.trim() : text.substring(0, 40);
@@ -400,8 +400,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // 6. Reports & Executive Summaries (Viewer, Manager, Admin)
-            document.querySelectorAll('#viewerReportsTableBody tr, #reportsSection table tbody tr, #adminReportsTable tbody tr').forEach(function (el) {
+            // 6. Reports & Executive Summaries (Developer, Manager, Admin)
+            document.querySelectorAll('#reportsSection table tbody tr, #adminReportsTable tbody tr').forEach(function (el) {
                 var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
                 var nameEl = el.querySelector('td:first-child, .fw-semibold');
                 var name = nameEl ? nameEl.textContent.trim() : text.substring(0, 40);
@@ -425,14 +425,14 @@ document.addEventListener('DOMContentLoaded', function () {
             // 7. Interactive Action Shortcuts & Modals
             var actionShortcuts = [
                 { title: 'Upload New Dataset', sub: 'CSV, Excel, JSON or SQLite file', icon: 'bi bi-cloud-arrow-up text-primary', selector: '#navUploadDataset, [data-action="upload-dataset"], #btnBrowseFiles' },
-                { title: 'Assign New Task', sub: 'Delegate workload to analysts or viewers', icon: 'bi bi-plus-circle-fill text-success', selector: '[data-action="assign-task"], #btnOpenAssignTaskModal' },
+                { title: 'Assign New Task', sub: 'Delegate workload to analysts or developers', icon: 'bi bi-plus-circle-fill text-success', selector: '[data-action="assign-task"], #btnOpenAssignTaskModal' },
                 { title: 'Add / Invite Team Member', sub: 'Manage user access and roles', icon: 'bi bi-person-plus-fill text-info', selector: '[data-action="add-member"], [data-action="add-team-member"], #btnAddTeamMember' },
                 { title: 'Compare Datasets', sub: 'Side-by-side metric comparison', icon: 'bi bi-columns-gap text-purple', selector: '[data-action="compare-data"], #navCompareDatasets' },
                 { title: 'Ask DataNova AI Assistant', sub: 'Instant NLP query over active dataset', icon: 'bi bi-stars text-warning', selector: '#navAskYourData, .dn-open-ask-modal, [data-action="ask-ai"]' },
                 { title: 'Data Cleaning & Transformation', sub: 'Handle missing values, duplicates, types', icon: 'bi bi-shield-check text-primary', selector: '#navDataCleaning, [data-action="data-cleaning"]' },
                 { title: 'Statistical & Visual EDA', sub: 'Distributions, correlations, charts', icon: 'bi bi-bar-chart-line-fill text-info', selector: '#navStatisticalEDA, #navVisualizations' },
                 { title: 'Export Full Analytical Report', sub: 'Download automated PDF or HTML dossier', icon: 'bi bi-file-earmark-pdf-fill text-danger', selector: '#dnExportReportBtn, [data-action="export-report"]' },
-                { title: 'User Profile & Settings', sub: 'Update name, email, avatar & preferences', icon: 'bi bi-person-gear text-secondary', selector: '#navAnalystProfile, #navAnalystSettings, [data-bs-target="#userProfileModal"], [data-bs-target="#adminUserProfileModal"], [data-bs-target="#managerUserProfileModal"], [data-bs-target="#viewerUserProfileModal"]' }
+                { title: 'User Profile & Settings', sub: 'Update name, email, avatar & preferences', icon: 'bi bi-person-gear text-secondary', selector: '#navAnalystProfile, #navAnalystSettings, [data-bs-target="#userProfileModal"], [data-bs-target="#adminUserProfileModal"], [data-bs-target="#managerUserProfileModal"]' }
             ];
 
             actionShortcuts.forEach(function (act) {
@@ -641,9 +641,9 @@ document.addEventListener('DOMContentLoaded', function () {
     initDataNovaGlobalSearch();
 
     /* ---------------------------------------------------------------------
-       4. Unified User Profile Modal Handler (Admin, Manager, Analyst, Viewer)
+       4. Unified User Profile Modal Handler (Admin, Manager, Analyst, Developer)
        ------------------------------------------------------------------- */
-    var profileModals = document.querySelectorAll('#userProfileModal, #adminUserProfileModal, #managerUserProfileModal, #analystProfileModal, #viewerUserProfileModal');
+    var profileModals = document.querySelectorAll('#userProfileModal, #adminUserProfileModal, #managerUserProfileModal, #analystProfileModal');
     profileModals.forEach(function (modalEl) {
         modalEl.addEventListener('show.bs.modal', function () {
             fetch('/api/user/profile')
@@ -862,4 +862,112 @@ document.addEventListener('DOMContentLoaded', function () {
         pollLiveSync();
         setInterval(pollLiveSync, 15000);
     })();
+
+    // --- Contact Admin Form Submission & Dynamic Category Handler ---
+    const contactAdminForm = document.getElementById('contactAdminForm');
+    const contactAdminCategory = document.getElementById('contactAdminCategory');
+    const contactAdminImageGroup = document.getElementById('contactAdminImageGroup');
+    const contactAdminImageInput = document.getElementById('contactAdminImage');
+    const contactAdminAlert = document.getElementById('contactAdminAlert');
+
+    function toggleContactAdminImageGroup() {
+        if (!contactAdminCategory || !contactAdminImageGroup) return;
+        const cat = contactAdminCategory.value;
+        if (cat === 'Bug Report' || cat === 'Feature Request' || cat === 'Account & Security') {
+            contactAdminImageGroup.style.display = 'block';
+        } else {
+            contactAdminImageGroup.style.display = 'block';
+        }
+        if (contactAdminAlert) contactAdminAlert.style.display = 'none';
+    }
+
+    if (contactAdminCategory) {
+        contactAdminCategory.addEventListener('change', toggleContactAdminImageGroup);
+        toggleContactAdminImageGroup();
+    }
+
+    if (contactAdminForm) {
+        contactAdminForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const subjectEl = document.getElementById('contactAdminSubject');
+            const categoryEl = document.getElementById('contactAdminCategory');
+            const messageEl = document.getElementById('contactAdminMessage');
+            const btnSubmit = contactAdminForm.querySelector('button[type="submit"]');
+
+            const subject = (subjectEl ? subjectEl.value : '').trim();
+            const category = (categoryEl ? categoryEl.value : 'General Inquiry').trim();
+            const message = (messageEl ? messageEl.value : '').trim();
+
+            if (contactAdminAlert) {
+                contactAdminAlert.style.display = 'none';
+                contactAdminAlert.textContent = '';
+            }
+
+            if (!subject || !message) {
+                const errMsg = 'Please enter both subject and message details.';
+                if (contactAdminAlert) {
+                    contactAdminAlert.textContent = errMsg;
+                    contactAdminAlert.style.display = 'block';
+                }
+                if (window.showToast) window.showToast(errMsg, 'warning');
+                return;
+            }
+
+            const originalBtnHtml = btnSubmit ? btnSubmit.innerHTML : '';
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending...';
+            }
+
+            const formData = new FormData();
+            formData.append('subject', subject);
+            formData.append('category', category);
+            formData.append('message', message);
+            if (contactAdminImageInput && contactAdminImageInput.files && contactAdminImageInput.files[0]) {
+                formData.append('attachment', contactAdminImageInput.files[0]);
+            }
+
+            fetch('/api/support/contact_admin', {
+                method: 'POST',
+                body: formData
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (btnSubmit) {
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = originalBtnHtml;
+                    }
+                    if (data.success) {
+                        if (window.showToast) window.showToast(data.message || 'Message sent to Administrator!', 'success');
+                        contactAdminForm.reset();
+                        toggleContactAdminImageGroup();
+                        if (contactAdminAlert) contactAdminAlert.style.display = 'none';
+                        const modalEl = document.getElementById('contactAdminModal');
+                        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                            const modalInstance = window.bootstrap.Modal.getInstance(modalEl) || new window.bootstrap.Modal(modalEl);
+                            modalInstance.hide();
+                        }
+                    } else {
+                        const errMsg = data.message || 'Failed to send message.';
+                        if (contactAdminAlert) {
+                            contactAdminAlert.textContent = errMsg;
+                            contactAdminAlert.style.display = 'block';
+                        }
+                        if (window.showToast) window.showToast(errMsg, 'danger');
+                    }
+                })
+                .catch(function (err) {
+                    if (btnSubmit) {
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = originalBtnHtml;
+                    }
+                    const errMsg = 'Network error sending message to administrator.';
+                    if (contactAdminAlert) {
+                        contactAdminAlert.textContent = errMsg;
+                        contactAdminAlert.style.display = 'block';
+                    }
+                    if (window.showToast) window.showToast(errMsg, 'danger');
+                });
+        });
+    }
 });

@@ -45,8 +45,14 @@
                     <li class="nav-item"><a class="nav-link dn-nav-link" href="#features">Features</a></li>
                     <li class="nav-item"><a class="nav-link dn-nav-link" href="#how-it-works">How It Works</a></li>
                     <li class="nav-item"><a class="nav-link dn-nav-link" href="#ai-insights">AI Insights</a></li>
+                    <li class="nav-item"><a class="nav-link dn-nav-link" href="#developer-api"><i
+                                class="bi bi-code-slash me-1 text-primary"></i>Developer API</a></li>
                 </ul>
                 <div class="d-flex align-items-center gap-2 dn-nav-actions">
+                    <a href="{{ url_for('auth.signup', role='developer') }}"
+                        class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 fw-semibold d-none d-lg-inline-flex align-items-center gap-1">
+                        <i class="bi bi-terminal-fill"></i> Developer Sign Up
+                    </a>
                     <a href="{{ url_for('auth.login') }}" class="btn dn-btn-ghost">Login</a>
                     <a href="{{ url_for('auth.signup') }}" class="btn dn-btn-primary">Get Started</a>
                 </div>
@@ -81,6 +87,8 @@
                         <span class="dn-badge"><i class="bi bi-check-circle-fill"></i> No Coding Required</span>
                         <span class="dn-badge"><i class="bi bi-cpu"></i> AI-Powered</span>
                         <span class="dn-badge"><i class="bi bi-lightning-charge-fill"></i> Automatic Analytics</span>
+                        <span class="dn-badge"><i class="bi bi-lightning-charge-fill"></i> REST API for
+                            Developers</span>
                     </div>
                 </div>
 
@@ -91,7 +99,7 @@
                             <span class="dn-dot dn-dot-red"></span>
                             <span class="dn-dot dn-dot-amber"></span>
                             <span class="dn-dot dn-dot-green"></span>
-                            <span class="dn-console-filename">sales_data.csv &mdash;  sample preview</span>
+                            <span class="dn-console-filename">sales_data.csv &mdash; sample preview</span>
                             <span class="badge bg-indigo text-white ms-auto"
                                 style="font-size: 0.72rem; padding: 3px 8px; border-radius: 12px; background: rgba(79, 70, 229, 0.85);">Sample
                                 Preview</span>
@@ -409,10 +417,9 @@
                     </div>
                 </div>
                 <div class="col-6 col-md-3 dn-reveal">
-                    <div class="dn-data-card">
-                        <i class="bi bi-database"></i>
-                        <span>MySQL</span>
-                        <small>Planned</small>
+                    <div class="dn-data-card dn-data-card-primary">
+                        <i class="bi bi-database text-info"></i>
+                        <span>MySQL DB</span>
                     </div>
                 </div>
             </div>
@@ -508,12 +515,154 @@
         </div>
     </section>
 
+    <!-- ===================== DEVELOPER API SECTION ===================== -->
+    <section class="dn-section dn-section-dark" id="developer-api">
+        <div class="container">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6 dn-reveal">
+                    <span class="dn-eyebrow dn-eyebrow-on-dark"><i class="bi bi-code-slash me-1"></i> FOR DEVELOPERS
+                        &amp; INTEGRATORS</span>
+                    <h2 class="dn-section-title dn-title-on-dark">Supercharge Your Apps with <span
+                            class="dn-text-gradient">DataNova API</span></h2>
+                    <p class="dn-section-sub dn-sub-on-dark">
+                        Integrate enterprise-grade automated data cleaning, exploratory data analysis, AI insights, and
+                        dynamic report generation directly into your own applications with our REST API.
+                    </p>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-sm-6">
+                            <div class="dn-dev-feature-card">
+                                <div class="dn-dev-icon"><i class="bi bi-key-fill"></i></div>
+                                <h4>Instant API Keys</h4>
+                                <p>Generate secure API keys with customizable permissions and granular access control.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="dn-dev-feature-card">
+                                <div class="dn-dev-icon"><i class="bi bi-lightning-charge-fill"></i></div>
+                                <h4>Automated Pipeline</h4>
+                                <p>Upload datasets programmatically and receive cleaned data + JSON insights in
+                                    real-time.</p>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="dn-dev-feature-card">
+                                <div class="dn-dev-icon"><i class="bi bi-graph-up"></i></div>
+                                <h4>Analytics Telemetry</h4>
+                                <p>Track API requests, response latency, rate limits, and bandwidth in your developer
+                                    portal.</p>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="dn-dev-feature-card">
+                                <div class="dn-dev-icon"><i class="bi bi-shield-check"></i></div>
+                                <h4>Enterprise Security</h4>
+                                <p>Role-based authorization (RBAC), TLS encryption, and secure token access.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3 mt-4">
+                        <a href="{{ url_for('auth.signup', role='developer') }}"
+                            class="btn dn-btn-primary btn-lg shadow-lg">
+                            <i class="bi bi-code-slash me-2"></i>Sign Up as Developer
+                        </a>
+                        <a href="{{ url_for('auth.login', role='developer') }}"
+                            class="btn dn-btn-outline-dark btn-lg text-white border-secondary">
+                            <i class="bi bi-journal-code me-2"></i>Developer Portal
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 dn-reveal">
+                    <!-- SLEEK CODE TERMINAL -->
+                    <div class="dn-code-terminal">
+                        <div class="dn-code-header">
+                            <div class="dn-code-dots">
+                                <span class="dn-dot dn-dot-red"></span>
+                                <span class="dn-dot dn-dot-amber"></span>
+                                <span class="dn-dot dn-dot-green"></span>
+                            </div>
+                            <div class="dn-code-tabs ms-2">
+                                <button type="button" class="dn-code-tab active"
+                                    onclick="switchDevTab('python', this)">Python</button>
+                                <button type="button" class="dn-code-tab"
+                                    onclick="switchDevTab('js', this)">JavaScript</button>
+                                <button type="button" class="dn-code-tab"
+                                    onclick="switchDevTab('curl', this)">cURL</button>
+                            </div>
+                            <span
+                                class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 ms-auto"
+                                style="font-size:0.7rem;">Live API</span>
+                        </div>
+                        <div class="dn-code-body">
+                            <div id="tab-curl" class="dn-code-snippet" style="display:none;">
+                                <pre><code><span class="code-comment"># Trigger automated AI data analysis via cURL</span>
+<span class="code-cmd">curl</span> -X POST <span class="code-str">"https://api.datanova.io/v1/analyze"</span> \
+  -H <span class="code-str">"Authorization: Bearer dn_live_9831a..."</span> \
+  -H <span class="code-str">"Accept: application/json"</span> \
+  -F <span class="code-str">"file=@sales_q4.csv"</span> \
+  -F <span class="code-str">"auto_clean=true"</span>
+
+<span class="code-comment"># Response 200 OK</span>
+{
+  <span class="code-key">"status"</span>: <span class="code-str">"success"</span>,
+  <span class="code-key">"dataset_id"</span>: <span class="code-num">4029</span>,
+  <span class="code-key">"cleaned_rows"</span>: <span class="code-num">12540</span>,
+  <span class="code-key">"ai_summary"</span>: <span class="code-str">"Revenue increased by 21% across Q4."</span>,
+  <span class="code-key">"insights_count"</span>: <span class="code-num">8</span>
+}</code></pre>
+                            </div>
+                            <div id="tab-python" class="dn-code-snippet">
+                                <pre><code><span class="code-comment"># Python SDK / Requests example</span>
+<span class="code-keyword">import</span> requests
+
+url = <span class="code-str">"https://api.datanova.io/v1/analyze"</span>
+headers = {<span class="code-str">"Authorization"</span>: <span class="code-str">"Bearer dn_live_9831a..."</span>}
+files = {<span class="code-str">"file"</span>: open(<span class="code-str">"sales_q4.csv"</span>, <span class="code-str">"rb"</span>)}
+
+response = requests.post(url, headers=headers, files=files)
+data = response.json()
+print(<span class="code-str">"AI Insights:"</span>, data[<span class="code-str">"ai_summary"</span>])</code></pre>
+                            </div>
+                            <div id="tab-js" class="dn-code-snippet" style="display:none;">
+                                <pre><code><span class="code-comment">// JavaScript / Node.js Fetch example</span>
+<span class="code-keyword">const</span> formData = <span class="code-keyword">new</span> FormData();
+formData.append(<span class="code-str">'file'</span>, fileInput.files[0]);
+
+<span class="code-keyword">const</span> res = <span class="code-keyword">await</span> fetch(<span class="code-str">'https://api.datanova.io/v1/analyze'</span>, {
+  method: <span class="code-str">'POST'</span>,
+  headers: { <span class="code-str">'Authorization'</span>: <span class="code-str">'Bearer dn_live_9831a...'</span> },
+  body: formData
+});
+<span class="code-keyword">const</span> result = <span class="code-keyword">await</span> res.json();
+console.log(result.ai_summary);</code></pre>
+                            </div>
+                        </div>
+                        <div class="dn-code-footer d-flex align-items-center justify-content-between p-3 border-top border-secondary border-opacity-25"
+                            style="background: #0B0C22;">
+                            <span class="text-white-50" style="font-size: 0.82rem;"><i
+                                    class="bi bi-shield-lock-fill text-success me-1"></i> Developer Account &amp; API
+                                Key Required</span>
+                            <a href="{{ url_for('auth.signup', role='developer') }}"
+                                class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold">
+                                Get API Access &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ===================== ABOUT (for nav anchor) ===================== -->
     <section class="dn-section" id="about">
         <div class="container">
             <div class="row align-items-center g-5">
                 <div class="col-lg-6 dn-reveal">
-                    <span class="dn-eyebrow dn-eyebrow-muted">ABOUT DATANOVA</span>
+                    <span class="dn-eyebrow dn-eyebrow-muted"><i class="bi bi-cpu-fill text-primary me-1"></i> ABOUT
+                        DATANOVA</span>
                     <h2 class="dn-section-title">Built for People Who Aren&rsquo;t Data Analysts</h2>
                     <p class="dn-section-sub">
                         DataNova exists for the marketer, founder, or operations lead who has data but not the time to
@@ -521,10 +670,56 @@
                         cleaning, exploring, visualizing, and explaining &mdash; so the only thing left for you to do is
                         decide.
                     </p>
+                    <div class="d-flex flex-wrap gap-3 mt-4">
+                        <div class="dn-about-mini-stat">
+                            <div class="dn-mini-stat-icon bg-indigo-subtle text-indigo"><i
+                                    class="bi bi-lightning-charge-fill"></i></div>
+                            <div>
+                                <strong>10x Faster</strong>
+                                <span>Insight Delivery</span>
+                            </div>
+                        </div>
+                        <div class="dn-about-mini-stat">
+                            <div class="dn-mini-stat-icon bg-success-subtle text-success"><i
+                                    class="bi bi-shield-check"></i></div>
+                            <div>
+                                <strong>100% Automated</strong>
+                                <span>Data Pipelines</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-lg-6 dn-reveal">
-                    <div class="dn-about-visual">
-                        <i class="bi bi-diagram-3"></i>
+                    <div class="dn-about-visual-wrapper">
+                        <div class="dn-about-visual-3d">
+                            <img src="{{ url_for('static', filename='assets/about_3d_visual.jpg') }}"
+                                alt="DataNova 3D AI Analytics Platform Visual" class="dn-about-3d-img">
+                            <div class="dn-3d-overlay"></div>
+
+                            <!-- Floating 3D Glass Badges -->
+                            <div class="dn-3d-floating-badge badge-top-right">
+                                <div class="dn-badge-icon bg-indigo"><i class="bi bi-cpu-fill"></i></div>
+                                <div>
+                                    <div class="dn-badge-title">AI Engine</div>
+                                    <div class="dn-badge-sub">Auto EDA &amp; Insights</div>
+                                </div>
+                                <span class="dn-pulse-dot"></span>
+                            </div>
+
+                            <div class="dn-3d-floating-badge badge-bottom-left">
+                                <div class="dn-badge-icon bg-cyan"><i class="bi bi-magic"></i></div>
+                                <div>
+                                    <div class="dn-badge-title">Smart Cleaning</div>
+                                    <div class="dn-badge-sub">Zero Code Required</div>
+                                </div>
+                            </div>
+
+                            <div class="dn-3d-floating-stat badge-bottom-right">
+                                <span class="dn-stat-num">99.8%</span>
+                                <span class="dn-stat-lbl"><i class="bi bi-check-circle-fill text-success me-1"></i> Data
+                                    Accuracy</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -535,9 +730,15 @@
     <section class="dn-cta">
         <div class="container text-center dn-reveal">
             <h2>Ready to Understand Your Data?</h2>
-            <p>Upload your dataset and let DataNova do the analysis for you.</p>
-            <a href="{{ url_for('auth.signup') }}" class="btn dn-btn-cta btn-lg">Get Started <i
-                    class="bi bi-arrow-right"></i></a>
+            <p>Upload your dataset and let DataNova do the analysis for you, or integrate via our REST API.</p>
+            <div class="d-flex flex-wrap justify-content-center gap-3 mt-3">
+                <a href="{{ url_for('auth.signup') }}" class="btn dn-btn-cta btn-lg">Get Started <i
+                        class="bi bi-arrow-right"></i></a>
+                <a href="{{ url_for('auth.signup', role='developer') }}"
+                    class="btn btn-outline-light btn-lg rounded-pill px-4" style="border-width: 2px;">
+                    <i class="bi bi-code-slash me-1"></i> Developer Sign Up
+                </a>
+            </div>
         </div>
     </section>
 
@@ -559,7 +760,10 @@
                     <ul class="dn-footer-links">
                         <li><a href="#home">Home</a></li>
                         <li><a href="#features">Features</a></li>
+                        <li><a href="#developer-api">Developer API</a></li>
                         <li><a href="#about">About</a></li>
+                        <li><a href="{{ url_for('auth.signup', role='developer') }}" class="text-primary fw-semibold"><i
+                                    class="bi bi-code-slash me-1"></i>Developer Portal</a></li>
                     </ul>
                 </div>
 

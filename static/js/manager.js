@@ -787,7 +787,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </td>
                 <td class="small">${escapeHtml(m.email || '')}</td>
-                <td><span class="badge dn-role-badge dn-role-${escapeHtml(m.role || 'viewer')}">${escapeHtml((m.role || 'user').charAt(0).toUpperCase() + (m.role || 'user').slice(1))}</span></td>
+                <td><span class="badge dn-role-badge dn-role-${escapeHtml(m.role || 'developer')}">${escapeHtml((m.role || 'user').charAt(0).toUpperCase() + (m.role || 'user').slice(1))}</span></td>
                 <td>
                     ${m.status === 'active'
                         ? '<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill small me-1"></i>Active</span>'
@@ -833,7 +833,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </td>
                 <td class="small">${escapeHtml(u.email || '')}</td>
-                <td><span class="badge dn-role-badge dn-role-${escapeHtml(u.role || 'viewer')}">${escapeHtml((u.role || 'user').charAt(0).toUpperCase() + (u.role || 'user').slice(1))}</span></td>
+                <td><span class="badge dn-role-badge dn-role-${escapeHtml(u.role || 'developer')}">${escapeHtml((u.role || 'user').charAt(0).toUpperCase() + (u.role || 'user').slice(1))}</span></td>
                 <td><span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill small me-1"></i>Active</span></td>
                 <td class="small text-secondary">${escapeHtml(u.joined_at || 'Recently')}</td>
                 <td class="text-end">
@@ -1974,7 +1974,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     if (datasetBadgeEl) datasetBadgeEl.textContent = `Dataset: ${data.dataset_name || '#' + targetId}`;
                     if (roleBadgeEl) {
-                        roleBadgeEl.textContent = data.can_edit ? 'Manager Studio (Edit & Run)' : 'Viewer (Read-Only)';
+                        roleBadgeEl.textContent = data.can_edit ? 'Manager Studio (Edit & Run)' : 'Developer (Read-Only)';
                         roleBadgeEl.className = 'badge ' + (data.can_edit ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-secondary-subtle text-secondary border');
                     }
                     if (btnRunCode) btnRunCode.style.display = data.can_edit ? 'inline-block' : 'none';

@@ -162,20 +162,20 @@
           <label>Select Account Role</label>
           <div class="role-selector-grid" style="grid-template-columns: repeat(2, 1fr);">
             <label class="role-pill">
-              <input type="radio" name="role" value="admin" />
+              <input type="radio" name="role" value="admin" {% if selected_role == 'admin' %}checked{% endif %} />
               <span class="role-pill-btn"><i class="bi bi-shield-lock-fill"></i> Admin</span>
             </label>
             <label class="role-pill">
-              <input type="radio" name="role" value="manager" />
+              <input type="radio" name="role" value="manager" {% if selected_role == 'manager' %}checked{% endif %} />
               <span class="role-pill-btn"><i class="bi bi-briefcase-fill"></i> Manager</span>
             </label>
             <label class="role-pill">
-              <input type="radio" name="role" value="analyst" checked />
+              <input type="radio" name="role" value="analyst" {% if not selected_role or selected_role == 'analyst' %}checked{% endif %} />
               <span class="role-pill-btn"><i class="bi bi-graph-up-arrow"></i> Analyst</span>
             </label>
             <label class="role-pill">
-              <input type="radio" name="role" value="viewer" />
-              <span class="role-pill-btn"><i class="bi bi-eye-fill"></i> Viewer</span>
+              <input type="radio" name="role" value="developer" {% if selected_role == 'developer' %}checked{% endif %} />
+              <span class="role-pill-btn"><i class="bi bi-code-slash"></i> Developer</span>
             </label>
           </div>
           <p class="field-error" id="role-error"></p>
@@ -211,7 +211,7 @@
       </div>
 
       <div class="login-link-text">
-        Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a>
+        Already have an account? <a href="{{ url_for('auth.login', role=selected_role) if selected_role else url_for('auth.login') }}">Log in</a>
       </div>
 
 

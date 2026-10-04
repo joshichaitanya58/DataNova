@@ -610,11 +610,16 @@ def generate_pdf_report_bytes(pipeline_result):
 # Word report
 # --------------------------------------------------------------------------
 
-def _docx_shade_cell(cell, hex_color):
-    """Set a table cell's background fill (python-docx has no public API for this)."""
+try:
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
+except ImportError:
+    qn = None
+    OxmlElement = None
 
+
+def _docx_shade_cell(cell, hex_color):
+    """Set a table cell's background fill (python-docx has no public API for this)."""
     tc_pr = cell._tc.get_or_add_tcPr()
     shd = OxmlElement("w:shd")
     shd.set(qn("w:val"), "clear")
@@ -642,9 +647,6 @@ def _docx_set_cell_text(cell, text, bold=False, color_hex=None, size=None, align
 
 def _docx_bottom_border(paragraph, color_hex="4F46E5", size=10):
     """Draw a thin colored rule under a paragraph (used under section headings)."""
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
-
     p_pr = paragraph._p.get_or_add_pPr()
     p_bdr = OxmlElement("w:pBdr")
     bottom = OxmlElement("w:bottom")
@@ -658,9 +660,6 @@ def _docx_bottom_border(paragraph, color_hex="4F46E5", size=10):
 
 def _docx_add_page_number_field(paragraph):
     """Insert a dynamic {PAGE} field so the footer shows a real page number."""
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
-
     run = paragraph.add_run()
     fld_begin = OxmlElement("w:fldChar")
     fld_begin.set(qn("w:fldCharType"), "begin")
@@ -1332,14 +1331,13 @@ def _xlsx_write_table(ws, kit, start_row, headers, rows, col_widths=None, number
 
     last_row = header_row + len(rows)
 
-    if col_widths:
+    if col_widths or (autofilter and rows):
         from openpyxl.utils import get_column_letter
-        for i, width in enumerate(col_widths, start=1):
-            ws.column_dimensions[get_column_letter(i)].width = width
-
-    if autofilter and rows:
-        from openpyxl.utils import get_column_letter
-        ws.auto_filter.ref = f"A{header_row}:{get_column_letter(len(headers))}{last_row}"
+        if col_widths:
+            for i, width in enumerate(col_widths, start=1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+        if autofilter and rows:
+            ws.auto_filter.ref = f"A{header_row}:{get_column_letter(len(headers))}{last_row}"
 
     if freeze:
         ws.freeze_panes = ws.cell(row=header_row + 1, column=1).coordinate

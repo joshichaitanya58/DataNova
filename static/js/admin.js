@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         const init1 = (r_user.first_name || 'U')[0].toUpperCase();
                         const init2 = (r_user.last_name || '')[0] ? r_user.last_name[0].toUpperCase() : '';
-                        const roleCap = (r_user.role || 'viewer').charAt(0).toUpperCase() + (r_user.role || 'viewer').slice(1);
+                        const roleCap = (r_user.role || 'developer').charAt(0).toUpperCase() + (r_user.role || 'developer').slice(1);
                         const joinedDate = r_user.created_at ? (typeof r_user.created_at === 'string' ? r_user.created_at.substring(0, 10) : 'Active') : 'N/A';
                         const orgName = r_user.organization || 'General';
 
@@ -552,17 +552,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const container = document.getElementById('adminRoleDonutChart');
         if (!container || typeof Plotly === 'undefined') return;
 
-        const labels = ['Analyst', 'Manager', 'Viewer', 'Admin'];
+        const labels = ['Analyst', 'Manager', 'Developer', 'Admin'];
         const values = [
             Number(roleData.analyst || 0),
             Number(roleData.manager || 0),
-            Number(roleData.viewer || 0),
+            Number(roleData.developer || 0),
             Number(roleData.admin || 0)
         ];
 
         const sum = values.reduce((a, b) => a + b, 0);
         const displayValues = sum > 0 ? values : [1, 1, 1, 1];
-        const displayLabels = sum > 0 ? labels : ['Analyst', 'Manager', 'Viewer', 'Admin'];
+        const displayLabels = sum > 0 ? labels : ['Analyst', 'Manager', 'Developer', 'Admin'];
 
         const trace = {
             labels: displayLabels,
@@ -756,7 +756,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderDefaultRoleDonutChart() {
-        renderRoleDonutChart({ analyst: 1, manager: 1, viewer: 1, admin: 1 });
+        renderRoleDonutChart({ analyst: 1, manager: 1, developer: 1, admin: 1 });
     }
     function renderDefaultUserActivityChart() {
         renderUserActivityChart({ labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], actions: [0, 0, 0, 0, 0, 0, 0], signups: [0, 0, 0, 0, 0, 0, 0] });
@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const organization = (orgEl ? orgEl.value : '').trim() || 'General';
             const phone = (phoneEl ? phoneEl.value : '').trim();
             const password = passwordEl ? passwordEl.value : '';
-            const role = roleEl ? roleEl.value : 'viewer';
+            const role = roleEl ? roleEl.value : 'developer';
 
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -1096,7 +1096,7 @@ window.renderAllUsersModalTable = function (users) {
 
         const init1 = (u.first_name || 'U')[0].toUpperCase();
         const init2 = (u.last_name || '')[0] ? (u.last_name[0]).toUpperCase() : '';
-        const roleCap = (u.role || 'viewer').charAt(0).toUpperCase() + (u.role || 'viewer').slice(1);
+        const roleCap = (u.role || 'developer').charAt(0).toUpperCase() + (u.role || 'developer').slice(1);
         const orgName = u.organization || 'General';
         const phoneDisplay = u.phone ? `<span class="text-secondary small"><i class="bi bi-telephone me-1"></i>${escapeHtml(u.phone)}</span>` : '<span class="text-muted small">--</span>';
 
@@ -1216,7 +1216,7 @@ window.showEditRoleModal = function (userId, currentRole) {
                 last_name: lastName,
                 email: emailText,
                 organization: orgText,
-                role: currentRole || 'viewer',
+                role: currentRole || 'developer',
                 status: statusText.includes('inactive') ? 'inactive' : 'active'
             };
         }
@@ -1225,7 +1225,7 @@ window.showEditRoleModal = function (userId, currentRole) {
     if (user) {
         window.showAdminEditUserProfileModal(user);
     } else {
-        window.showAdminEditUserProfileModal({ id: targetId, role: currentRole || 'viewer' });
+        window.showAdminEditUserProfileModal({ id: targetId, role: currentRole || 'developer' });
     }
 };
 
@@ -1267,7 +1267,7 @@ window.showAdminEditUserProfileModal = function (user) {
     if (emEl) emEl.value = user.email || '';
     if (orgEl) orgEl.value = user.organization || 'General';
     if (phEl) phEl.value = user.phone || '';
-    if (roleEl) roleEl.value = (user.role || 'viewer').toLowerCase();
+    if (roleEl) roleEl.value = (user.role || 'developer').toLowerCase();
     if (statusEl) statusEl.value = (user.status || 'active').toLowerCase();
 
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -1561,6 +1561,11 @@ if (window.DataNovaStateBus) {
 
 // --- All Datasets Modal Controller ---
 window.showAllDatasetsModal = function () {
+    const apiModalEl = document.getElementById('apiDatasetsModal');
+    if (apiModalEl) {
+        const apiInst = bootstrap.Modal.getInstance(apiModalEl);
+        if (apiInst) apiInst.hide();
+    }
     const modalEl = document.getElementById('allDatasetsModal');
     if (!modalEl) return;
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -1586,12 +1591,12 @@ window.loadAllDatasetsModalData = function () {
                 }
                 tbody.innerHTML = res.datasets.map(d => `
                     <tr>
-                        <td class="fw-semibold text-black">${d.file_name || 'Untitled'}</td>
+                        <td class="fw-semibold text-dark">${d.file_name || 'Untitled'}</td>
                         <td>${d.owner_name || 'Unknown'}<br><small class="text-secondary">${d.owner_email || ''}</small></td>
-                        <td><span class="badge bg-indigo text-black">${(d.file_type || 'CSV').toUpperCase()}</span></td>
-                        <td>${d.uploaded_at}</td>
-                        <td>${((d.file_size || 0) / (1024 * 1024)).toFixed(2)} MB</td>
-                        <td><small class="font-monospace">${d.row_count || '--'} rows × ${d.column_count || '--'} cols</small></td>
+                        <td><span class="badge bg-indigo text-dark border border-secondary border-opacity-25">${(d.file_type || 'CSV').toUpperCase()}</span></td>
+                        <td class="small text-secondary">${d.uploaded_at}</td>
+                        <td class="small fw-medium">${((d.file_size || 0) / (1024 * 1024)).toFixed(2)} MB</td>
+                        <td><small class="text-secondary fw-medium">${d.row_count || '--'} rows × ${d.column_count || '--'} cols</small></td>
                         <td><span class="dn-badge-status ok"><i class="bi bi-circle-fill" style="font-size:6px"></i> ${(d.status || 'ready').toUpperCase()}</span></td>
                     </tr>
                 `).join('');
@@ -1608,6 +1613,66 @@ window.loadAllDatasetsModalData = function () {
 window.filterAllDatasetsModalTable = function () {
     const query = (document.getElementById('allDatasetsModalSearchInput').value || '').toLowerCase();
     const rows = document.querySelectorAll('#allDatasetsModalTableBody tr');
+    rows.forEach(r => {
+        const text = (r.textContent || '').toLowerCase();
+        r.style.display = (!query || text.includes(query)) ? '' : 'none';
+    });
+};
+
+// --- API Datasets Audit Modal Controller ---
+window.showApiDatasetsModal = function () {
+    const parentModalEl = document.getElementById('allDatasetsModal');
+    if (parentModalEl) {
+        const parentInst = bootstrap.Modal.getInstance(parentModalEl);
+        if (parentInst) parentInst.hide();
+    }
+    const modalEl = document.getElementById('apiDatasetsModal');
+    if (!modalEl) return;
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInstance.show();
+    window.loadApiDatasetsModalData();
+};
+
+window.loadApiDatasetsModalData = function () {
+    const tbody = document.getElementById('apiDatasetsModalTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4"><div class="spinner-border text-info" role="status"></div><div class="mt-2 text-secondary">Loading API audit logs...</div></td></tr>`;
+
+    fetch('/api/admin/api_datasets/all')
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && Array.isArray(res.api_datasets)) {
+                if (document.getElementById('modalApiDatasetsCount')) {
+                    document.getElementById('modalApiDatasetsCount').textContent = `Total API Ingests: ${res.total}`;
+                }
+                if (res.api_datasets.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-secondary">No API dataset ingestion logs recorded yet.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = res.api_datasets.map(d => `
+                    <tr>
+                        <td class="fw-semibold text-dark"><i class="bi bi-file-earmark-code text-info me-2"></i>${d.file_name || 'Untitled'}</td>
+                        <td>${d.owner_name || 'Developer'}<br><small class="text-secondary">${d.owner_email || ''}</small></td>
+                        <td><span class="badge bg-info-subtle text-info border border-info-subtle">${(d.file_type || 'CSV').toUpperCase()}</span></td>
+                        <td class="small text-secondary">${d.uploaded_at}</td>
+                        <td class="small fw-medium">${((d.file_size || 0) / (1024 * 1024)).toFixed(2)} MB</td>
+                        <td><small class="text-secondary fw-medium">${d.row_count || '--'} rows × ${d.column_count || '--'} cols</small></td>
+                        <td><span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-shield-check me-1"></i>${d.retention_status || 'PROCESSED & PURGED'}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-danger">Failed to load API audit logs.</td></tr>`;
+            }
+        })
+        .catch(err => {
+            console.error("Error fetching API datasets:", err);
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-danger">Network error loading API audit logs.</td></tr>`;
+        });
+};
+
+window.filterApiDatasetsModalTable = function () {
+    const query = (document.getElementById('apiDatasetsModalSearchInput').value || '').toLowerCase();
+    const rows = document.querySelectorAll('#apiDatasetsModalTableBody tr');
     rows.forEach(r => {
         const text = (r.textContent || '').toLowerCase();
         r.style.display = (!query || text.includes(query)) ? '' : 'none';
@@ -1724,7 +1789,7 @@ window.showSystemSettingsModal = function () {
                 const s = res.settings;
                 // General
                 if (document.getElementById('settingPlatformName')) document.getElementById('settingPlatformName').value = s.platform_name || 'DataNova Analytics Platform';
-                if (document.getElementById('settingDefaultRole')) document.getElementById('settingDefaultRole').value = s.default_role || 'viewer';
+                if (document.getElementById('settingDefaultRole')) document.getElementById('settingDefaultRole').value = s.default_role || 'developer';
                 if (document.getElementById('settingMaxFileSize')) document.getElementById('settingMaxFileSize').value = s.max_file_size_mb || '50';
                 if (document.getElementById('settingAllowedExtensions')) document.getElementById('settingAllowedExtensions').value = s.allowed_extensions || '.csv, .xlsx, .xls, .json';
                 if (document.getElementById('settingAllowUserRegistration')) document.getElementById('settingAllowUserRegistration').checked = s.allow_user_registration !== false;
@@ -1970,7 +2035,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const rawPassword = document.getElementById('settingSmtpPassword') ? document.getElementById('settingSmtpPassword').value : '';
             const payload = {
                 platform_name: document.getElementById('settingPlatformName') ? document.getElementById('settingPlatformName').value : '',
-                default_role: document.getElementById('settingDefaultRole') ? document.getElementById('settingDefaultRole').value : 'viewer',
+                default_role: document.getElementById('settingDefaultRole') ? document.getElementById('settingDefaultRole').value : 'developer',
                 max_file_size_mb: document.getElementById('settingMaxFileSize') ? document.getElementById('settingMaxFileSize').value : '50',
                 allowed_extensions: document.getElementById('settingAllowedExtensions') ? document.getElementById('settingAllowedExtensions').value : '.csv, .xlsx, .xls, .json',
                 allow_user_registration: document.getElementById('settingAllowUserRegistration') ? document.getElementById('settingAllowUserRegistration').checked : true,
@@ -2134,14 +2199,14 @@ window.showSharedDashboardsModal = function () {
 };
 
 // --- Security Status & Audit Scan Controller ---
-function updateSecurityUI(secDetails) {
+function updateSecurityUI(secDetails, scanInfo) {
     if (!secDetails) return;
 
     // Security Score Badge Update
     const badgeEl = document.getElementById('badgeSecurityStatus');
     if (badgeEl) {
-        const score = secDetails.score !== undefined ? secDetails.score : 100;
-        const statusLabel = secDetails.status_label || secDetails.status || 'OPTIMAL';
+        const score = secDetails.score !== undefined ? secDetails.score : (scanInfo?.score !== undefined ? scanInfo.score : 100);
+        const statusLabel = secDetails.status_label || secDetails.status || scanInfo?.status || 'OPTIMAL';
         let badgeClass = 'bg-success-subtle text-success border-success-subtle';
         if (score < 70) badgeClass = 'bg-danger-subtle text-danger border-danger-subtle';
         else if (score < 85) badgeClass = 'bg-warning-subtle text-warning border-warning-subtle';
@@ -2152,11 +2217,16 @@ function updateSecurityUI(secDetails) {
 
     // Security Alerts Update
     const alertsContainer = document.getElementById('adminSecurityAlertsContainer');
-    if (alertsContainer && secDetails.alerts) {
-        if (!secDetails.alerts.length) {
-            alertsContainer.innerHTML = `<div class="dn-alert dn-alert-info"><i class="bi bi-shield-check"></i> System security optimal. 0 high risk threats reported.</div>`;
+    if (alertsContainer) {
+        const alerts = secDetails.alerts || [];
+        let scanMetaHtml = '';
+        if (scanInfo && scanInfo.duration_ms) {
+            scanMetaHtml = `<div class="small text-secondary mb-2 d-flex align-items-center justify-content-between"><span><i class="bi bi-clock-history me-1"></i>Last Scan: ${scanInfo.duration_ms} ms</span><span class="font-monospace text-muted">ID: ${scanInfo.scan_id ? scanInfo.scan_id.substring(0, 8) : 'sys'}</span></div>`;
+        }
+        if (!alerts.length) {
+            alertsContainer.innerHTML = scanMetaHtml + `<div class="dn-alert dn-alert-info"><i class="bi bi-shield-check"></i> System security optimal. 0 high risk threats reported.</div>`;
         } else {
-            alertsContainer.innerHTML = secDetails.alerts.map(alert => `
+            alertsContainer.innerHTML = scanMetaHtml + alerts.map(alert => `
                 <div class="dn-alert dn-alert-${alert.type || 'info'}"><i class="bi ${alert.icon || 'bi-shield-check'}"></i> ${alert.text || ''}</div>
             `).join('');
         }
@@ -2202,15 +2272,18 @@ document.addEventListener('click', function (e) {
         .then(resData => {
             if (iconScan) iconScan.classList.remove('spin-animation');
             btnRunScan.disabled = false;
-            if (resData.success && resData.security) {
-                updateSecurityUI(resData.security);
+            if (resData.success) {
+                const sec = resData.security || {};
+                const scanMeta = resData.scan || {};
+                updateSecurityUI(sec, scanMeta);
+                const toastMsg = resData.message || `Security audit scan completed! Status: ${scanMeta.status || 'OPTIMAL'} (${scanMeta.score || 100}%).`;
                 if (typeof window.showToast === 'function') {
-                    window.showToast('Security audit scan completed! All metrics updated.', 'success');
+                    window.showToast(toastMsg, 'success');
                 } else if (typeof showToast === 'function') {
-                    showToast('Security audit scan completed! All metrics updated.', 'success');
+                    showToast(toastMsg, 'success');
                 }
             } else {
-                const errorMsg = resData.error || 'Failed to execute security audit scan.';
+                const errorMsg = resData.message || resData.error || 'Failed to execute security audit scan.';
                 if (typeof window.showToast === 'function') {
                     window.showToast(errorMsg, 'danger');
                 } else if (typeof showToast === 'function') {
@@ -2226,7 +2299,7 @@ document.addEventListener('click', function (e) {
 });
 
 /* ==========================================================================
-   Database Viewer & Explorer Controller (Read-Only)
+   Database Developer & Explorer Controller (Read-Only)
    ========================================================================== */
 let dbExplorerState = {
     tables: [],
@@ -2606,4 +2679,111 @@ function exportCurrentDatabaseViewCSV() {
             }
         });
     }
+
+    // --- Admin Support & Contact Messages Management ---
+    function loadAdminSupportMessages() {
+        const tbody = document.getElementById('adminSupportMessagesTbody');
+        if (!tbody) return;
+
+        fetch('/api/admin/support_messages')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success || !data.messages || data.messages.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-secondary"><i class="bi bi-inbox me-2"></i> No support messages or inquiries received yet.</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                data.messages.forEach(function (msg) {
+                    const statusBadge = msg.status === 'Resolved'
+                        ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i> Resolved</span>'
+                        : '<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="bi bi-clock-history me-1"></i> Pending</span>';
+
+                    const categoryBadge = msg.category === 'Bug Report'
+                        ? '<span class="badge bg-danger-subtle text-danger border px-2">Bug Report</span>'
+                        : '<span class="badge bg-info-subtle text-info border px-2">' + (msg.category || 'General') + '</span>';
+
+                    const attachBtn = msg.attachment_url
+                        ? '<div class="mt-1"><a href="' + msg.attachment_url + '" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2 text-decoration-none" style="font-size: 0.75rem;"><i class="bi bi-image me-1"></i>View Attachment</a></div>'
+                        : '';
+
+                    html += '<tr>' +
+                        '<td class="small text-secondary font-monospace">' + (msg.created_at_fmt || '') + '</td>' +
+                        '<td>' +
+                            '<div class="fw-bold text-black">' + (msg.user_name || 'User') + '</div>' +
+                            '<small class="text-secondary">' + (msg.user_email || '') + '</small>' +
+                        '</td>' +
+                        '<td><span class="badge bg-secondary-subtle text-body border text-capitalize">' + (msg.user_role || 'User') + '</span></td>' +
+                        '<td>' + categoryBadge + '</td>' +
+                        '<td style="max-width: 320px;">' +
+                            '<div class="fw-bold text-dark text-truncate">' + (msg.subject || '') + '</div>' +
+                            '<small class="text-secondary d-block" style="white-space: pre-wrap;">' + (msg.message || '') + '</small>' +
+                            attachBtn +
+                        '</td>' +
+                        '<td>' + statusBadge + '</td>' +
+                        '<td class="text-end">' +
+                            '<button class="btn btn-sm btn-outline-success me-1 btn-resolve-msg" data-id="' + msg.id + '" data-status="' + (msg.status === 'Resolved' ? 'Pending' : 'Resolved') + '" title="Toggle Status"><i class="bi bi-check-lg"></i></button>' +
+                            '<button class="btn btn-sm btn-outline-danger btn-delete-msg" data-id="' + msg.id + '" title="Delete Message"><i class="bi bi-trash"></i></button>' +
+                        '</td>' +
+                    '</tr>';
+                });
+                tbody.innerHTML = html;
+            })
+            .catch(function (err) {
+                console.error('Error loading support messages:', err);
+                if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">Error loading support messages.</td></tr>';
+            });
+    }
+
+    const refreshSupportBtn = document.getElementById('btnRefreshSupportMessages');
+    if (refreshSupportBtn) {
+        refreshSupportBtn.addEventListener('click', loadAdminSupportMessages);
+    }
+
+    const supportNavLink = document.querySelector('a[href="#adminSupportSection"]');
+    if (supportNavLink) {
+        supportNavLink.addEventListener('click', loadAdminSupportMessages);
+    }
+
+    const supportTbody = document.getElementById('adminSupportMessagesTbody');
+    if (supportTbody) {
+        supportTbody.addEventListener('click', function (e) {
+            const resolveBtn = e.target.closest('.btn-resolve-msg');
+            const deleteBtn = e.target.closest('.btn-delete-msg');
+
+            if (resolveBtn) {
+                const msgId = resolveBtn.getAttribute('data-id');
+                const targetStatus = resolveBtn.getAttribute('data-status') || 'Resolved';
+                fetch('/api/admin/support_messages/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: msgId, status: targetStatus, action: 'update' })
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (d.success) {
+                            if (window.showToast) window.showToast(d.message || 'Status updated!', 'success');
+                            loadAdminSupportMessages();
+                        }
+                    });
+            } else if (deleteBtn) {
+                const msgId = deleteBtn.getAttribute('data-id');
+                if (!confirm('Are you sure you want to delete this support message?')) return;
+                fetch('/api/admin/support_messages/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: msgId, action: 'delete' })
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (d.success) {
+                            if (window.showToast) window.showToast('Message deleted!', 'info');
+                            loadAdminSupportMessages();
+                        }
+                    });
+            }
+        });
+    }
+
+    loadAdminSupportMessages();
 })();

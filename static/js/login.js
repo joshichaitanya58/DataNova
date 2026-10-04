@@ -340,6 +340,20 @@
     });
   }
 
+  // Pre-select role from URL search parameter (e.g. ?role=developer)
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+    if (roleParam) {
+      const roleRadio = document.querySelector(`input[name="role"][value="${roleParam.toLowerCase().trim()}"]`);
+      if (roleRadio) {
+        roleRadio.checked = true;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading role parameter from URL:', e);
+  }
+
   document.querySelectorAll('input[name="role"]').forEach((radio) => {
     radio.addEventListener('change', validateRole);
   });

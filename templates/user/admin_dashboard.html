@@ -54,6 +54,8 @@
                         class="bi bi-cpu"></i> AI / API Usage</a>
                 <a href="#adminSecuritySection" class="dn-nav-link" data-action="nav-security"
                     data-section="Security Status"><i class="bi bi-shield-lock"></i> Security</a>
+                <a href="#adminSupportSection" class="dn-nav-link"><i
+                        class="bi bi-headset"></i> Support &amp; Contact Messages</a>
 
                 <div class="dn-nav-section-label">Account</div>
                 <a href="#dnSystemSettingsModal" class="dn-nav-link" data-action="nav-settings" data-page="settings"><i
@@ -633,6 +635,43 @@
                     </div>
                 </div>
 
+                <!-- SUPPORT & CONTACT MESSAGES SECTION -->
+                <div class="dn-panel my-4" id="adminSupportSection">
+                    <div class="dn-panel-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h3 class="dn-panel-title"><i class="bi bi-headset text-primary me-2"></i> User Support &amp; Contact Messages</h3>
+                            <small class="text-secondary">View and resolve direct support inquiries, bug reports &amp; help requests from all platform users.</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" id="btnRefreshSupportMessages"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive mt-3">
+                        <table class="table table-hover align-middle dn-table" id="adminSupportMessagesTable">
+                            <thead>
+                                <tr>
+                                    <th>Date &amp; Time</th>
+                                    <th>User Info</th>
+                                    <th>Role</th>
+                                    <th>Category</th>
+                                    <th>Subject &amp; Message</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminSupportMessagesTbody">
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-secondary">
+                                        <div class="spinner-border spinner-border-sm me-2 text-primary" role="status"></div>
+                                        Loading user contact messages...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
@@ -756,7 +795,7 @@
                                 <select id="addUserRole" class="form-select">
                                     <option value="analyst">Analyst</option>
                                     <option value="manager">Manager</option>
-                                    <option value="viewer">Viewer</option>
+                                    <option value="developer">Developer</option>
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
@@ -818,7 +857,7 @@
                                     <option value="admin">Admin</option>
                                     <option value="manager">Manager</option>
                                     <option value="analyst">Analyst</option>
-                                    <option value="viewer">Viewer</option>
+                                    <option value="developer">Developer</option>
                                 </select>
                             </div>
                             <div class="col-6">
@@ -856,7 +895,12 @@
                         <p class="small text-secondary mb-0">View all uploaded datasets across all organization users.
                         </p>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-info btn-sm" onclick="showApiDatasetsModal()">
+                            <i class="bi bi-shield-check me-1"></i> View API File Audit Log
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
                 </div>
                 <div class="modal-body dn-modal-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -888,6 +932,65 @@
                                     <td colspan="7" class="text-center p-4">
                                         <div class="spinner-border text-primary" role="status"></div>
                                         <div class="mt-2 text-secondary">Loading datasets...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== API DATASETS AUDIT MODAL ===================== -->
+    <div class="modal fade" id="apiDatasetsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content dn-modal">
+                <div class="modal-header dn-modal-header border-bottom border-secondary border-opacity-25 pb-3">
+                    <div>
+                        <h5 class="modal-title dn-modal-title fw-bold"><i
+                                class="bi bi-code-slash text-info me-2"></i> API Ingested Files Audit &amp; Activity Log
+                        </h5>
+                        <p class="small text-secondary mb-0">Audit trail of datasets ingested via REST API. Raw data is processed transiently and purged from main database storage for security &amp; privacy.
+                        </p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="showAllDatasetsModal()">
+                            <i class="bi bi-arrow-left me-1"></i> Back to Repository
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+                <div class="modal-body dn-modal-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <div class="dn-topbar-search style-modal-search" style="width: 320px; max-width: 100%;">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="apiDatasetsModalSearchInput"
+                                placeholder="Search by file name, developer, or type..."
+                                onkeyup="filterApiDatasetsModalTable()">
+                        </div>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2"
+                            id="modalApiDatasetsCount">Total API Ingests: --</span>
+                    </div>
+                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                        <table class="dn-table align-middle" id="apiDatasetsFullTable">
+                            <thead
+                                style="position: sticky; top: 0; background: var(--dn-bg-card, #1e293b); z-index: 2;">
+                                <tr>
+                                    <th>File Name</th>
+                                    <th>Developer / Owner</th>
+                                    <th>Format</th>
+                                    <th>Ingested At</th>
+                                    <th>Size</th>
+                                    <th>Rows x Cols</th>
+                                    <th>Data Retention Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="apiDatasetsModalTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center p-4">
+                                        <div class="spinner-border text-info" role="status"></div>
+                                        <div class="mt-2 text-secondary">Loading API audit log...</div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -1067,7 +1170,7 @@
                                     <div class="col-12 col-md-6">
                                         <label class="form-label small fw-semibold">Default User Role on Signup</label>
                                         <select class="form-select" id="settingDefaultRole">
-                                            <option value="viewer">Viewer (Read-only)</option>
+                                            <option value="developer">Developer (API Consumer)</option>
                                             <option value="analyst">Analyst (Data &amp; Visuals)</option>
                                             <option value="manager">Manager (Datasets &amp; Reports)</option>
                                             <option value="admin">Administrator (Full Control)</option>
@@ -1689,7 +1792,9 @@
             </div>
         </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script id="initial-admin-kpi-data" type="application/json">{{ kpi|tojson|safe }}</script>
         <script>
             try {
