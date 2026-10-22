@@ -102,6 +102,13 @@ def chrome_devtools_config():
     return jsonify({})
 
 
+@bp.route('/admin')
+@bp.route('/admin/dashboard')
+def admin_redirect():
+    """Redirects /admin or /admin/dashboard to /dashboard/admin to prevent 404 errors."""
+    return redirect(url_for('dashboards.admin_dashboard'))
+
+
 @bp.route('/dashboard/admin')
 @login_required
 def admin_dashboard():

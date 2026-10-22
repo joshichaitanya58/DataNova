@@ -1,8 +1,10 @@
 import os
+import ssl
 import time
 import queue
 import logging
 import threading
+import urllib.parse
 from typing import Optional, Any
 from contextlib import contextmanager
 
@@ -90,19 +92,69 @@ class DataNovaConnectionPool:
         self._initialized = False
 
     def _load_config(self):
-        db_host = os.getenv("DB_HOST") or os.getenv("MYSQLHOST") or os.getenv("MYSQL_HOST")
-        db_user = os.getenv("DB_USER") or os.getenv("MYSQLUSER") or os.getenv("MYSQL_USER")
-        db_password = os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD") or os.getenv("MYSQL_PASSWORD")
-        db_name = os.getenv("DB_NAME") or os.getenv("MYSQLDATABASE") or os.getenv("MYSQL_DATABASE")
-        db_port_str = os.getenv("DB_PORT") or os.getenv("MYSQLPORT") or os.getenv("MYSQL_PORT") or "3306"
+        # 1. Parse database connection URL if provided (DATABASE_URL, MYSQL_URL, etc.)
+        db_url = (
+            os.getenv("DATABASE_URL")
+            or os.getenv("MYSQL_URL")
+            or os.getenv("CLEARDB_DATABASE_URL")
+            or os.getenv("JAWSDB_URL")
+            or ""
+        ).strip()
 
-        if not all([db_host, db_user, db_password, db_name]):
-            raise DatabaseConnectionError("Missing critical DB configuration variables in environment (DB_HOST/MYSQLHOST, DB_USER/MYSQLUSER, DB_PASSWORD/MYSQLPASSWORD, DB_NAME/MYSQLDATABASE).")
+        db_host = None
+        db_user = None
+        db_password = None
+        db_name = None
+        db_port = 3306
+        url_ssl_requested = False
 
-        port = int(db_port_str) if db_port_str.isdigit() else 3306
+        if db_url:
+            clean_url = db_url
+            if clean_url.startswith("mysql+pymysql://"):
+                clean_url = "mysql://" + clean_url[len("mysql+pymysql://"):]
+            elif clean_url.startswith("mariadb://"):
+                clean_url = "mysql://" + clean_url[len("mariadb://"):]
+
+            try:
+                parsed = urllib.parse.urlparse(clean_url)
+                if parsed.scheme.startswith("mysql") or parsed.scheme.startswith("mariadb"):
+                    db_host = parsed.hostname
+                    if parsed.port:
+                        db_port = int(parsed.port)
+                    if parsed.username:
+                        db_user = urllib.parse.unquote(parsed.username)
+                    if parsed.password:
+                        db_password = urllib.parse.unquote(parsed.password)
+                    if parsed.path and len(parsed.path) > 1:
+                        db_name = parsed.path.lstrip("/")
+                    
+                    q_params = urllib.parse.parse_qs(parsed.query)
+                    if any(k.lower() in ("ssl", "ssl-mode", "sslmode") for k in q_params):
+                        url_ssl_requested = True
+                    logger.info(f"Loaded database configuration from DATABASE_URL (host: {db_host}, db: {db_name}).")
+            except Exception as parse_err:
+                logger.warning(f"Could not parse database URL: {parse_err}")
+
+        # 2. Fall back to individual environment variables
+        db_host = db_host or os.getenv("DB_HOST") or os.getenv("MYSQLHOST") or os.getenv("MYSQL_HOST")
+        db_user = db_user or os.getenv("DB_USER") or os.getenv("MYSQLUSER") or os.getenv("MYSQL_USER")
+        if db_password is None:
+            db_password = os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD") or os.getenv("MYSQL_PASSWORD")
+        db_name = db_name or os.getenv("DB_NAME") or os.getenv("MYSQLDATABASE") or os.getenv("MYSQL_DATABASE")
+        db_port_str = os.getenv("DB_PORT") or os.getenv("MYSQLPORT") or os.getenv("MYSQL_PORT")
+
+        if db_port_str and str(db_port_str).isdigit():
+            db_port = int(db_port_str)
+
+        if not all([db_host, db_user, db_password is not None, db_name]):
+            raise DatabaseConnectionError(
+                "Missing critical DB configuration variables in environment. "
+                "Please configure DATABASE_URL / MYSQL_URL or set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME in Render."
+            )
+
         self._db_config = {
             "host": db_host,
-            "port": port,
+            "port": db_port,
             "user": db_user,
             "password": db_password,
             "database": db_name,
@@ -113,13 +165,43 @@ class DataNovaConnectionPool:
             "write_timeout": 30,
             "autocommit": False,
         }
+
+        # 3. Configure SSL if requested or if connecting to a known cloud MySQL provider
+        ssl_env = (os.getenv("MYSQL_SSL") or os.getenv("DB_SSL") or "").lower().strip()
+        is_cloud_host = any(cloud in (db_host or "").lower() for cloud in [
+            "aivencloud.com", "tidbcloud.com", "psdb.cloud", "rds.amazonaws.com",
+            "clever-cloud.com", "railway.app", "render.com", "digitalocean.com"
+        ])
+
+        if url_ssl_requested or ssl_env in ("true", "1", "yes", "required") or is_cloud_host:
+            try:
+                ssl_ctx = ssl.create_default_context()
+                ca_path = os.getenv("MYSQL_SSL_CA") or os.getenv("DB_SSL_CA")
+                if ca_path and os.path.exists(ca_path):
+                    ssl_ctx.load_verify_locations(ca_path)
+                    ssl_ctx.check_hostname = True
+                    ssl_ctx.verify_mode = ssl.CERT_REQUIRED
+                else:
+                    # Cloud services with auto-signed or cloud CAs
+                    ssl_ctx.check_hostname = False
+                    ssl_ctx.verify_mode = ssl.CERT_NONE
+                self._db_config["ssl"] = ssl_ctx
+                logger.info(f"Database SSL encryption enabled for host '{db_host}'.")
+            except Exception as ssl_err:
+                logger.warning(f"Could not initialize SSL context for DB: {ssl_err}")
+
         self._initialized = True
 
     def _create_raw_connection(self) -> pymysql.connections.Connection:
         if not self._initialized:
             self._load_config()
-        conn = pymysql.connect(**self._db_config)
-        return conn
+        try:
+            conn = pymysql.connect(**self._db_config)
+            return conn
+        except Exception as e:
+            host = self._db_config.get("host")
+            logger.error(f"Failed to connect to MySQL database at '{host}': {e}")
+            raise
 
     def get_connection(self, raise_on_error: bool = False) -> Optional[PooledConnectionWrapper]:
         """Acquires a pooled connection with health check and auto-healing."""
@@ -428,6 +510,22 @@ def init_db(connection: Optional[Any] = None) -> bool:
             for ddl in tables_ddl:
                 cursor.execute(ddl)
 
+            # Drop legacy email_otps table if present (OTPs are strictly session-based)
+            try:
+                cursor.execute("DROP TABLE IF EXISTS email_otps")
+            except Exception:
+                pass
+
+            # Automatically purge any legacy developer shared_dashboards records (developers are separate accounts)
+            try:
+                cursor.execute("""
+                    DELETE FROM shared_dashboards 
+                    WHERE shared_with_role = 'developer' 
+                       OR shared_with_user_id IN (SELECT id FROM users WHERE role = 'developer')
+                """)
+            except Exception:
+                pass
+
             # Auto-migrations for datasets table columns
             cursor.execute("SHOW COLUMNS FROM datasets LIKE 'is_api_dataset'")
             if not cursor.fetchone():
@@ -589,8 +687,6 @@ def start_log_cleanup_scheduler(interval_seconds=3600, hours=720):
     """
     Starts a background daemon thread that periodically runs log retention purging every hour.
     """
-    if os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'):
-        return
     global _cleanup_scheduler_started
     if _cleanup_scheduler_started:
         return

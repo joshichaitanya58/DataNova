@@ -1100,245 +1100,238 @@ document.addEventListener('DOMContentLoaded', function () {
             progressBar.classList.remove('bg-danger', 'bg-success');
             progressBar.style.width = '0%';
             uploadPercentage.textContent = '0%';
-            uploadForm.style.display = 'flex';
+            if (uploadForm) {
+                uploadForm.style.display = 'flex';
+                uploadForm.style.flexDirection = 'column';
+                uploadForm.style.alignItems = 'center';
+                uploadForm.style.justifyContent = 'center';
+            }
             fileInput.value = '';
         }
 
-        // --- Dropzone Click & Drag-and-Drop Event Listeners ---
-        uploadForm.addEventListener('click', function (e) {
-            const uploadPill = e.target.closest('[data-action="upload-file"]');
-            if (uploadPill) {
-                e.stopPropagation();
-                fileInput.click();
-                return;
+        // Shared function to completely clean and reset the analyst dashboard
+        function cleanAndResetFullDashboard(message) {
+            // 1. Raw Preview & Schema Panels
+            if (previewPanel) previewPanel.style.display = 'none';
+            if (previewContent) previewContent.innerHTML = '';
+            if (previewFilename) previewFilename.textContent = '';
+            if (overviewPanel) overviewPanel.style.display = 'none';
+            if (columnInfoPanel) columnInfoPanel.style.display = 'none';
+            if (columnInfoFooter) columnInfoFooter.style.display = 'none';
+            if (columnInfoContent) columnInfoContent.innerHTML = '';
+
+            // 2. Data Cleaning Pipeline Panels
+            if (missingValuePanel) missingValuePanel.style.display = 'none';
+            if (missingValueActions) missingValueActions.style.display = 'none';
+            if (missingValueContent) missingValueContent.innerHTML = '';
+            const missingNextBanner = document.getElementById('dnMissingValueNextStepBanner');
+            if (missingNextBanner) missingNextBanner.style.display = 'none';
+
+            if (duplicatePanel) duplicatePanel.style.display = 'none';
+            if (subDuplicatesContainer) subDuplicatesContainer.style.display = 'none';
+            if (subDuplicateResult) {
+                subDuplicateResult.style.display = 'none';
+                subDuplicateResult.innerHTML = '';
             }
-            if (e.target.closest('[data-bs-toggle]') || e.target.closest('.dn-source-pill')) {
-                return;
+            if (duplicatePreviewContent) {
+                duplicatePreviewContent.style.display = 'none';
+                duplicatePreviewContent.innerHTML = '';
             }
-            fileInput.click();
-        });
+            if (duplicateColumnSelect) duplicateColumnSelect.innerHTML = '';
 
-        fileInput.addEventListener('change', function () {
-            if (fileInput.files && fileInput.files.length > 0) {
-                uploadFile(fileInput.files[0]);
+            const dropColumnsPanel = document.getElementById('dnDropColumnsPanel');
+            if (dropColumnsPanel) dropColumnsPanel.style.display = 'none';
+            const dropColumnsGrid = document.getElementById('dnDropColumnsGrid');
+            if (dropColumnsGrid) dropColumnsGrid.innerHTML = '';
+
+            if (cleanedPreviewPanel) {
+                cleanedPreviewPanel.style.display = 'none';
+                if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = '';
+                const downloadBtn = cleanedPreviewPanel.querySelector('#dnDownloadCleanedBtn');
+                if (downloadBtn) downloadBtn.remove();
             }
-        });
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (evt) {
-            window.addEventListener(evt, function (e) {
-                e.preventDefault();
-            }, false);
-        });
+            // 3. Statistical EDA & AI Suggestions Panels
+            if (statsPanel) statsPanel.style.display = 'none';
+            if (statsContent) statsContent.innerHTML = '';
 
-        ['dragenter', 'dragover'].forEach(function (evt) {
-            uploadForm.addEventListener(evt, function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                uploadForm.classList.add('is-dragover');
-            }, false);
-        });
+            if (aiSuggestionsPanel) {
+                aiSuggestionsPanel.style.display = 'none';
+                if (aiSuggestionsResult) aiSuggestionsResult.style.display = 'none';
+                if (aiUnwantedColumnsList) aiUnwantedColumnsList.innerHTML = '';
+                const aiNewFeaturesList = document.getElementById('aiNewFeaturesList');
+                if (aiNewFeaturesList) aiNewFeaturesList.innerHTML = '';
+                if (applyAIRemovalBtn) applyAIRemovalBtn.style.display = 'none';
+                if (aiLoadingSpinner) aiLoadingSpinner.style.display = 'none';
+            }
 
-        ['dragleave', 'dragend'].forEach(function (evt) {
-            uploadForm.addEventListener(evt, function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (evt === 'dragend' || !uploadForm.contains(e.relatedTarget)) {
-                    uploadForm.classList.remove('is-dragover');
+            if (autoEDAPanel) {
+                autoEDAPanel.style.display = 'none';
+                if (window.Plotly && edaResultContainer) {
+                    edaResultContainer.querySelectorAll('.dn-eda-plot > div[id^="dnPlotlyChart_"]').forEach(node => {
+                        try { Plotly.purge(node); } catch (e) { /* ignore */ }
+                    });
                 }
-            }, false);
-        });
-
-        uploadForm.addEventListener('drop', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            uploadForm.classList.remove('is-dragover');
-
-            var droppedFiles = e.dataTransfer ? e.dataTransfer.files : null;
-            if (droppedFiles && droppedFiles.length > 0) {
-                uploadFile(droppedFiles[0]);
+                if (edaResultContainer) edaResultContainer.innerHTML = '';
+                if (edaLoadingSpinner) edaLoadingSpinner.style.display = 'none';
             }
-        }, false);
+
+            // 4. Correlation Analysis & Scatter Plot Panels
+            if (correlationPanel) correlationPanel.style.display = 'none';
+            if (correlationResultContainer) correlationResultContainer.style.display = 'none';
+            if (correlationLoadingSpinner) correlationLoadingSpinner.style.display = 'none';
+            if (correlationAlertMsg) correlationAlertMsg.style.display = 'none';
+            const topCorrelationsContainer = document.getElementById('dnTopCorrelationsContainer');
+            if (topCorrelationsContainer) topCorrelationsContainer.style.display = 'none';
+            const topPos = document.getElementById('dnTopPositiveCorrelations');
+            if (topPos) topPos.innerHTML = '';
+            const topNeg = document.getElementById('dnTopNegativeCorrelations');
+            if (topNeg) topNeg.innerHTML = '';
+            const heatmapImg = document.getElementById('dnCorrelationHeatmap');
+            if (heatmapImg) heatmapImg.src = '';
+
+            if (scatterPlotResult) scatterPlotResult.style.display = 'none';
+            const scatterPlotImg = document.getElementById('dnScatterPlotImg');
+            if (scatterPlotImg) scatterPlotImg.src = '';
+            if (scatterXSelect) scatterXSelect.innerHTML = '';
+            if (scatterYSelect) scatterYSelect.innerHTML = '';
+
+            // 5. Custom Visualizations Panel
+            const customChartPanel = document.getElementById('dnCustomChartPanel');
+            if (customChartPanel) customChartPanel.style.display = 'none';
+            const customChartResult = document.getElementById('dnCustomChartResult');
+            if (customChartResult) customChartResult.style.display = 'none';
+            const customChartImg = document.getElementById('dnCustomChartImg');
+            if (customChartImg) customChartImg.src = '';
+            const customX = document.getElementById('dnCustomXSelect');
+            if (customX) customX.innerHTML = '<option value="">-- Select X Column --</option>';
+            const customY = document.getElementById('dnCustomYSelect');
+            if (customY) customY.innerHTML = '<option value="">-- None (Single Variable) --</option>';
+
+            // 6. Pattern & Trend Detection Panel
+            const patternPanel = document.getElementById('dnPatternDetectionPanel');
+            if (patternPanel) patternPanel.style.display = 'none';
+            const patternList = document.getElementById('dnPatternDetectionList');
+            if (patternList) patternList.innerHTML = '';
+
+            // 7. Automated AI Profiling List
+            const insightsList = document.getElementById('analystAiInsightsList');
+            if (insightsList) {
+                insightsList.innerHTML = '<li><span class="dn-insight-dot" style="background:var(--dn-cyan)"></span>Upload a dataset to generate automated AI data profiling.</li>';
+            }
+
+            // 8. Live ML & Predictive Analytics Panel
+            const step7Active = document.getElementById('step7PredictionsActiveContent');
+            if (step7Active) step7Active.classList.add('d-none');
+            const step7Empty = document.getElementById('step7PredictionsEmptyState');
+            if (step7Empty) step7Empty.classList.remove('d-none');
+            const step7Target = document.getElementById('step7TargetName');
+            if (step7Target) step7Target.textContent = '--';
+            const step7Formula = document.getElementById('step7FormulaText');
+            if (step7Formula) step7Formula.textContent = '--';
+            const step7Intercept = document.getElementById('step7InterceptText');
+            if (step7Intercept) step7Intercept.textContent = 'Intercept (\u03b20): --';
+            const step7R2 = document.getElementById('step7R2Value');
+            if (step7R2) step7R2.textContent = '--';
+            const step7Mae = document.getElementById('step7MaeValue');
+            if (step7Mae) step7Mae.textContent = '--';
+            const step7Kpi3 = document.getElementById('step7Kpi3Value');
+            if (step7Kpi3) step7Kpi3.textContent = '--';
+            document.querySelectorAll('.dn-predict-card[data-tool]').forEach(c => c.classList.remove('active'));
+            const step7PredTbody = document.getElementById('step7PredTbody');
+            if (step7PredTbody) step7PredTbody.innerHTML = '';
+            const step7InstantInputsRow = document.getElementById('step7InstantInputsRow');
+            if (step7InstantInputsRow) step7InstantInputsRow.innerHTML = '';
+            const step7InstantPredictionResult = document.getElementById('step7InstantPredictionResult');
+            if (step7InstantPredictionResult) {
+                step7InstantPredictionResult.classList.add('d-none');
+                step7InstantPredictionResult.innerHTML = '';
+            }
+
+            // 9. Top Header Action Buttons
+            const exportBtn = document.getElementById('dnExportReportBtn');
+            if (exportBtn) exportBtn.style.display = 'none';
+            const downloadDropdown = document.getElementById('dnDownloadCleanedDropdown');
+            if (downloadDropdown) downloadDropdown.style.display = 'none';
+            const rollbackBtn = document.getElementById('dnRollbackDatasetBtn');
+            if (rollbackBtn) rollbackBtn.style.display = 'none';
+
+            // 10. Deactivate dataset-dependent sidebar links
+            document.querySelectorAll('.dn-requires-dataset').forEach(link => {
+                link.classList.add('dn-nav-disabled');
+            });
+
+            // 11. State & Input Controls Reset
+            if (missingCustomValueContainer) missingCustomValueContainer.style.display = 'none';
+            if (missingCustomValueInput) missingCustomValueInput.value = '';
+
+            try {
+                localStorage.removeItem('datanova_active_dataset_id');
+                localStorage.removeItem('datanova_active_dataset_filename');
+                localStorage.removeItem('datanova_active_dataset_rows');
+                localStorage.removeItem('datanova_active_dataset_cols');
+                sessionStorage.clear();
+            } catch (e) {}
+
+            activeDatasetId = null; // Clear active dataset ID
+            window.activeDatasetId = null;
+            var anotherBtn = uploadAnotherBtn || document.getElementById('dnUploadAnotherBtn');
+            if (anotherBtn) {
+                anotherBtn.style.display = 'none';
+            }
+            currentActiveTask = null; // Clear active task metadata
+            missingColumnInfo = [];
+            fullColumnInfo = [];
+
+            const initActiveInput = document.getElementById('initialActiveDatasetId');
+            if (initActiveInput) initActiveInput.value = '';
+
+            if (viewAllColsBtn) {
+                viewAllColsBtn.textContent = 'View All Columns';
+                viewAllColsBtn.setAttribute('data-state', 'more');
+            }
+
+            // 12. Reset KPI cards to clean empty state (no active dataset)
+            const kpiValues = document.querySelectorAll('.dn-kpi-card .dn-kpi-value');
+            if (kpiValues && kpiValues.length >= 6) {
+                kpiValues[1].textContent = '0';     // Rows Analyzed
+                kpiValues[2].textContent = 'N/A';   // Data Quality
+                kpiValues[3].textContent = '0';     // Missing Values
+                kpiValues[4].textContent = '0';     // Duplicates Found
+            }
+
+            // 13. Restore upload form & dropzone to pristine vertical column layout
+            if (uploadForm) {
+                uploadForm.style.display = 'flex';
+                uploadForm.style.flexDirection = 'column';
+                uploadForm.style.alignItems = 'center';
+                uploadForm.style.justifyContent = 'center';
+            }
+            if (uploadProgress) uploadProgress.style.display = 'none';
+            if (progressBar) {
+                progressBar.classList.remove('bg-success', 'bg-danger');
+                progressBar.style.width = '0%';
+            }
+            if (uploadPercentage) uploadPercentage.textContent = '0%';
+            if (fileInput) fileInput.value = '';
+
+            // 14. Scroll smoothly back up to Upload section
+            const uploadSection = document.getElementById('upload');
+            if (uploadSection) {
+                uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            if (message) {
+                showToast(message, 'info');
+            }
+        }
 
         // Handle "Upload Another" button click
         if (uploadAnotherBtn) {
             uploadAnotherBtn.addEventListener('click', function () {
-                // 1. Raw Preview & Schema Panels
-                if (previewPanel) previewPanel.style.display = 'none';
-                if (previewContent) previewContent.innerHTML = '';
-                if (previewFilename) previewFilename.textContent = '';
-                if (overviewPanel) overviewPanel.style.display = 'none';
-                if (columnInfoPanel) columnInfoPanel.style.display = 'none';
-                if (columnInfoFooter) columnInfoFooter.style.display = 'none';
-                if (columnInfoContent) columnInfoContent.innerHTML = '';
-
-                // 2. Data Cleaning Pipeline Panels
-                if (missingValuePanel) missingValuePanel.style.display = 'none';
-                if (missingValueActions) missingValueActions.style.display = 'none';
-                if (missingValueContent) missingValueContent.innerHTML = '';
-                const missingNextBanner = document.getElementById('dnMissingValueNextStepBanner');
-                if (missingNextBanner) missingNextBanner.style.display = 'none';
-
-                if (duplicatePanel) duplicatePanel.style.display = 'none';
-                if (subDuplicatesContainer) subDuplicatesContainer.style.display = 'none';
-                if (subDuplicateResult) {
-                    subDuplicateResult.style.display = 'none';
-                    subDuplicateResult.innerHTML = '';
-                }
-                if (duplicatePreviewContent) {
-                    duplicatePreviewContent.style.display = 'none';
-                    duplicatePreviewContent.innerHTML = '';
-                }
-                if (duplicateColumnSelect) duplicateColumnSelect.innerHTML = '';
-
-                const dropColumnsPanel = document.getElementById('dnDropColumnsPanel');
-                if (dropColumnsPanel) dropColumnsPanel.style.display = 'none';
-                const dropColumnsGrid = document.getElementById('dnDropColumnsGrid');
-                if (dropColumnsGrid) dropColumnsGrid.innerHTML = '';
-
-                if (cleanedPreviewPanel) {
-                    cleanedPreviewPanel.style.display = 'none';
-                    if (cleanedPreviewContent) cleanedPreviewContent.innerHTML = '';
-                    const downloadBtn = cleanedPreviewPanel.querySelector('#dnDownloadCleanedBtn');
-                    if (downloadBtn) downloadBtn.remove();
-                }
-
-                // 3. Statistical EDA & AI Suggestions Panels
-                if (statsPanel) statsPanel.style.display = 'none';
-                if (statsContent) statsContent.innerHTML = '';
-
-                if (aiSuggestionsPanel) {
-                    aiSuggestionsPanel.style.display = 'none';
-                    if (aiSuggestionsResult) aiSuggestionsResult.style.display = 'none';
-                    if (aiUnwantedColumnsList) aiUnwantedColumnsList.innerHTML = '';
-                    const aiNewFeaturesList = document.getElementById('aiNewFeaturesList');
-                    if (aiNewFeaturesList) aiNewFeaturesList.innerHTML = '';
-                    if (applyAIRemovalBtn) applyAIRemovalBtn.style.display = 'none';
-                    if (aiLoadingSpinner) aiLoadingSpinner.style.display = 'none';
-                }
-
-                if (autoEDAPanel) {
-                    autoEDAPanel.style.display = 'none';
-                    if (window.Plotly && edaResultContainer) {
-                        edaResultContainer.querySelectorAll('.dn-eda-plot > div[id^="dnPlotlyChart_"]').forEach(node => {
-                            try { Plotly.purge(node); } catch (e) { /* ignore */ }
-                        });
-                    }
-                    if (edaResultContainer) edaResultContainer.innerHTML = '';
-                    if (edaLoadingSpinner) edaLoadingSpinner.style.display = 'none';
-                }
-
-                // 4. Correlation Analysis & Scatter Plot Panels
-                if (correlationPanel) correlationPanel.style.display = 'none';
-                if (correlationResultContainer) correlationResultContainer.style.display = 'none';
-                if (correlationLoadingSpinner) correlationLoadingSpinner.style.display = 'none';
-                if (correlationAlertMsg) correlationAlertMsg.style.display = 'none';
-                const topCorrelationsContainer = document.getElementById('dnTopCorrelationsContainer');
-                if (topCorrelationsContainer) topCorrelationsContainer.style.display = 'none';
-                const topPos = document.getElementById('dnTopPositiveCorrelations');
-                if (topPos) topPos.innerHTML = '';
-                const topNeg = document.getElementById('dnTopNegativeCorrelations');
-                if (topNeg) topNeg.innerHTML = '';
-                const heatmapImg = document.getElementById('dnCorrelationHeatmap');
-                if (heatmapImg) heatmapImg.src = '';
-
-                if (scatterPlotResult) scatterPlotResult.style.display = 'none';
-                const scatterPlotImg = document.getElementById('dnScatterPlotImg');
-                if (scatterPlotImg) scatterPlotImg.src = '';
-                if (scatterXSelect) scatterXSelect.innerHTML = '';
-                if (scatterYSelect) scatterYSelect.innerHTML = '';
-
-                // 5. Custom Visualizations Panel
-                const customChartPanel = document.getElementById('dnCustomChartPanel');
-                if (customChartPanel) customChartPanel.style.display = 'none';
-                const customChartResult = document.getElementById('dnCustomChartResult');
-                if (customChartResult) customChartResult.style.display = 'none';
-                const customChartImg = document.getElementById('dnCustomChartImg');
-                if (customChartImg) customChartImg.src = '';
-                const customX = document.getElementById('dnCustomXSelect');
-                if (customX) customX.innerHTML = '<option value="">-- Select X Column --</option>';
-                const customY = document.getElementById('dnCustomYSelect');
-                if (customY) customY.innerHTML = '<option value="">-- None (Single Variable) --</option>';
-
-                // 6. Pattern & Trend Detection Panel
-                const patternPanel = document.getElementById('dnPatternDetectionPanel');
-                if (patternPanel) patternPanel.style.display = 'none';
-                const patternList = document.getElementById('dnPatternDetectionList');
-                if (patternList) patternList.innerHTML = '';
-
-                // 7. Automated AI Profiling List
-                const insightsList = document.getElementById('analystAiInsightsList');
-                if (insightsList) {
-                    insightsList.innerHTML = '<li><span class="dn-insight-dot" style="background:var(--dn-cyan)"></span>Upload a dataset to generate automated AI data profiling.</li>';
-                }
-
-                // 8. Live ML & Predictive Analytics Panel
-                const step7Active = document.getElementById('step7PredictionsActiveContent');
-                if (step7Active) step7Active.classList.add('d-none');
-                const step7Empty = document.getElementById('step7PredictionsEmptyState');
-                if (step7Empty) step7Empty.classList.remove('d-none');
-                const step7Target = document.getElementById('step7TargetName');
-                if (step7Target) step7Target.textContent = '--';
-                const step7Formula = document.getElementById('step7FormulaText');
-                if (step7Formula) step7Formula.textContent = '--';
-                const step7Intercept = document.getElementById('step7InterceptText');
-                if (step7Intercept) step7Intercept.textContent = 'Intercept (\u03b20): --';
-                const step7R2 = document.getElementById('step7R2Value');
-                if (step7R2) step7R2.textContent = '--';
-                const step7Mae = document.getElementById('step7MaeValue');
-                if (step7Mae) step7Mae.textContent = '--';
-                const step7PredTbody = document.getElementById('step7PredTbody');
-                if (step7PredTbody) step7PredTbody.innerHTML = '';
-                const step7InstantInputsRow = document.getElementById('step7InstantInputsRow');
-                if (step7InstantInputsRow) step7InstantInputsRow.innerHTML = '';
-                const step7InstantPredictionResult = document.getElementById('step7InstantPredictionResult');
-                if (step7InstantPredictionResult) {
-                    step7InstantPredictionResult.classList.add('d-none');
-                    step7InstantPredictionResult.innerHTML = '';
-                }
-
-                // 9. Top Header Action Buttons
-                const exportBtn = document.getElementById('dnExportReportBtn');
-                if (exportBtn) exportBtn.style.display = 'none';
-                const downloadDropdown = document.getElementById('dnDownloadCleanedDropdown');
-                if (downloadDropdown) downloadDropdown.style.display = 'none';
-                const rollbackBtn = document.getElementById('dnRollbackDatasetBtn');
-                if (rollbackBtn) rollbackBtn.style.display = 'none';
-
-                // 10. Deactivate dataset-dependent sidebar links
-                document.querySelectorAll('.dn-requires-dataset').forEach(link => {
-                    link.classList.add('dn-nav-disabled');
-                });
-
-                // 11. State & Input Controls Reset
-                if (missingCustomValueContainer) missingCustomValueContainer.style.display = 'none';
-                if (missingCustomValueInput) missingCustomValueInput.value = '';
-
-                activeDatasetId = null; // Clear active dataset ID
-                if (uploadAnotherBtn) {
-                    uploadAnotherBtn.style.display = 'none';
-                }
-                currentActiveTask = null; // Clear active task metadata
-                missingColumnInfo = [];
-                fullColumnInfo = [];
-
-                if (viewAllColsBtn) {
-                    viewAllColsBtn.textContent = 'View All Columns';
-                    viewAllColsBtn.setAttribute('data-state', 'more');
-                }
-
-                // Show upload form & reset dropzone inputs
-                if (uploadForm) uploadForm.style.display = 'flex';
-                if (uploadProgress) uploadProgress.style.display = 'none';
-                if (progressBar) progressBar.classList.remove('bg-success', 'bg-danger');
-                if (fileInput) fileInput.value = '';
-
-                // Scroll smoothly back up to Upload section
-                const uploadSection = document.getElementById('upload');
-                if (uploadSection) {
-                    uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-
-                showToast('Dashboard reset. Ready to upload another dataset.', 'info');
+                // Clear backend session so refresh keeps clean slate
+                fetch('/api/clear_analyst_cache_session', { method: 'POST' }).catch(() => {});
+                cleanAndResetFullDashboard('Dashboard reset. Ready to upload another dataset.');
             });
         }
 
@@ -1408,212 +1401,412 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (gsheetStatus) {
                         gsheetStatus.className = 'mt-3 p-3 rounded bg-danger-subtle text-danger border border-danger-subtle';
                         gsheetStatus.innerHTML = '<div class="d-flex align-items-center gap-2"><i class="bi bi-wifi-off fs-5 text-danger"></i><span class="small fw-semibold">Network error while fetching Google Sheet. Please check your connection and try again.</span></div>';
+                    } else {
+                        alert('Network error while importing Google Sheet. Please check the URL and try again.');
                     }
                 });
             });
         }
 
         /* ---------------------------------------------------------------------
-           MySQL Database Analysis Event Listeners & Functions
+           MySQL Database Import Event Listeners & Logic
            ------------------------------------------------------------------- */
-        var testMysqlBtn = document.getElementById('btnAnalystTestMysql');
-        var mysqlForm = document.getElementById('dnMysqlForm');
+        var mysqlModalEl = document.getElementById('dnMySQLModal');
+        var hostInput = document.getElementById('dnMySQLHost');
+        var portInput = document.getElementById('dnMySQLPort');
+        var dbInput = document.getElementById('dnMySQLDatabase');
+        var userInput = document.getElementById('dnMySQLUser');
+        var passInput = document.getElementById('dnMySQLPassword');
+        var btnTogglePass = document.getElementById('btnToggleMySQLPass');
+        var iconTogglePass = document.getElementById('iconToggleMySQLPass');
+        var btnTestConn = document.getElementById('btnTestMySQLConn');
+        var iconTestSpinner = document.getElementById('iconTestMySQLSpinner');
+        var connAlert = document.getElementById('dnMySQLConnAlert');
+        var modeSelectTable = document.getElementById('modeSelectTable');
+        var modeCustomQuery = document.getElementById('modeCustomQuery');
+        var paneTable = document.getElementById('paneMySQLTable');
+        var paneQuery = document.getElementById('paneMySQLQuery');
+        var tableSelect = document.getElementById('dnMySQLTableSelect');
+        var tableDatalist = document.getElementById('dnMySQLTableOptions');
+        var limitSelect = document.getElementById('dnMySQLLimitSelect');
+        var whereInput = document.getElementById('dnMySQLWhereClause');
+        var queryTextarea = document.getElementById('dnMySQLQueryText');
+        var btnQuickQuery = document.getElementById('btnQuickQuerySelect');
+        var datasetNameInput = document.getElementById('dnMySQLDatasetName');
+        var btnImportMySQL = document.getElementById('btnImportMySQL');
+        var mysqlStatus = document.getElementById('dnMySQLStatus');
+        var mysqlStatusMsg = document.getElementById('dnMySQLStatusMsg');
 
-        if (testMysqlBtn) {
-            testMysqlBtn.addEventListener('click', function (e) {
-                if (e && e.preventDefault) e.preventDefault();
-                console.log('[DataNova] "Test & Fetch Tables" clicked');
-
-                var statusEl = document.getElementById('analystMysqlStatus');
-                var tableSelect = document.getElementById('analystMysqlTableSelect');
-
-                var hostInput = document.getElementById('analystMysqlHost');
-                var portInput = document.getElementById('analystMysqlPort');
-                var userInput = document.getElementById('analystMysqlUser');
-                var passInput = document.getElementById('analystMysqlPassword');
-                var dbInput = document.getElementById('analystMysqlDatabase');
-
-                var host = hostInput ? hostInput.value.trim() : '';
-                var port = portInput ? portInput.value.trim() : '3306';
-                var user = userInput ? userInput.value.trim() : 'root';
-                var password = passInput ? passInput.value : '';
-                var database = dbInput ? dbInput.value.trim() : '';
-
-                if (!host || !database) {
-                    if (statusEl) {
-                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
-                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Please enter MySQL Host and Database Name.';
-                        statusEl.classList.remove('d-none');
-                    }
-                    return;
+        // Toggle password visibility
+        if (btnTogglePass && passInput && iconTogglePass) {
+            btnTogglePass.addEventListener('click', function () {
+                if (passInput.type === 'password') {
+                    passInput.type = 'text';
+                    iconTogglePass.className = 'bi bi-eye-slash';
+                } else {
+                    passInput.type = 'password';
+                    iconTogglePass.className = 'bi bi-eye';
                 }
-
-                testMysqlBtn.disabled = true;
-                testMysqlBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Connecting...';
-
-                if (statusEl) {
-                    statusEl.className = 'alert alert-info shadow-sm mb-3';
-                    statusEl.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Connecting to MySQL server and fetching table metadata...';
-                    statusEl.classList.remove('d-none');
-                }
-
-                fetch('/api/mysql/test_connection', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ host: host, port: port, user: user, password: password, database: database })
-                })
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    testMysqlBtn.disabled = false;
-                    testMysqlBtn.innerHTML = '<i class="bi bi-lightning-charge me-1"></i> Test &amp; Fetch Tables';
-
-                    if (data.success) {
-                        if (statusEl) {
-                            statusEl.className = 'alert alert-success shadow-sm mb-3';
-                            statusEl.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>' + data.message;
-                            statusEl.classList.remove('d-none');
-                        }
-
-                        if (tableSelect) {
-                            tableSelect.innerHTML = '<option value="">-- Select a MySQL Table --</option>';
-                            if (data.tables && data.tables.length > 0) {
-                                data.tables.forEach(function(t) {
-                                    var opt = document.createElement('option');
-                                    opt.value = t.name;
-                                    var rowStr = (t.estimated_rows !== undefined && t.estimated_rows !== 'N/A') ? ' (~' + t.estimated_rows + ' rows)' : '';
-                                    opt.textContent = t.name + rowStr;
-                                    tableSelect.appendChild(opt);
-                                });
-                            } else {
-                                var opt = document.createElement('option');
-                                opt.value = '';
-                                opt.textContent = 'No tables found in database';
-                                tableSelect.appendChild(opt);
-                            }
-                        }
-                    } else {
-                        if (statusEl) {
-                            statusEl.className = 'alert alert-danger shadow-sm mb-3';
-                            statusEl.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>' + (data.message || 'MySQL connection failed.');
-                            statusEl.classList.remove('d-none');
-                        }
-                    }
-                })
-                .catch(function(err) {
-                    testMysqlBtn.disabled = false;
-                    testMysqlBtn.innerHTML = '<i class="bi bi-lightning-charge me-1"></i> Test &amp; Fetch Tables';
-                    if (statusEl) {
-                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
-                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Network Error: ' + err.message;
-                        statusEl.classList.remove('d-none');
-                    }
-                });
             });
         }
 
-        if (mysqlForm) {
-            mysqlForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                var statusEl = document.getElementById('analystMysqlStatus');
-                var runBtn = document.getElementById('btnAnalystRunMysql');
-                var spinner = document.getElementById('analystMysqlSpinner');
+        // Populate Table select dropdown and Database datalist from connection data
+        function populateMySQLDatalists(data) {
+            if (!data) return;
 
-                var host = document.getElementById('analystMysqlHost').value.trim();
-                var port = document.getElementById('analystMysqlPort').value.trim();
-                var user = document.getElementById('analystMysqlUser').value.trim();
-                var password = document.getElementById('analystMysqlPassword').value;
-                var database = document.getElementById('analystMysqlDatabase').value.trim();
-                var tableSelect = document.getElementById('analystMysqlTableSelect').value;
-                var queryInput = document.getElementById('analystMysqlQuery').value.trim();
-                var limit = document.getElementById('analystMysqlLimit').value;
+            var targetSelect = document.getElementById('dnMySQLTableSelect') || tableSelect;
+            if (!targetSelect) {
+                console.error('[DataNova MySQL] Target table select element not found!');
+                return;
+            }
 
-                if (!host || !database) {
-                    if (statusEl) {
-                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
-                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>MySQL Host and Database Name are required.';
-                        statusEl.classList.remove('d-none');
+            var tables = Array.isArray(data.tables) ? data.tables : [];
+            targetSelect.innerHTML = '';
+
+            if (tables.length === 0) {
+                var optEmpty = document.createElement('option');
+                optEmpty.value = '';
+                optEmpty.textContent = '-- No tables found in database --';
+                targetSelect.appendChild(optEmpty);
+                return;
+            }
+
+            var optPrompt = document.createElement('option');
+            optPrompt.value = '';
+            optPrompt.textContent = '-- Select a table (' + tables.length + ' available) --';
+            targetSelect.appendChild(optPrompt);
+
+            tables.forEach(function (tbl) {
+                var opt = document.createElement('option');
+                opt.value = tbl;
+                opt.textContent = tbl;
+                targetSelect.appendChild(opt);
+            });
+
+            // Automatically select first table by default
+            if (tables.length > 0) {
+                targetSelect.value = tables[0];
+            }
+
+            // Auto-fill dataset name from selected table
+            var dsInput = document.getElementById('dnMySQLDatasetName') || datasetNameInput;
+            if (dsInput && targetSelect.value) {
+                dsInput.value = targetSelect.value;
+                dsInput.setAttribute('data-auto', 'true');
+            }
+
+            // Also keep datalist updated if it exists
+            var targetDatalist = document.getElementById('dnMySQLTableOptions') || tableDatalist;
+            if (targetDatalist && tables.length > 0) {
+                targetDatalist.innerHTML = '';
+                tables.forEach(function (tbl) {
+                    var opt = document.createElement('option');
+                    opt.value = tbl;
+                    opt.textContent = tbl;
+                    targetDatalist.appendChild(opt);
+                });
+            }
+        }
+
+        // Reusable schema fetcher
+        function loadMySQLSchema(silent) {
+            var host = hostInput ? hostInput.value.trim() : '';
+            var port = portInput ? portInput.value.trim() : '3306';
+            var database = dbInput ? dbInput.value.trim() : '';
+            var user = userInput ? userInput.value.trim() : '';
+            var password = passInput ? passInput.value : '';
+
+            if (!host) {
+                if (!silent && connAlert) {
+                    connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                    connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please enter the MySQL host address (e.g. localhost or 127.0.0.1).';
+                    connAlert.classList.remove('d-none');
+                }
+                if (hostInput) hostInput.focus();
+                return Promise.resolve(null);
+            }
+
+            if (!database) {
+                if (!silent && connAlert) {
+                    connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                    connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please enter your database name.';
+                    connAlert.classList.remove('d-none');
+                }
+                if (dbInput) dbInput.focus();
+                return Promise.resolve(null);
+            }
+
+            if (!user) {
+                if (!silent && connAlert) {
+                    connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                    connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please enter your database username.';
+                    connAlert.classList.remove('d-none');
+                }
+                if (userInput) userInput.focus();
+                return Promise.resolve(null);
+            }
+
+            if (!silent) {
+                if (btnTestConn) btnTestConn.disabled = true;
+                if (iconTestSpinner) iconTestSpinner.classList.add('dn-spin');
+                if (connAlert) {
+                    connAlert.className = 'alert alert-info p-2 mb-3 rounded-3 small';
+                    connAlert.innerHTML = '<div class="d-flex align-items-center gap-2"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><span>Connecting to MySQL (' + host + ':' + port + ')...</span></div>';
+                    connAlert.classList.remove('d-none');
+                }
+            }
+
+            return fetch('/api/mysql/test_connection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    host: host,
+                    port: port,
+                    database: database,
+                    user: user,
+                    password: password
+                })
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!silent) {
+                    if (btnTestConn) btnTestConn.disabled = false;
+                    if (iconTestSpinner) iconTestSpinner.classList.remove('dn-spin');
+                }
+                if (data.success) {
+                    populateMySQLDatalists(data);
+                    if (!silent && connAlert) {
+                        connAlert.className = 'alert alert-success p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> ' + (data.message || 'Connected successfully!');
+                        connAlert.classList.remove('d-none');
                     }
+                } else {
+                    if (!silent && connAlert) {
+                        connAlert.className = 'alert alert-danger p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> ' + (data.message || 'Failed to connect to MySQL.');
+                        connAlert.classList.remove('d-none');
+                    }
+                    var targetSelect = document.getElementById('dnMySQLTableSelect') || tableSelect;
+                    if (targetSelect) {
+                        targetSelect.innerHTML = '<option value="">-- Connection Failed: Verify Credentials --</option>';
+                    }
+                }
+                return data;
+            })
+            .catch(function (err) {
+                if (!silent) {
+                    if (btnTestConn) btnTestConn.disabled = false;
+                    if (iconTestSpinner) iconTestSpinner.classList.remove('dn-spin');
+                    console.error('MySQL connection error:', err);
+                    if (connAlert) {
+                        connAlert.className = 'alert alert-danger p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-wifi-off me-1"></i> Network error while testing MySQL connection.';
+                        connAlert.classList.remove('d-none');
+                    }
+                }
+                return null;
+            });
+        }
+
+        // On modal open, ensure clean initial state without unauthorized auto-connecting
+        if (mysqlModalEl) {
+            mysqlModalEl.addEventListener('shown.bs.modal', function () {
+                if (connAlert) {
+                    connAlert.classList.add('d-none');
+                }
+            });
+        }
+
+        // Mode Switching (Table vs Custom Query)
+        if (modeSelectTable && modeCustomQuery) {
+            modeSelectTable.addEventListener('change', function () {
+                if (this.checked) {
+                    if (paneTable) paneTable.classList.remove('d-none');
+                    if (paneQuery) paneQuery.classList.add('d-none');
+                }
+            });
+            modeCustomQuery.addEventListener('change', function () {
+                if (this.checked) {
+                    if (paneTable) paneTable.classList.add('d-none');
+                    if (paneQuery) paneQuery.classList.remove('d-none');
+                    if (queryTextarea && (!queryTextarea.value || !queryTextarea.value.trim())) {
+                        var currentTable = tableSelect && tableSelect.value ? tableSelect.value.trim() : 'table_name';
+                        queryTextarea.value = 'SELECT * FROM `' + currentTable + '` LIMIT 5000;';
+                    }
+                }
+            });
+        }
+
+        // Quick query template button
+        if (btnQuickQuery && queryTextarea) {
+            btnQuickQuery.addEventListener('click', function () {
+                var currentTable = tableSelect && tableSelect.value ? tableSelect.value.trim() : 'table_name';
+                queryTextarea.value = 'SELECT * FROM `' + currentTable + '` LIMIT 5000;';
+            });
+        }
+
+        // Test Connection & Load Tables Button Click
+        if (btnTestConn) {
+            btnTestConn.addEventListener('click', function () {
+                loadMySQLSchema(false);
+            });
+        }
+
+        // Auto-update dataset name when table changes in select box
+        if (tableSelect && datasetNameInput) {
+            function updateDatasetNameFromTable() {
+                if (tableSelect.value && tableSelect.value.trim()) {
+                    datasetNameInput.value = tableSelect.value.trim();
+                    datasetNameInput.setAttribute('data-auto', 'true');
+                }
+            }
+            tableSelect.addEventListener('change', updateDatasetNameFromTable);
+            tableSelect.addEventListener('input', updateDatasetNameFromTable);
+            datasetNameInput.addEventListener('input', function () {
+                datasetNameInput.removeAttribute('data-auto');
+            });
+        }
+
+        // Import & Analyze from MySQL
+        if (btnImportMySQL) {
+            btnImportMySQL.addEventListener('click', function () {
+                var isTableMode = modeSelectTable ? modeSelectTable.checked : true;
+                var host = hostInput ? hostInput.value.trim() : '';
+                var port = portInput ? portInput.value.trim() : '3306';
+                var database = dbInput ? dbInput.value.trim() : '';
+                var user = userInput ? userInput.value.trim() : '';
+                var password = passInput ? passInput.value : '';
+                var tableName = tableSelect ? tableSelect.value.trim() : '';
+                var customQuery = queryTextarea ? queryTextarea.value.trim() : '';
+                var limit = limitSelect ? limitSelect.value : '5000';
+                var whereClause = whereInput ? whereInput.value.trim() : '';
+                var datasetName = datasetNameInput ? datasetNameInput.value.trim() : '';
+
+                if (!host) {
+                    if (connAlert) {
+                        connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please specify the MySQL host address.';
+                        connAlert.classList.remove('d-none');
+                    }
+                    if (hostInput) hostInput.focus();
                     return;
                 }
 
-                if (!tableSelect && !queryInput) {
-                    if (statusEl) {
-                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
-                        statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Please select a table or type a custom SQL query.';
-                        statusEl.classList.remove('d-none');
+                if (!database) {
+                    if (connAlert) {
+                        connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please specify your database name.';
+                        connAlert.classList.remove('d-none');
                     }
+                    if (dbInput) dbInput.focus();
                     return;
                 }
 
-                if (runBtn) runBtn.disabled = true;
-                if (spinner) spinner.classList.remove('d-none');
-
-                if (statusEl) {
-                    statusEl.className = 'alert alert-info shadow-sm mb-3';
-                    statusEl.innerHTML = '<i class="bi bi-gear-wide-connected spin me-2"></i> Extracting MySQL data & executing automated EDA pipeline... Please wait.';
-                    statusEl.classList.remove('d-none');
+                if (!user) {
+                    if (connAlert) {
+                        connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please specify your database username.';
+                        connAlert.classList.remove('d-none');
+                    }
+                    if (userInput) userInput.focus();
+                    return;
                 }
 
+                if (isTableMode && !tableName) {
+                    if (connAlert) {
+                        connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please click "Test Connection & Load Tables" first and select a target table.';
+                        connAlert.classList.remove('d-none');
+                    }
+                    if (tableSelect) tableSelect.focus();
+                    return;
+                }
+
+                if (!isTableMode && !customQuery) {
+                    if (connAlert) {
+                        connAlert.className = 'alert alert-warning p-2 mb-3 rounded-3 small';
+                        connAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Please enter an SQL query to execute.';
+                        connAlert.classList.remove('d-none');
+                    }
+                    if (queryTextarea) queryTextarea.focus();
+                    return;
+                }
+
+                btnImportMySQL.disabled = true;
+                if (mysqlStatus) {
+                    mysqlStatus.className = 'mt-3 p-3 rounded bg-body-tertiary';
+                    mysqlStatus.classList.remove('d-none');
+                }
+                if (mysqlStatusMsg) {
+                    mysqlStatusMsg.textContent = isTableMode ? 'Fetching records from table "' + tableName + '"...' : 'Executing SQL query & fetching records...';
+                }
                 if (processingLoader) processingLoader.style.display = 'flex';
 
-                fetch('/api/mysql/import_and_analyze', {
+                fetch('/api/import_mysql', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({
                         host: host,
                         port: port,
+                        database: database,
                         user: user,
                         password: password,
-                        database: database,
-                        table_name: tableSelect,
-                        query: queryInput,
-                        limit: limit
+                        import_mode: isTableMode ? 'table' : 'query',
+                        table_name: tableName,
+                        custom_query: customQuery,
+                        limit: limit,
+                        where_clause: whereClause,
+                        dataset_name: datasetName
                     })
                 })
                 .then(function (res) { return res.json(); })
                 .then(function (data) {
                     if (processingLoader) processingLoader.style.display = 'none';
-                    if (runBtn) runBtn.disabled = false;
-                    if (spinner) spinner.classList.add('d-none');
+                    btnImportMySQL.disabled = false;
+                    if (mysqlStatus) mysqlStatus.classList.add('d-none');
 
                     if (data.success && data.preview_html) {
-                        // Close MySQL modal
-                        var modalEl = document.getElementById('dnMysqlModal');
-                        if (modalEl && window.bootstrap && bootstrap.Modal) {
-                            var modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                            modalInstance.hide();
+                        if (mysqlModalEl && window.bootstrap && bootstrap.Modal) {
+                            var modalInst = bootstrap.Modal.getInstance(mysqlModalEl) || new bootstrap.Modal(mysqlModalEl);
+                            modalInst.hide();
                         }
 
-                        var displayName = 'mysql:' + database + '.' + (tableSelect || 'query');
-                        populateDatasetWorkspace(data, data.file_name || displayName, true);
+                        populateDatasetWorkspace(data, data.file_name || 'MySQL Dataset', true);
                         addTooltipsToStatsTable();
+                        showToast(data.message || 'MySQL dataset imported and analyzed successfully!', 'success');
+
+                        // Refresh previous datasets modal list if cached
+                        if (typeof fetchPreviousDatasets === 'function') {
+                            fetchPreviousDatasets();
+                        }
                     } else {
-                        var errText = (data.message || data.error || 'Failed to analyze MySQL dataset.').replace(/\n/g, '<br>');
-                        if (statusEl) {
-                            statusEl.className = 'alert alert-danger shadow-sm mb-3';
-                            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + errText;
+                        var errText = (data.message || data.error || 'Failed to import MySQL dataset.').replace(/\n/g, '<br>');
+                        if (mysqlStatus) {
+                            mysqlStatus.className = 'mt-3 p-3 rounded bg-danger-subtle text-danger border border-danger-subtle';
+                            mysqlStatus.innerHTML = '<div class="d-flex align-items-start gap-2"><i class="bi bi-exclamation-triangle-fill fs-5 mt-0.5 text-danger flex-shrink-0"></i><div class="small fw-medium">' + errText + '</div></div>';
+                            mysqlStatus.classList.remove('d-none');
                         } else {
-                            alert(data.message || 'Failed to analyze MySQL dataset.');
+                            alert(data.message || 'Failed to import MySQL dataset.');
                         }
                     }
                 })
                 .catch(function (err) {
                     if (processingLoader) processingLoader.style.display = 'none';
-                    if (runBtn) runBtn.disabled = false;
-                    if (spinner) spinner.classList.add('d-none');
-                    console.error('[DataNova] MySQL Analysis error:', err);
-                    if (statusEl) {
-                        statusEl.className = 'alert alert-danger shadow-sm mb-3';
-                        statusEl.innerHTML = '<i class="bi bi-wifi-off me-2"></i>Network Error: ' + err.message;
+                    btnImportMySQL.disabled = false;
+                    console.error('[DataNova] MySQL import error:', err);
+                    if (mysqlStatus) {
+                        mysqlStatus.className = 'mt-3 p-3 rounded bg-danger-subtle text-danger border border-danger-subtle';
+                        mysqlStatus.innerHTML = '<div class="d-flex align-items-center gap-2"><i class="bi bi-wifi-off fs-5 text-danger"></i><span class="small fw-semibold">Network error while fetching MySQL dataset. Please check your connection and try again.</span></div>';
+                        mysqlStatus.classList.remove('d-none');
                     } else {
-                        alert('Network error while analyzing MySQL dataset.');
+                        alert('Network error while importing MySQL dataset.');
                     }
                 });
             });
         }
-
-
-        // Handle "View All Columns" button click
         if (viewAllColsBtn) {
             viewAllColsBtn.addEventListener('click', function () {
                 const currentState = viewAllColsBtn.getAttribute('data-state');
@@ -2455,6 +2648,79 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
             });
         }
+
+        // Trigger file input click when the dropzone is clicked (excluding modal triggers, buttons, and links)
+        uploadForm.addEventListener('click', function (e) {
+            if (e.target === fileInput) return;
+            if (
+                e.target.closest('[data-bs-toggle="modal"]') ||
+                e.target.closest('[data-bs-target]') ||
+                e.target.closest('#dnDropzoneGSheetBadge') ||
+                e.target.closest('#dnDropzoneMySQLBadge') ||
+                e.target.closest('button') ||
+                e.target.closest('a')
+            ) {
+                return;
+            }
+            fileInput.click();
+        });
+
+        // Explicit click and keyboard handlers for CSV and Excel badges inside dropzone
+        var csvBadge = document.getElementById('dnDropzoneCsvBadge');
+        if (csvBadge) {
+            csvBadge.addEventListener('click', function (e) {
+                e.stopPropagation();
+                fileInput.click();
+            });
+            csvBadge.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInput.click();
+                }
+            });
+        }
+        var excelBadge = document.getElementById('dnDropzoneExcelBadge');
+        if (excelBadge) {
+            excelBadge.addEventListener('click', function (e) {
+                e.stopPropagation();
+                fileInput.click();
+            });
+            excelBadge.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInput.click();
+                }
+            });
+        }
+
+        // Handle file selection from the dialog
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files.length > 0) {
+                uploadFile(fileInput.files[0]);
+            }
+        });
+
+        // Drag and drop events
+        ['dragenter', 'dragover'].forEach(function (evt) {
+            uploadForm.addEventListener(evt, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadForm.classList.add('is-dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(function (evt) {
+            uploadForm.addEventListener(evt, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadForm.classList.remove('is-dragover');
+            });
+        });
+
+        uploadForm.addEventListener('drop', function (e) {
+            if (e.dataTransfer.files.length > 0) {
+                uploadFile(e.dataTransfer.files[0]);
+            }
+        });
     }
 
     // Helper function to render charts (used by EDA generation, dataset load, and 2D/3D mode toggling)
@@ -2662,31 +2928,31 @@ document.addEventListener('DOMContentLoaded', function () {
         if (confirmRollbackBtn) {
             confirmRollbackBtn.addEventListener('click', function () {
                 confirmRollbackBtn.disabled = true;
-                confirmRollbackBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Rolling back...';
+                confirmRollbackBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Rolling back & cleaning...';
 
+                const targetDatasetId = activeDatasetId;
                 fetch('/api/rollback_dataset', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dataset_id: activeDatasetId })
+                    body: JSON.stringify({ dataset_id: targetDatasetId })
                 })
                     .then(res => res.json())
                     .then(data => {
                         rollbackModal.hide();
                         if (data.success) {
-                            alert('Dataset successfully rolled back to its raw state!');
-                            loadCurrentDataset();
+                            cleanAndResetFullDashboard('Dataset successfully rolled back to raw state and dashboard completely cleaned! No dataset is active.');
                         } else {
-                            alert('Rollback failed: ' + (data.message || 'Unknown error'));
+                            showToast('Rollback failed: ' + (data.message || 'Unknown error'), 'danger');
                         }
                     })
                     .catch(err => {
                         showFetchError('confirmRollbackBtn', err);
                         rollbackModal.hide();
-                        alert('Rollback failed — the server could not be reached. Please try again.');
+                        showToast('Rollback failed — the server could not be reached. Please try again.', 'danger');
                     })
                     .finally(() => {
                         confirmRollbackBtn.disabled = false;
-                        confirmRollbackBtn.innerHTML = '<i class="bi bi-trash"></i> Yes, Rollback';
+                        confirmRollbackBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Yes, Rollback & Clean Dashboard';
                     });
             });
         }
@@ -3004,8 +3270,11 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
 
             if (task.status === 'Completed') {
-                statusBadge = '<span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Completed</span>';
-                actionButtons = `<span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2"><i class="bi bi-check2-all me-1"></i>Completed</span>`;
+                statusBadge = '<span class="badge bg-info text-white"><i class="bi bi-clock-history me-1"></i>Completed (Under Review)</span>';
+                actionButtons = `<span class="badge bg-info-subtle text-info border border-info-subtle py-2 px-2"><i class="bi bi-hourglass-split me-1"></i>Submitted</span>`;
+            } else if (task.status === 'Approved') {
+                statusBadge = '<span class="badge bg-success text-white"><i class="bi bi-patch-check-fill me-1"></i>Approved</span>';
+                actionButtons = `<span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2"><i class="bi bi-check2-all me-1"></i>Approved by Manager</span>`;
             } else if (task.status === 'In Progress') {
                 statusBadge = '<span class="badge bg-primary text-white"><i class="bi bi-hourglass-split me-1"></i>In Progress</span>';
                 actionButtons = `
@@ -4205,15 +4474,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const itemsHtml = datasets.map(ds => {
             const isActive = activeDatasetId && String(activeDatasetId) === String(ds.id);
+            const isMysql = (ds.file_type === 'mysql' || (ds.file_name && ds.file_name.toLowerCase().startsWith('mysql')));
+            const isSql = (ds.file_type === 'sql' || (ds.file_name && ds.file_name.toLowerCase().endsWith('.sql')));
+            let iconClass = 'bi-file-earmark-spreadsheet';
+            let iconBg = isActive ? 'var(--dn-primary)' : 'rgba(99,102,241,0.12)';
+            let iconColor = isActive ? '#fff' : 'var(--dn-primary)';
+            let typeBadge = '';
+
+            if (isMysql) {
+                iconClass = 'bi-database-fill-gear';
+                iconBg = isActive ? 'linear-gradient(135deg, #00758F 0%, #005266 100%)' : 'rgba(0, 117, 143, 0.15)';
+                iconColor = isActive ? '#fff' : '#00758F';
+                typeBadge = '<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1"><i class="bi bi-database me-1"></i>MySQL</span>';
+            } else if (isSql) {
+                iconClass = 'bi-filetype-sql';
+                iconBg = isActive ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' : 'rgba(2, 132, 199, 0.15)';
+                iconColor = isActive ? '#fff' : '#0284c7';
+                typeBadge = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1"><i class="bi bi-filetype-sql me-1"></i>SQL File</span>';
+            }
             return `
                 <div class="dn-dataset-card p-3 mb-2 rounded border bg-body-tertiary d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 ${isActive ? 'border-primary shadow-sm' : ''}">
                     <div class="d-flex align-items-start gap-3">
-                        <span class="dn-kpi-icon flex-shrink-0" style="background:${isActive ? 'var(--dn-primary)' : 'rgba(99,102,241,0.12)'};color:${isActive ? '#fff' : 'var(--dn-primary)'};width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
-                            <i class="bi bi-file-earmark-spreadsheet"></i>
+                        <span class="dn-kpi-icon flex-shrink-0" style="background:${iconBg};color:${iconColor};width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+                            <i class="bi ${iconClass}"></i>
                         </span>
                         <div>
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <span class="fw-bold">${ds.file_name}</span>
+                                ${typeBadge}
                                 ${isActive ? '<span class="badge bg-primary text-white"><i class="bi bi-check2 me-1"></i>Active Now</span>' : ''}
                             </div>
                             <div class="d-flex align-items-center gap-3 mt-1 small text-secondary flex-wrap">
@@ -4380,12 +4668,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderTeamMembersChecklist(members) {
         if (!teamMembersContainer) return;
-        if (!members || members.length === 0) {
+        const validMembers = (members || []).filter(m => (m.raw_role || '').toLowerCase() !== 'developer');
+        if (!validMembers || validMembers.length === 0) {
             teamMembersContainer.innerHTML = `<div class="text-muted small p-3 text-center"><i class="bi bi-people me-1"></i>No team members found in your manager's team roster.</div>`;
             return;
         }
 
-        teamMembersContainer.innerHTML = members.map(m => {
+        teamMembersContainer.innerHTML = validMembers.map(m => {
             let roleBadge = '<span class="badge bg-secondary">Developer</span>';
             if (m.raw_role === 'manager') roleBadge = '<span class="badge bg-primary">Manager</span>';
             else if (m.raw_role === 'analyst') roleBadge = '<span class="badge bg-info text-dark">Analyst</span>';
@@ -4542,12 +4831,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderSubmitTeamMembersChecklist(members) {
         if (!submitTeamMembersContainer) return;
-        if (!members || members.length === 0) {
+        const validMembers = (members || []).filter(m => (m.raw_role || '').toLowerCase() !== 'developer');
+        if (!validMembers || validMembers.length === 0) {
             submitTeamMembersContainer.innerHTML = `<div class="text-muted small p-3 text-center"><i class="bi bi-people me-1"></i>No team members found in your manager's team roster.</div>`;
             return;
         }
 
-        submitTeamMembersContainer.innerHTML = members.map(m => {
+        submitTeamMembersContainer.innerHTML = validMembers.map(m => {
             let roleBadge = '<span class="badge bg-secondary">Developer</span>';
             if (m.raw_role === 'manager') roleBadge = '<span class="badge bg-primary">Manager</span>';
             else if (m.raw_role === 'analyst') roleBadge = '<span class="badge bg-info text-dark">Analyst</span>';
@@ -4783,10 +5073,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             ` : '';
 
-            // Render recipient user badges
+            // Render recipient user badges (excluding developer accounts)
             let recipientsHtml = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle extra-small">All Team Members</span>';
-            if (sd.shared_with_users && sd.shared_with_users.length > 0) {
-                recipientsHtml = sd.shared_with_users.map(u => {
+            const validRecipients = (sd.shared_with_users || []).filter(u => (u.role || '').toLowerCase() !== 'developer');
+            if (validRecipients.length > 0) {
+                recipientsHtml = validRecipients.map(u => {
                     return `<span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small" title="${escapeHtml(u.email || '')}">${escapeHtml(u.name)} (${escapeHtml(u.role || 'User')})</span>`;
                 }).join(' ');
             }
@@ -5634,6 +5925,104 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnSaveCurrentModel = document.getElementById('btnSaveCurrentModel');
     const btnOpenSavedModelsModal = document.getElementById('btnOpenSavedModelsModal');
     const savedModelsCountBadge = document.getElementById('savedModelsCountBadge');
+    const btnClearMlStudio = document.getElementById('btnClearMlStudio');
+    const btnExportModelPkl = document.getElementById('btnExportModelPkl');
+    const btnExportModelJson = document.getElementById('btnExportModelJson');
+    const btnDownloadExecutivePdf = document.getElementById('btnDownloadExecutivePdf');
+    const btnPrintExecutiveSummary = document.getElementById('btnPrintExecutiveSummary');
+
+    let mlTableSortColumn = null;
+    let mlTableSortAsc = true;
+    let mlCurrentPredictions = [];
+
+    function formatMlNumber(val, decimals = 2) {
+        if (val === undefined || val === null || val === '') return '--';
+        const num = Number(val);
+        if (isNaN(num)) return String(val);
+        if (Number.isInteger(num) && decimals === 0) {
+            return num.toLocaleString();
+        }
+        return num.toLocaleString(undefined, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    function checkAndDisplayTargetGuardrail(targetCol, modality = currentMlModality) {
+        const warningBanner = document.getElementById('mlTargetWarningBanner');
+        const warningText = document.getElementById('mlTargetWarningText');
+        const warningTitle = document.getElementById('mlTargetWarningTitle');
+        if (!warningBanner) return;
+
+        if (!targetCol || modality !== 'regression') {
+            warningBanner.classList.add('d-none');
+            return;
+        }
+
+        const tLower = String(targetCol).toLowerCase().trim();
+        const geoKeywords = [
+            'postal', 'postcode', 'post_code', 'postal_code', 'postal code',
+            'zip', 'zipcode', 'zip_code', 'zip code', 'pincode', 'pin_code', 'pin code',
+            'area_code', 'areacode', 'country_code', 'region_code', 'state_code'
+        ];
+        const idKeywords = [
+            '_id', 'id_', 'customer_id', 'user_id', 'row_id', 'index', 'account_no', 
+            'phone', 'serial', 'ssn', 'transaction_id', 'guid', 'uuid', 'order_id'
+        ];
+
+        const isGeo = geoKeywords.some(k => tLower.includes(k));
+        const isId = idKeywords.some(k => tLower.includes(k)) || tLower === 'id' || tLower === 'row_id';
+        const serverWarning = (currentMlOptions && currentMlOptions.target_warnings && currentMlOptions.target_warnings[targetCol]) ? currentMlOptions.target_warnings[targetCol] : null;
+
+        if (isGeo || (serverWarning && serverWarning.warning_type === 'categorical_id')) {
+            warningBanner.classList.remove('d-none');
+            if (warningTitle) warningTitle.textContent = 'Categorical / Geographical Identifier Target Warning';
+            if (warningText) {
+                warningText.innerHTML = `<strong>${targetCol}</strong> is a categorical/geographical ID column. Continuous Linear Regression is not designed for discrete geographical codes. Consider using it in Classification or Frequency analysis instead of Regression.`;
+            }
+        } else if (isId || (serverWarning && serverWarning.warning_type === 'id_column')) {
+            warningBanner.classList.remove('d-none');
+            if (warningTitle) warningTitle.textContent = 'Non-Predictive Unique Identifier Warning';
+            if (warningText) {
+                warningText.innerHTML = `<strong>${targetCol}</strong> appears to be an identifier or sequence key with no continuous predictive relationship. Select a continuous target metric (e.g., Sales, Profit, Quantity, Revenue, Price).`;
+            }
+        } else {
+            warningBanner.classList.add('d-none');
+        }
+    }
+
+    function resetMlStudioState() {
+        if (!currentMlOptions) return;
+        const recs = (currentMlOptions.recommendations && currentMlOptions.recommendations[currentMlModality]) ? currentMlOptions.recommendations[currentMlModality] : {};
+        
+        if (mlTargetColSelect && recs.target) {
+            mlTargetColSelect.value = recs.target;
+        }
+        checkAndDisplayTargetGuardrail(mlTargetColSelect ? mlTargetColSelect.value : '', currentMlModality);
+
+        if (mlFeaturePillsContainer) {
+            const recFeatures = recs.features || [];
+            const checkboxes = mlFeaturePillsContainer.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = recFeatures.includes(cb.value);
+            });
+            updateSelectedFeaturesCount();
+        }
+
+        if (mlSearchPredictionsInput) {
+            mlSearchPredictionsInput.value = '';
+        }
+
+        const weakFitAlert = document.getElementById('mlWeakFitAlert');
+        if (weakFitAlert) weakFitAlert.classList.add('d-none');
+
+        const playgroundResult = document.getElementById('mlPlaygroundResultContainer');
+        if (playgroundResult) playgroundResult.classList.add('d-none');
+        const playgroundBreakdown = document.getElementById('mlPlaygroundEquationBreakdown');
+        if (playgroundBreakdown) playgroundBreakdown.classList.add('d-none');
+
+        showToast('Reset ML Studio parameters to default recommended state.', 'info');
+    }
 
     function getSelectedMlFeatures() {
         if (!mlFeaturePillsContainer) return [];
@@ -5818,13 +6207,25 @@ document.addEventListener('DOMContentLoaded', function () {
         if (mlFeaturePillsContainer) {
             mlFeaturePillsContainer.innerHTML = '';
             const recFeatures = recs.features || [];
-            const displayFeatures = numericCols.length > 0 ? numericCols : (typeof fullColumnInfo !== 'undefined' && fullColumnInfo ? fullColumnInfo.map(c => c.name) : []);
+            let displayFeatures = [];
+            if (modality === 'regression' || modality === 'classification') {
+                const eligibleCat = (catCols || []).filter(c => !c.toLowerCase().includes('id') && !c.toLowerCase().includes('name'));
+                displayFeatures = [...numericCols, ...eligibleCat];
+            } else {
+                displayFeatures = numericCols.length > 0 ? numericCols : (typeof fullColumnInfo !== 'undefined' && fullColumnInfo ? fullColumnInfo.map(c => c.name) : []);
+            }
+            displayFeatures = [...new Set(displayFeatures)];
             
             displayFeatures.forEach(col => {
                 const isChecked = recFeatures.length > 0 ? recFeatures.includes(col) : true;
                 const corrInfo = correlations[col] || {};
                 const badgeClass = corrInfo.badge || 'secondary';
-                const corrText = corrInfo.corr !== undefined ? ` (r=${corrInfo.corr >= 0 ? '+' : ''}${corrInfo.corr})` : '';
+                let corrText = '';
+                if (corrInfo.label && corrInfo.label.includes('η=')) {
+                    corrText = ` (η=${corrInfo.corr})`;
+                } else if (corrInfo.corr !== undefined) {
+                    corrText = ` (r=${corrInfo.corr >= 0 ? '+' : ''}${corrInfo.corr})`;
+                }
 
                 const pillLabel = document.createElement('label');
                 pillLabel.className = `btn btn-sm btn-outline-${badgeClass === 'secondary' ? 'secondary' : badgeClass} py-0.5 px-2 small d-inline-flex align-items-center gap-1.5 rounded-pill mb-0 text-body`;
@@ -5841,6 +6242,8 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             updateSelectedFeaturesCount();
         }
+
+        checkAndDisplayTargetGuardrail(mlTargetColSelect ? mlTargetColSelect.value : '', modality);
     }
 
     function fetchMlOptionsAndRun(modality, autoRun = true) {
@@ -5955,20 +6358,48 @@ document.addEventListener('DOMContentLoaded', function () {
         const modality = result.model_type || currentMlModality;
         const metrics = result.metrics || {};
 
-        // 1. Update Equation & Formula Card (Regression)
+        // 1. Weak Fit / Negative R2 Alert Ribbon Guardrail
+        const weakFitAlert = document.getElementById('mlWeakFitAlert');
+        const weakFitBadge = document.getElementById('mlWeakFitBadge');
+        const weakFitScore = document.getElementById('mlWeakFitScore');
+        const weakFitMsg = document.getElementById('mlWeakFitMessage');
+        const kpi1Card = document.getElementById('mlKpi1Card');
+
+        const isWeak = (modality === 'regression' && (metrics.r2_score < 0 || result.is_weak_fit));
+
+        if (isWeak) {
+            if (weakFitAlert) weakFitAlert.classList.remove('d-none');
+            if (weakFitBadge) weakFitBadge.textContent = '⚠️ Weak Fit / Invalid Target Variable';
+            if (weakFitScore) weakFitScore.textContent = `R² = ${metrics.r2_score}`;
+            if (weakFitMsg) {
+                weakFitMsg.innerHTML = result.fit_alert?.message || `Model Unfit (R² = ${metrics.r2_score} &lt; 0). The regression line performs worse than a simple horizontal mean baseline. Target variable '${result.target_column}' likely has no continuous linear relationship with predictors, or is a discrete ID/geographical code (such as Postal Code). Consider using Classification or selecting a continuous numerical target.`;
+            }
+            if (kpi1Card) {
+                kpi1Card.classList.add('border-danger', 'bg-danger-subtle');
+                kpi1Card.classList.remove('bg-body-tertiary');
+            }
+        } else {
+            if (weakFitAlert) weakFitAlert.classList.add('d-none');
+            if (kpi1Card) {
+                kpi1Card.classList.remove('border-danger', 'bg-danger-subtle');
+                kpi1Card.classList.add('bg-body-tertiary');
+            }
+        }
+
+        // 2. Update Equation & Formula Card (Regression)
         const formulaCard = document.getElementById('mlFormulaCard');
         const interceptBadge = document.getElementById('mlInterceptBadge');
         const formulaText = document.getElementById('mlFormulaText');
 
         if (modality === 'regression') {
             if (formulaCard) formulaCard.classList.remove('d-none');
-            if (interceptBadge) interceptBadge.textContent = `Intercept (β0): ${result.intercept !== undefined ? result.intercept : '--'}`;
+            if (interceptBadge) interceptBadge.textContent = `Intercept (β0): ${result.intercept !== undefined ? formatMlNumber(result.intercept) : '--'}`;
             if (formulaText) formulaText.textContent = result.formula || 'Target = β0 + (β1 × Feature1)...';
         } else {
             if (formulaCard) formulaCard.classList.add('d-none');
         }
 
-        // 2. Update Top KPI Cards
+        // 3. Update Top KPI Cards
         const k1Label = document.getElementById('mlKpi1Label');
         const k1Val = document.getElementById('mlKpi1Value');
         const k1Sub = document.getElementById('mlKpi1Sub');
@@ -5987,59 +6418,65 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (modality === 'regression') {
             if (k1Label) k1Label.textContent = 'R² Determination';
-            if (k1Val) k1Val.textContent = (metrics.r2_score !== undefined) ? metrics.r2_score : '--';
-            if (k1Sub) k1Sub.textContent = 'Model Goodness of Fit';
+            if (k1Val) {
+                if (metrics.r2_score < 0) {
+                    k1Val.innerHTML = `<span class="text-danger font-monospace">${metrics.r2_score}</span> <span class="badge bg-danger-subtle text-danger border d-block mt-1" style="font-size:0.62rem;">⚠️ Weak Fit</span>`;
+                } else {
+                    k1Val.textContent = (metrics.r2_score !== undefined) ? metrics.r2_score : '--';
+                }
+            }
+            if (k1Sub) k1Sub.textContent = metrics.r2_score < 0 ? 'Model Unfit (< 0)' : 'Goodness of Fit';
 
             if (k2Label) k2Label.textContent = 'MAE Error';
-            if (k2Val) k2Val.textContent = (metrics.mae !== undefined) ? metrics.mae : '--';
+            if (k2Val) k2Val.textContent = (metrics.mae !== undefined) ? formatMlNumber(metrics.mae) : '--';
             if (k2Sub) k2Sub.textContent = 'Mean Absolute Error';
 
             if (k3Label) k3Label.textContent = 'RMSE Error';
-            if (k3Val) k3Val.textContent = (metrics.rmse !== undefined) ? metrics.rmse : '--';
+            if (k3Val) k3Val.textContent = (metrics.rmse !== undefined) ? formatMlNumber(metrics.rmse) : '--';
             if (k3Sub) k3Sub.textContent = 'Root Mean Squared Error';
 
             if (k4Label) k4Label.textContent = 'Sample Size';
-            if (k4Val) k4Val.textContent = (metrics.test_samples !== undefined) ? metrics.test_samples : '--';
+            if (k4Val) k4Val.textContent = (metrics.test_samples !== undefined) ? formatMlNumber(metrics.test_samples, 0) : '--';
             if (k4Sub) k4Sub.textContent = 'Evaluated Test Rows';
         } else if (modality === 'classification') {
             if (k1Label) k1Label.textContent = 'Model Accuracy';
-            if (k1Val) k1Val.textContent = (metrics.accuracy !== undefined) ? `${metrics.accuracy}%` : '--';
+            if (k1Val) k1Val.textContent = (metrics.accuracy !== undefined) ? `${formatMlNumber(metrics.accuracy, 1)}%` : '--';
             if (k1Sub) k1Sub.textContent = 'Correct Class Predictions';
 
             if (k2Label) k2Label.textContent = 'F1-Score';
-            if (k2Val) k2Val.textContent = (metrics.f1_score !== undefined) ? `${metrics.f1_score}%` : '--';
+            if (k2Val) k2Val.textContent = (metrics.f1_score !== undefined) ? `${formatMlNumber(metrics.f1_score, 1)}%` : '--';
             if (k2Sub) k2Sub.textContent = 'Harmonic Precision-Recall';
 
             if (k3Label) k3Label.textContent = 'Precision';
-            if (k3Val) k3Val.textContent = (metrics.precision !== undefined) ? `${metrics.precision}%` : '--';
+            if (k3Val) k3Val.textContent = (metrics.precision !== undefined) ? `${formatMlNumber(metrics.precision, 1)}%` : '--';
             if (k3Sub) k3Sub.textContent = 'Positive Predictive Value';
 
             if (k4Label) k4Label.textContent = 'Dataset Records';
-            if (k4Val) k4Val.textContent = (metrics.total_records !== undefined) ? metrics.total_records : '--';
+            if (k4Val) k4Val.textContent = (metrics.total_records !== undefined) ? formatMlNumber(metrics.total_records, 0) : '--';
             if (k4Sub) k4Sub.textContent = 'Total labeled training records';
         } else if (modality === 'clustering') {
             if (k1Label) k1Label.textContent = 'Silhouette Score';
             if (k1Val) k1Val.textContent = (metrics.silhouette_score !== undefined) ? metrics.silhouette_score : '--';
-            if (k1Sub) k1Sub.textContent = 'Cluster Separation Quality';
+            if (k1Sub) k1Sub.textContent = metrics.quality_rating || 'Cluster Separation Quality';
 
             if (k2Label) k2Label.textContent = 'Clusters Formed';
             if (k2Val) k2Val.textContent = (metrics.n_clusters !== undefined) ? metrics.n_clusters : '--';
             if (k2Sub) k2Sub.textContent = 'Distinct Customer Cohorts';
 
             if (k3Label) k3Label.textContent = 'Inertia (WCSS)';
-            if (k3Val) k3Val.textContent = (metrics.inertia !== undefined) ? metrics.inertia : '--';
+            if (k3Val) k3Val.textContent = (metrics.inertia !== undefined) ? formatMlNumber(metrics.inertia) : '--';
             if (k3Sub) k3Sub.textContent = 'Within-Cluster Sum of Squares';
 
             if (k4Label) k4Label.textContent = 'Clustered Records';
-            if (k4Val) k4Val.textContent = (metrics.total_records !== undefined) ? metrics.total_records : '--';
+            if (k4Val) k4Val.textContent = (metrics.total_records !== undefined) ? formatMlNumber(metrics.total_records, 0) : '--';
             if (k4Sub) k4Sub.textContent = 'Segmented dataset entities';
         } else if (modality === 'forecasting') {
             if (k1Label) k1Label.textContent = 'Projected Avg';
-            if (k1Val) k1Val.textContent = (metrics.avg_projected_value !== undefined) ? metrics.avg_projected_value : '--';
+            if (k1Val) k1Val.textContent = (metrics.avg_projected_value !== undefined) ? formatMlNumber(metrics.avg_projected_value) : '--';
             if (k1Sub) k1Sub.textContent = 'Mean future forecast value';
 
             if (k2Label) k2Label.textContent = 'Growth Trend';
-            if (k2Val) k2Val.textContent = (metrics.growth_trend_pct !== undefined) ? `${metrics.growth_trend_pct > 0 ? '+' : ''}${metrics.growth_trend_pct}%` : '--';
+            if (k2Val) k2Val.textContent = (metrics.growth_trend_pct !== undefined) ? `${metrics.growth_trend_pct > 0 ? '+' : ''}${formatMlNumber(metrics.growth_trend_pct, 1)}%` : '--';
             if (k2Sub) k2Sub.textContent = 'Projected delta vs baseline';
 
             if (k3Label) k3Label.textContent = 'Horizon Periods';
@@ -6047,15 +6484,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (k3Sub) k3Sub.textContent = 'Future steps projected';
 
             if (k4Label) k4Label.textContent = 'Historical Base';
-            if (k4Val) k4Val.textContent = (metrics.historical_periods !== undefined) ? metrics.historical_periods : '--';
+            if (k4Val) k4Val.textContent = (metrics.historical_periods !== undefined) ? formatMlNumber(metrics.historical_periods, 0) : '--';
             if (k4Sub) k4Sub.textContent = 'Chronological historical points';
         } else if (modality === 'anomaly') {
             if (k1Label) k1Label.textContent = 'Anomalies Detected';
-            if (k1Val) k1Val.textContent = (metrics.anomalies_detected !== undefined) ? metrics.anomalies_detected : '--';
+            if (k1Val) k1Val.textContent = (metrics.anomalies_detected !== undefined) ? formatMlNumber(metrics.anomalies_detected, 0) : '--';
             if (k1Sub) k1Sub.textContent = 'High-risk multivariate outliers';
 
             if (k2Label) k2Label.textContent = 'Anomaly Rate';
-            if (k2Val) k2Val.textContent = (metrics.anomaly_rate_pct !== undefined) ? `${metrics.anomaly_rate_pct}%` : '--';
+            if (k2Val) k2Val.textContent = (metrics.anomaly_rate_pct !== undefined) ? `${formatMlNumber(metrics.anomaly_rate_pct, 2)}%` : '--';
             if (k2Sub) k2Sub.textContent = 'Outlier percentage of dataset';
 
             if (k3Label) k3Label.textContent = 'Contamination';
@@ -6063,24 +6500,185 @@ document.addEventListener('DOMContentLoaded', function () {
             if (k3Sub) k3Sub.textContent = 'Configured sensitivity';
 
             if (k4Label) k4Label.textContent = 'Total Analyzed';
-            if (k4Val) k4Val.textContent = (metrics.total_records_analyzed !== undefined) ? metrics.total_records_analyzed : '--';
+            if (k4Val) k4Val.textContent = (metrics.total_records_analyzed !== undefined) ? formatMlNumber(metrics.total_records_analyzed, 0) : '--';
             if (k4Sub) k4Sub.textContent = 'Records scanned by Isolation Forest';
         }
 
-        // 3. Render Multi-Chart Plotly Visualizations (Scatter, Residuals, Coefficients)
+        // 4. Render Multi-Chart Plotly Visualizations (Scatter, Residuals, Coefficients)
         renderMlPlotlyCharts(result);
 
-        // 4. Render Plain-Language Human Explanations Box
+        // 5. Render Plain-Language Human Explanations Box
         renderHumanExplanations(result);
 
-        // 5. Render Feature Importances / Driver Ranking
+        // 6. Render Feature Importances / Driver Ranking
         renderFeatureImportances(result);
 
-        // 6. Render Predictions Table ("What was Predicted")
+        // 7. Render Live Prediction Playground (Single Record Predictor)
+        renderLivePlayground(result);
+
+        // 8. Render Predictions Table ("What was Predicted")
         renderPredictionsTable(result);
 
-        // 7. Render Inline Predictions directly in Step 7 on Dashboard
+        // 9. Render Inline Predictions directly in Step 7 on Dashboard
         renderStep7InlinePredictions(result);
+
+        // 10. Re-initialize interactive Bootstrap tooltips
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltips = document.querySelectorAll('#dnMlStudioModal [data-bs-toggle="tooltip"]');
+            tooltips.forEach(t => bootstrap.Tooltip.getOrCreateInstance(t));
+        }
+
+        // 11. Refresh Intelligent Assistant Quick Chips for active modality
+        refreshAssistantChips(modality, result);
+    }
+
+    function refreshAssistantChips(modality, result) {
+        const chipsContainer = document.getElementById('mlAssistantQuickChips');
+        const responseBox = document.getElementById('mlAssistantResponseBox');
+        const queryInput = document.getElementById('mlAssistantQueryInput');
+        if (!chipsContainer) return;
+
+        if (responseBox) responseBox.classList.add('d-none');
+        if (queryInput) queryInput.value = '';
+
+        let chips = [];
+        if (modality === 'classification') {
+            chips = [
+                { text: '💡 Explain Accuracy & Predictions', q: 'Explain this classification model and accuracy in simple words' },
+                { text: '🔍 Explain Confusion Matrix', q: 'Explain the Confusion Matrix in simple terms' },
+                { text: '🛡️ Precision vs Recall', q: 'What is the difference between Precision and Recall for this model?' },
+                { text: '📋 Executive Brief', q: 'Give me an executive summary for stakeholders' }
+            ];
+        } else if (modality === 'clustering') {
+            chips = [
+                { text: '💡 Explain Customer Cohorts', q: 'Explain customer clusters and Silhouette score in simple words' },
+                { text: '🔍 Silhouette Separation Quality', q: 'How well-separated are these clusters?' },
+                { text: '🛡️ Cohort Characteristics', q: 'What are the main characteristics of each cluster?' },
+                { text: '📋 Executive Brief', q: 'Give me an executive summary of these customer clusters' }
+            ];
+        } else if (modality === 'forecasting') {
+            chips = [
+                { text: '💡 Explain Future Trend', q: 'Explain this future forecast and growth trend in simple words' },
+                { text: '🔍 95% Confidence Band', q: 'Explain the 95% Confidence Band in simple terms' },
+                { text: '🛡️ Margin of Error (RMSE)', q: 'What is the forecast accuracy and margin of error?' },
+                { text: '📋 Executive Forecast Brief', q: 'Give me an executive summary of this forecast' }
+            ];
+        } else if (modality === 'anomaly') {
+            chips = [
+                { text: '💡 Explain Detected Outliers', q: 'Explain detected anomalies and outlier severity in simple words' },
+                { text: '🔍 Why were these flagged?', q: 'Why were these records flagged as anomalies?' },
+                { text: '🛡️ Recommended Actions', q: 'What actions should be taken on high-risk outlier records?' },
+                { text: '📋 Executive Risk Summary', q: 'Give me an executive summary of data risks and outliers' }
+            ];
+        } else {
+            chips = [
+                { text: '💡 Explain in Plain English', q: 'Explain this model and predictions in simple words' },
+                { text: '🔍 Top Driving Features', q: 'Which feature has the highest impact or is the main driver?' },
+                { text: '🛡️ Model Health & Fit Check', q: 'Is this model reliable and fit for production?' },
+                { text: '📋 Executive Brief', q: 'Give me an executive summary for stakeholders' },
+                { text: '📈 How to Improve Accuracy', q: 'How can I reduce error and improve model accuracy?' }
+            ];
+        }
+
+        chipsContainer.innerHTML = chips.map(c => `
+            <button type="button" class="ml-chip-btn" data-query="${c.q.replace(/"/g, '&quot;')}">
+                ${c.text}
+            </button>
+        `).join('');
+
+        chipsContainer.querySelectorAll('.ml-chip-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const q = this.getAttribute('data-query');
+                askMlModelAssistant(q);
+            });
+        });
+    }
+
+    function renderLivePlayground(result) {
+        const playgroundCard = document.getElementById('mlLivePlaygroundCard');
+        const inputsContainer = document.getElementById('mlPlaygroundInputsContainer');
+        const resultContainer = document.getElementById('mlPlaygroundResultContainer');
+        const resultVal = document.getElementById('mlPlaygroundResultValue');
+        const targetLabel = document.getElementById('mlPlaygroundTargetLabel');
+        const equationBreakdown = document.getElementById('mlPlaygroundEquationBreakdown');
+        const btnCalculate = document.getElementById('btnRunPlaygroundPrediction');
+
+        if (!playgroundCard || !inputsContainer) return;
+
+        if (result.model_type && result.model_type !== 'regression') {
+            playgroundCard.classList.add('d-none');
+            return;
+        }
+        playgroundCard.classList.remove('d-none');
+        if (resultContainer) resultContainer.classList.add('d-none');
+        if (equationBreakdown) equationBreakdown.classList.add('d-none');
+        if (targetLabel) targetLabel.textContent = result.target_column || 'Target';
+
+        const coefficients = result.coefficients || {};
+        const features = result.features || Object.keys(coefficients);
+        inputsContainer.innerHTML = '';
+
+        if (features.length === 0) {
+            inputsContainer.innerHTML = '<div class="col-12 text-muted small">No continuous predictor features in active model.</div>';
+            return;
+        }
+
+        features.forEach(feat => {
+            const coef = coefficients[feat] !== undefined ? coefficients[feat] : 0;
+            const col = document.createElement('div');
+            col.className = 'col-6 col-md-3';
+            col.innerHTML = `
+                <label class="form-label extra-small text-secondary mb-1 font-monospace fw-semibold text-truncate w-100" title="${feat}">
+                    ${feat} <span class="badge bg-body-tertiary text-secondary border font-monospace ms-1" style="font-size:0.65rem;">β: ${coef >= 0 ? '+' : ''}${coef}</span>
+                </label>
+                <input type="number" step="any" class="form-control form-control-sm playground-input" data-feature="${feat}" placeholder="Value for ${feat}" value="10">
+            `;
+            inputsContainer.appendChild(col);
+        });
+
+        function calculatePlaygroundPrediction() {
+            const intercept = parseFloat(result.intercept) || 0;
+            const mae = parseFloat(result.metrics?.mae) || 0;
+            let total = intercept;
+            let terms = [`Base (β0): ${formatMlNumber(intercept)}`];
+            const inputs = inputsContainer.querySelectorAll('.playground-input');
+
+            inputs.forEach(inp => {
+                const feat = inp.getAttribute('data-feature');
+                const rawVal = inp.value !== '' ? parseFloat(inp.value) : 0;
+                const val = isNaN(rawVal) ? 0 : rawVal;
+                const coef = parseFloat(coefficients[feat]) || 0;
+                const contrib = val * coef;
+                total += contrib;
+                terms.push(`${feat} (${formatMlNumber(coef)} × ${formatMlNumber(val, 1)} = ${contrib >= 0 ? '+' : ''}${formatMlNumber(contrib)})`);
+            });
+
+            if (resultVal) resultVal.textContent = formatMlNumber(total);
+            if (resultContainer) resultContainer.classList.remove('d-none');
+            if (equationBreakdown) {
+                equationBreakdown.classList.remove('d-none');
+                let confBandHtml = '';
+                if (mae > 0) {
+                    const lowEst = total - mae;
+                    const highEst = total + mae;
+                    confBandHtml = `<div class="mt-1 text-secondary"><i class="bi bi-shield-check text-success me-1"></i><strong>Expected Confidence Range (±MAE ${formatMlNumber(mae)}):</strong> <span class="badge bg-body-tertiary text-body border font-monospace">${formatMlNumber(lowEst)}</span> to <span class="badge bg-body-tertiary text-body border font-monospace">${formatMlNumber(highEst)}</span></div>`;
+                }
+                equationBreakdown.innerHTML = `
+                    <div class="mb-1"><strong>Mathematical Calculation:</strong> ŷ = ${terms.join(' + ')} = <span class="text-success fw-bold font-monospace">${formatMlNumber(total)}</span></div>
+                    ${confBandHtml}
+                `;
+            }
+        }
+
+        if (btnCalculate) {
+            btnCalculate.onclick = calculatePlaygroundPrediction;
+        }
+        inputsContainer.querySelectorAll('.playground-input').forEach(inp => {
+            inp.addEventListener('input', calculatePlaygroundPrediction);
+        });
+
+        // Run calculation once to initialize
+        calculatePlaygroundPrediction();
     }
 
     function renderStep7InlinePredictions(result) {
@@ -6096,39 +6694,320 @@ document.addEventListener('DOMContentLoaded', function () {
         if (emptyState) emptyState.classList.add('d-none');
         if (activeContent) activeContent.classList.remove('d-none');
 
-        const modelBadge = document.getElementById('step7ModelBadge');
-        const targetName = document.getElementById('step7TargetName');
-        const r2Val = document.getElementById('step7R2Value');
-        const r2Sub = document.getElementById('step7R2Sub');
-        const maeVal = document.getElementById('step7MaeValue');
-        const maeSub = document.getElementById('step7MaeSub');
-        const formulaText = document.getElementById('step7FormulaText');
-        const interceptText = document.getElementById('step7InterceptText');
-        const countBadge = document.getElementById('step7PredCountBadge');
-
         const modality = result.model_type || 'regression';
         const metrics = result.metrics || {};
 
-        if (modelBadge) modelBadge.innerHTML = `<i class="bi bi-cpu-fill me-1"></i> ${result.model_name || 'Linear Regression (OLS)'}`;
-        if (targetName) targetName.textContent = result.target_column || 'Target';
+        // 1. Sync Modality Selector Top Cards (Highlight active card)
+        document.querySelectorAll('.dn-predict-card[data-tool]').forEach(card => {
+            if (card.getAttribute('data-tool') === modality) {
+                card.classList.add('active');
+            } else {
+                card.classList.remove('active');
+            }
+        });
 
-        if (modality === 'regression') {
-            if (r2Val) r2Val.textContent = (metrics.r2_score !== undefined) ? metrics.r2_score : '--';
-            if (r2Sub) r2Sub.textContent = 'Model Goodness of Fit';
-            if (maeVal) maeVal.textContent = (metrics.mae !== undefined) ? metrics.mae : '--';
-            if (maeSub) maeSub.textContent = 'Mean Absolute Error';
-            if (formulaText) formulaText.textContent = result.formula || 'Target = β0 + (β1 × Feature)...';
-            if (interceptText) interceptText.textContent = `Intercept (β0): ${result.intercept !== undefined ? result.intercept : '--'}`;
-        } else {
-            if (r2Val) r2Val.textContent = (metrics.accuracy !== undefined) ? `${metrics.accuracy}%` : '--';
-            if (r2Sub) r2Sub.textContent = 'Classification Accuracy';
-            if (maeVal) maeVal.textContent = (metrics.f1_score !== undefined) ? `${metrics.f1_score}%` : '--';
-            if (maeSub) maeSub.textContent = 'F1-Score Performance';
-            if (formulaText) formulaText.textContent = `Modality: ${modality.toUpperCase()}`;
-            if (interceptText) interceptText.textContent = `Evaluated on dataset`;
+        // 2. Action Bar Elements
+        const modelBadge = document.getElementById('step7ModelBadge');
+        const targetName = document.getElementById('step7TargetName');
+        const modalityPill = document.getElementById('step7ModalityPill');
+        const btnTrain = document.getElementById('btnStep7TrainModel');
+
+        if (modelBadge) {
+            modelBadge.innerHTML = `<i class="bi bi-cpu-fill me-1"></i> ${result.model_name || 'Machine Learning Model'}`;
         }
 
-        // Predictions Table
+        if (targetName) {
+            if (modality === 'clustering') {
+                targetName.textContent = result.cluster_column || (result.features && result.features.length ? result.features.slice(0, 3).join(', ') : 'Customer Clusters');
+            } else if (modality === 'forecasting') {
+                targetName.textContent = result.target_column || 'Time Horizon Series';
+            } else if (modality === 'anomaly') {
+                targetName.textContent = result.target_column || 'All Numerical Dimensions';
+            } else {
+                targetName.textContent = result.target_column || 'Target';
+            }
+        }
+
+        if (modalityPill) {
+            if (modality === 'classification') {
+                modalityPill.className = 'badge border px-3 py-1.5 rounded-pill fw-semibold';
+                modalityPill.style.backgroundColor = 'rgba(139, 92, 246, 0.12)';
+                modalityPill.style.color = '#7C3AED';
+                modalityPill.style.borderColor = 'rgba(139, 92, 246, 0.25)';
+                modalityPill.innerHTML = '<i class="bi bi-diagram-3-fill me-1"></i> Classification Pipeline';
+            } else if (modality === 'clustering') {
+                modalityPill.className = 'badge border px-3 py-1.5 rounded-pill fw-semibold';
+                modalityPill.style.backgroundColor = 'rgba(6, 182, 212, 0.12)';
+                modalityPill.style.color = '#0891B2';
+                modalityPill.style.borderColor = 'rgba(6, 182, 212, 0.25)';
+                modalityPill.innerHTML = '<i class="bi bi-bounding-box-circles me-1"></i> Clustering Pipeline';
+            } else if (modality === 'forecasting') {
+                modalityPill.className = 'badge border px-3 py-1.5 rounded-pill fw-semibold';
+                modalityPill.style.backgroundColor = 'rgba(16, 185, 129, 0.12)';
+                modalityPill.style.color = '#059669';
+                modalityPill.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+                modalityPill.innerHTML = '<i class="bi bi-clock-history me-1"></i> Time-Series Forecast';
+            } else if (modality === 'anomaly') {
+                modalityPill.className = 'badge border px-3 py-1.5 rounded-pill fw-semibold';
+                modalityPill.style.backgroundColor = 'rgba(244, 63, 94, 0.12)';
+                modalityPill.style.color = '#E11D48';
+                modalityPill.style.borderColor = 'rgba(244, 63, 94, 0.25)';
+                modalityPill.innerHTML = '<i class="bi bi-exclamation-diamond-fill me-1"></i> Anomaly Detection';
+            } else {
+                modalityPill.className = 'badge border px-3 py-1.5 rounded-pill fw-semibold';
+                modalityPill.style.backgroundColor = 'rgba(79, 70, 229, 0.12)';
+                modalityPill.style.color = '#4338CA';
+                modalityPill.style.borderColor = 'rgba(79, 70, 229, 0.25)';
+                modalityPill.innerHTML = '<i class="bi bi-graph-up me-1"></i> Regression Pipeline';
+            }
+        }
+
+        if (btnTrain) {
+            btnTrain.setAttribute('data-tool', modality);
+            btnTrain.innerHTML = '<i class="bi bi-arrow-repeat fs-5"></i> <span>Re-Train / Re-Run Model</span>';
+        }
+
+        // 3. Four Modern Professional KPI Cards
+        const kpi1Label = document.getElementById('step7Kpi1Label');
+        const kpi1Icon = document.getElementById('step7Kpi1Icon');
+        const r2Val = document.getElementById('step7R2Value');
+        const r2Sub = document.getElementById('step7R2Sub');
+
+        const kpi2Label = document.getElementById('step7Kpi2Label');
+        const kpi2Icon = document.getElementById('step7Kpi2Icon');
+        const maeVal = document.getElementById('step7MaeValue');
+        const maeSub = document.getElementById('step7MaeSub');
+
+        const kpi3Label = document.getElementById('step7Kpi3Label');
+        const kpi3Icon = document.getElementById('step7Kpi3Icon');
+        const kpi3Val = document.getElementById('step7Kpi3Value');
+        const kpi3Sub = document.getElementById('step7Kpi3Sub');
+
+        const kpi4Label = document.getElementById('step7Kpi4Label');
+        const kpi4Icon = document.getElementById('step7Kpi4Icon');
+        const formulaText = document.getElementById('step7FormulaText');
+        const interceptText = document.getElementById('step7InterceptText');
+
+        if (modality === 'regression') {
+            // KPI 1: R2 Fit
+            if (kpi1Label) kpi1Label.textContent = 'R² Determination Score';
+            if (kpi1Icon) {
+                kpi1Icon.className = 'dn-ml-icon-bubble bg-primary-subtle text-primary';
+                kpi1Icon.innerHTML = '<i class="bi bi-bullseye"></i>';
+            }
+            const r2Num = parseFloat(metrics.r2_score);
+            if (r2Val) {
+                if (!isNaN(r2Num)) {
+                    const r2Color = r2Num < 0 ? 'text-danger' : (r2Num < 0.25 ? 'text-warning' : (r2Num < 0.60 ? 'text-info' : 'text-success'));
+                    r2Val.innerHTML = `<span class="${r2Color} font-monospace">${metrics.r2_score}</span>`;
+                } else {
+                    r2Val.textContent = '--';
+                }
+            }
+            if (r2Sub) {
+                if (!isNaN(r2Num)) {
+                    if (r2Num < 0) {
+                        r2Sub.innerHTML = '<span class="badge bg-danger-subtle text-danger border">⚠️ Unfit (Worse than Baseline)</span>';
+                    } else if (r2Num < 0.25) {
+                        r2Sub.innerHTML = '<span class="badge bg-warning-subtle text-warning border">⚠️ Poor Fit / Needs Tuning</span>';
+                    } else if (r2Num < 0.60) {
+                        r2Sub.innerHTML = '<span class="badge bg-info-subtle text-info border">Moderate Explanatory Power</span>';
+                    } else {
+                        r2Sub.innerHTML = '<span class="badge bg-success-subtle text-success border">✓ Good Fit (High Accuracy)</span>';
+                    }
+                } else {
+                    r2Sub.textContent = 'Model Goodness of Fit';
+                }
+            }
+
+            // KPI 2: MAE
+            if (kpi2Label) kpi2Label.textContent = 'Mean Absolute Error (MAE)';
+            if (kpi2Icon) {
+                kpi2Icon.className = 'dn-ml-icon-bubble bg-warning-subtle text-warning';
+                kpi2Icon.innerHTML = '<i class="bi bi-activity"></i>';
+            }
+            if (maeVal) maeVal.innerHTML = (metrics.mae !== undefined) ? `<span class="font-monospace">±${formatMlNumber(metrics.mae)}</span>` : '--';
+            if (maeSub) maeSub.textContent = 'Average Absolute Prediction Deviation';
+
+            // KPI 3: RMSE
+            if (kpi3Label) kpi3Label.textContent = 'RMSE Precision Margin';
+            if (kpi3Icon) {
+                kpi3Icon.className = 'dn-ml-icon-bubble bg-success-subtle text-success';
+                kpi3Icon.innerHTML = '<i class="bi bi-shield-check"></i>';
+            }
+            if (kpi3Val) kpi3Val.innerHTML = (metrics.rmse !== undefined) ? `<span class="text-success font-monospace">±${formatMlNumber(metrics.rmse)}</span>` : '--';
+            if (kpi3Sub) kpi3Sub.textContent = 'Root Mean Squared Deviation';
+
+            // KPI 4: Equation & Intercept
+            if (kpi4Label) kpi4Label.textContent = 'Regression Equation';
+            if (kpi4Icon) {
+                kpi4Icon.className = 'dn-ml-icon-bubble bg-info-subtle text-info';
+                kpi4Icon.innerHTML = '<i class="bi bi-calculator"></i>';
+            }
+            if (formulaText) formulaText.textContent = result.formula || 'Target = β0 + (β1 × Feature)...';
+            if (interceptText) interceptText.textContent = `Intercept (β0): ${result.intercept !== undefined ? formatMlNumber(result.intercept) : '--'}`;
+
+        } else if (modality === 'classification') {
+            // KPI 1: Accuracy
+            if (kpi1Label) kpi1Label.textContent = 'Classification Accuracy';
+            if (kpi1Icon) {
+                kpi1Icon.className = 'dn-ml-icon-bubble bg-success-subtle text-success';
+                kpi1Icon.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
+            }
+            const accNum = parseFloat(metrics.accuracy);
+            if (r2Val) {
+                r2Val.innerHTML = (!isNaN(accNum))
+                    ? `<span class="text-success font-monospace">${formatMlNumber(accNum, 1)}%</span>`
+                    : '--';
+            }
+            if (r2Sub) {
+                const accBadge = accNum >= 80 ? 'bg-success-subtle text-success' : (accNum >= 60 ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning');
+                r2Sub.innerHTML = `<span class="badge ${accBadge} border">Overall Test Accuracy</span>`;
+            }
+
+            // KPI 2: F1-Score
+            if (kpi2Label) kpi2Label.textContent = 'Macro F1-Score';
+            if (kpi2Icon) {
+                kpi2Icon.className = 'dn-ml-icon-bubble bg-primary-subtle text-primary';
+                kpi2Icon.innerHTML = '<i class="bi bi-bar-chart-fill"></i>';
+            }
+            if (maeVal) maeVal.innerHTML = (metrics.f1_score !== undefined) ? `<span class="text-primary font-monospace">${formatMlNumber(metrics.f1_score, 1)}%</span>` : '--';
+            if (maeSub) maeSub.textContent = 'Harmonic Precision-Recall Balance';
+
+            // KPI 3: Precision
+            if (kpi3Label) kpi3Label.textContent = 'Precision / Recall';
+            if (kpi3Icon) {
+                kpi3Icon.className = 'dn-ml-icon-bubble bg-info-subtle text-info';
+                kpi3Icon.innerHTML = '<i class="bi bi-shield-check"></i>';
+            }
+            if (kpi3Val) kpi3Val.innerHTML = (metrics.precision !== undefined) ? `<span class="text-info font-monospace">${formatMlNumber(metrics.precision, 1)}%</span>` : '--';
+            if (kpi3Sub) kpi3Sub.textContent = 'Class Prediction Reliability';
+
+            // KPI 4: Model Architecture
+            if (kpi4Label) kpi4Label.textContent = 'Model Architecture';
+            if (kpi4Icon) {
+                kpi4Icon.className = 'dn-ml-icon-bubble bg-body-secondary text-secondary';
+                kpi4Icon.innerHTML = '<i class="bi bi-cpu-fill"></i>';
+            }
+            if (formulaText) formulaText.textContent = `${result.model_name || 'Calibrated Classifier'}`;
+            if (interceptText) interceptText.textContent = `Target: ${result.target_column || 'Classes'} (${formatMlNumber(metrics.total_records || metrics.test_samples || 0, 0)} records)`;
+
+        } else if (modality === 'clustering') {
+            // KPI 1: Silhouette Score
+            if (kpi1Label) kpi1Label.textContent = 'Silhouette Score';
+            if (kpi1Icon) {
+                kpi1Icon.className = 'dn-ml-icon-bubble bg-info-subtle text-info';
+                kpi1Icon.innerHTML = '<i class="bi bi-pie-chart-fill"></i>';
+            }
+            if (r2Val) r2Val.innerHTML = (metrics.silhouette_score !== undefined) ? `<span class="text-info font-monospace">${metrics.silhouette_score}</span>` : '--';
+            if (r2Sub) r2Sub.innerHTML = `<span class="badge bg-info-subtle text-info border">${metrics.quality_rating || 'Separation Quality'}</span>`;
+
+            // KPI 2: Clusters Formed (K)
+            if (kpi2Label) kpi2Label.textContent = 'Clusters Formed (K)';
+            if (kpi2Icon) {
+                kpi2Icon.className = 'dn-ml-icon-bubble bg-primary-subtle text-primary';
+                kpi2Icon.innerHTML = '<i class="bi bi-diagram-3-fill"></i>';
+            }
+            if (maeVal) maeVal.innerHTML = (metrics.n_clusters !== undefined) ? `<span class="text-primary font-monospace">${metrics.n_clusters}</span>` : '--';
+            if (maeSub) maeSub.textContent = 'Distinct Customer Cohorts';
+
+            // KPI 3: Inertia
+            if (kpi3Label) kpi3Label.textContent = 'Inertia (WCSS)';
+            if (kpi3Icon) {
+                kpi3Icon.className = 'dn-ml-icon-bubble bg-warning-subtle text-warning';
+                kpi3Icon.innerHTML = '<i class="bi bi-bullseye"></i>';
+            }
+            if (kpi3Val) kpi3Val.innerHTML = (metrics.inertia !== undefined) ? `<span class="font-monospace">${formatMlNumber(metrics.inertia)}</span>` : '--';
+            if (kpi3Sub) kpi3Sub.textContent = 'Within-Cluster Sum of Squares';
+
+            // KPI 4: Clustering Engine
+            if (kpi4Label) kpi4Label.textContent = 'Clustering Engine';
+            if (kpi4Icon) {
+                kpi4Icon.className = 'dn-ml-icon-bubble bg-success-subtle text-success';
+                kpi4Icon.innerHTML = '<i class="bi bi-cpu"></i>';
+            }
+            if (formulaText) formulaText.textContent = `${result.model_name || 'K-Means Clustering'}`;
+            if (interceptText) interceptText.textContent = `Total Clustered: ${formatMlNumber(metrics.total_records || 0, 0)} records`;
+
+        } else if (modality === 'forecasting') {
+            // KPI 1: Projected Avg
+            if (kpi1Label) kpi1Label.textContent = 'Projected Avg';
+            if (kpi1Icon) {
+                kpi1Icon.className = 'dn-ml-icon-bubble bg-success-subtle text-success';
+                kpi1Icon.innerHTML = '<i class="bi bi-graph-up-arrow"></i>';
+            }
+            if (r2Val) r2Val.innerHTML = (metrics.avg_projected_value !== undefined) ? `<span class="text-success font-monospace">${formatMlNumber(metrics.avg_projected_value)}</span>` : '--';
+            if (r2Sub) r2Sub.textContent = 'Mean Future Forecast Value';
+
+            // KPI 2: Growth Trend
+            if (kpi2Label) kpi2Label.textContent = 'Projected Trend';
+            if (kpi2Icon) {
+                kpi2Icon.className = 'dn-ml-icon-bubble bg-primary-subtle text-primary';
+                kpi2Icon.innerHTML = '<i class="bi bi-arrow-up-right-circle"></i>';
+            }
+            const trendPct = metrics.growth_trend_pct;
+            if (maeVal) maeVal.innerHTML = (trendPct !== undefined) ? `<span class="text-primary font-monospace">${trendPct > 0 ? '+' : ''}${formatMlNumber(trendPct, 1)}%</span>` : '--';
+            if (maeSub) maeSub.textContent = 'Projected Delta vs Historical';
+
+            // KPI 3: Forecast Horizon
+            if (kpi3Label) kpi3Label.textContent = 'Forecast Horizon';
+            if (kpi3Icon) {
+                kpi3Icon.className = 'dn-ml-icon-bubble bg-info-subtle text-info';
+                kpi3Icon.innerHTML = '<i class="bi bi-calendar3"></i>';
+            }
+            if (kpi3Val) kpi3Val.innerHTML = (metrics.forecast_periods !== undefined) ? `<span class="text-info font-monospace">${metrics.forecast_periods} Steps</span>` : '--';
+            if (kpi3Sub) kpi3Sub.textContent = 'Future Projection Periods';
+
+            // KPI 4: Time-Series Model
+            if (kpi4Label) kpi4Label.textContent = 'Time-Series Model';
+            if (kpi4Icon) {
+                kpi4Icon.className = 'dn-ml-icon-bubble bg-warning-subtle text-warning';
+                kpi4Icon.innerHTML = '<i class="bi bi-clock-history"></i>';
+            }
+            if (formulaText) formulaText.textContent = `${result.model_name || 'Prophet / ARIMA'}`;
+            if (interceptText) interceptText.textContent = `Historical Baseline: ${formatMlNumber(metrics.historical_periods || 0, 0)} steps`;
+
+        } else if (modality === 'anomaly') {
+            // KPI 1: Anomalies Detected
+            if (kpi1Label) kpi1Label.textContent = 'Anomalies Detected';
+            if (kpi1Icon) {
+                kpi1Icon.className = 'dn-ml-icon-bubble bg-danger-subtle text-danger';
+                kpi1Icon.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i>';
+            }
+            if (r2Val) r2Val.innerHTML = (metrics.anomalies_detected !== undefined) ? `<span class="text-danger font-monospace">${formatMlNumber(metrics.anomalies_detected, 0)}</span>` : '--';
+            if (r2Sub) r2Sub.innerHTML = '<span class="badge bg-danger-subtle text-danger border">High-Risk Outliers</span>';
+
+            // KPI 2: Anomaly Rate
+            if (kpi2Label) kpi2Label.textContent = 'Outlier Rate';
+            if (kpi2Icon) {
+                kpi2Icon.className = 'dn-ml-icon-bubble bg-warning-subtle text-warning';
+                kpi2Icon.innerHTML = '<i class="bi bi-percent"></i>';
+            }
+            if (maeVal) maeVal.innerHTML = (metrics.anomaly_rate_pct !== undefined) ? `<span class="font-monospace">${formatMlNumber(metrics.anomaly_rate_pct, 2)}%</span>` : '--';
+            if (maeSub) maeSub.textContent = 'Contamination Ratio of Dataset';
+
+            // KPI 3: Clean Records
+            if (kpi3Label) kpi3Label.textContent = 'Clean Records (Inliers)';
+            if (kpi3Icon) {
+                kpi3Icon.className = 'dn-ml-icon-bubble bg-success-subtle text-success';
+                kpi3Icon.innerHTML = '<i class="bi bi-shield-check"></i>';
+            }
+            const cleanCount = (metrics.total_records_analyzed || 0) - (metrics.anomalies_detected || 0);
+            if (kpi3Val) kpi3Val.innerHTML = `<span class="text-success font-monospace">${formatMlNumber(cleanCount, 0)}</span>`;
+            if (kpi3Sub) kpi3Sub.textContent = 'Verified Nominal Instances';
+
+            // KPI 4: Detection Engine
+            if (kpi4Label) kpi4Label.textContent = 'Detection Algorithm';
+            if (kpi4Icon) {
+                kpi4Icon.className = 'dn-ml-icon-bubble bg-info-subtle text-info';
+                kpi4Icon.innerHTML = '<i class="bi bi-cpu"></i>';
+            }
+            if (formulaText) formulaText.textContent = `${result.model_name || 'Isolation Forest'}`;
+            if (interceptText) interceptText.textContent = `Scanned Total: ${formatMlNumber(metrics.total_records_analyzed || 0, 0)} records`;
+        }
+
+        // 4. Sample Predictions Table
+        const countBadge = document.getElementById('step7PredCountBadge');
         const thead = document.getElementById('step7PredThead');
         const tbody = document.getElementById('step7PredTbody');
         const samplePreds = result.sample_predictions || [];
@@ -6140,15 +7019,15 @@ document.addEventListener('DOMContentLoaded', function () {
             tbody.innerHTML = '';
 
             if (samplePreds.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No prediction rows generated.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No prediction rows generated.</td></tr>';
             } else if (modality === 'regression') {
                 thead.innerHTML = `
                     <tr>
-                        <th style="width: 70px;"># Record</th>
+                        <th style="width: 100px;" class="ps-4"># Record</th>
                         <th>Actual Value (y)</th>
-                        <th>Predicted Value (&hat;y)</th>
-                        <th>Difference (&Delta;)</th>
-                        <th class="text-end">Status</th>
+                        <th>Predicted Value (ŷ)</th>
+                        <th>Difference (Δ)</th>
+                        <th class="pe-4 text-end">Prediction Status</th>
                     </tr>
                 `;
                 samplePreds.forEach(p => {
@@ -6156,52 +7035,144 @@ document.addEventListener('DOMContentLoaded', function () {
                     const actVal = (p.actual_value !== undefined) ? p.actual_value : ((p.actual !== undefined) ? p.actual : '--');
                     const predVal = (p.predicted_value !== undefined) ? p.predicted_value : ((p.predicted !== undefined) ? p.predicted : '--');
                     const resErr = (p.residual_error !== undefined) ? p.residual_error : ((p.error !== undefined) ? p.error : 0);
-                    const varPctStr = (p.variance_pct !== undefined) ? String(p.variance_pct) : ((p.pct_error !== undefined) ? `${p.pct_error}%` : '0%');
-                    const errPct = parseFloat(varPctStr) || 0;
-                    const badgeClass = errPct <= 10 ? 'bg-success-subtle text-success border-success-subtle' : (errPct <= 25 ? 'bg-warning-subtle text-warning border-warning-subtle' : 'bg-danger-subtle text-danger border-danger-subtle');
+                    const diffFormatted = (resErr > 0 ? `+${formatMlNumber(resErr)}` : `${formatMlNumber(resErr)}`);
+                    const diffColor = resErr > 0 ? 'text-danger' : (resErr < 0 ? 'text-primary' : 'text-body');
+
+                    const statusText = p.status || (p.pct_error <= 15 ? 'Accurate (±15%)' : (p.pct_error <= 35 ? 'Moderate (±35%)' : 'High Deviation'));
+                    let badgeClass = 'bg-secondary-subtle text-secondary border';
+                    if (statusText.includes('Accurate') || statusText.includes('High Precision')) {
+                        badgeClass = 'bg-success-subtle text-success border-success-subtle';
+                    } else if (statusText.includes('Moderate') || statusText.includes('Acceptable')) {
+                        badgeClass = 'bg-warning-subtle text-warning border-warning-subtle';
+                    } else {
+                        badgeClass = 'bg-danger-subtle text-danger border-danger-subtle';
+                    }
+
+                    const errTooltip = p.pct_error !== undefined ? `Error: ${p.pct_error}%` : (p.variance_pct || '');
 
                     tr.innerHTML = `
-                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
-                        <td class="fw-semibold">${actVal}</td>
-                        <td class="fw-bold text-primary fs-6">${predVal}</td>
-                        <td class="text-secondary font-monospace">${resErr > 0 ? '+' : ''}${resErr}</td>
-                        <td class="text-end"><span class="badge ${badgeClass} border">${varPctStr.includes('%') ? varPctStr : varPctStr + '%'}</span></td>
+                        <td class="ps-4 text-secondary font-monospace fw-semibold">#${p.record_id || 1}</td>
+                        <td class="fw-semibold text-body fs-6">${formatMlNumber(actVal)}</td>
+                        <td class="fw-bold text-primary fs-6">${formatMlNumber(predVal)}</td>
+                        <td class="font-monospace fw-semibold ${diffColor}">${diffFormatted}</td>
+                        <td class="pe-4 text-end"><span class="badge ${badgeClass} border px-3 py-1.5 rounded-pill fw-semibold" title="${errTooltip}">${statusText}</span></td>
                     `;
                     tbody.appendChild(tr);
                 });
-            } else {
+            } else if (modality === 'classification') {
                 thead.innerHTML = `
                     <tr>
-                        <th style="width: 70px;"># Record</th>
+                        <th style="width: 100px;" class="ps-4"># Record</th>
                         <th>Actual Class</th>
                         <th>Predicted Class</th>
                         <th>Confidence</th>
-                        <th class="text-end">Match</th>
+                        <th class="pe-4 text-end">Outcome</th>
                     </tr>
                 `;
                 samplePreds.forEach(p => {
                     const tr = document.createElement('tr');
                     const isMatch = (p.actual_class === p.predicted_class);
                     tr.innerHTML = `
-                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
-                        <td class="fw-semibold">${p.actual_class || p.actual || '--'}</td>
-                        <td class="fw-bold text-primary">${p.predicted_class || p.predicted || '--'}</td>
-                        <td><span class="badge bg-info-subtle text-info border">${p.confidence_pct || 85}%</span></td>
-                        <td class="text-end">${isMatch ? '<span class="badge bg-success-subtle text-success border">Match</span>' : '<span class="badge bg-danger-subtle text-danger border">Mismatch</span>'}</td>
+                        <td class="ps-4 text-secondary font-monospace fw-semibold">#${p.record_id || 1}</td>
+                        <td class="fw-semibold text-body fs-6">${p.actual_class || p.actual || '--'}</td>
+                        <td class="fw-bold text-primary fs-6">${p.predicted_class || p.predicted || '--'}</td>
+                        <td><span class="badge bg-info-subtle text-info border px-3 py-1.5 rounded-pill fw-semibold font-monospace">${p.confidence_pct || 85}%</span></td>
+                        <td class="pe-4 text-end">${isMatch ? '<span class="badge bg-success-subtle text-success border px-3 py-1.5 rounded-pill fw-semibold"><i class="bi bi-check-circle me-1"></i> Match</span>' : '<span class="badge bg-danger-subtle text-danger border px-3 py-1.5 rounded-pill fw-semibold"><i class="bi bi-x-circle me-1"></i> Mismatch</span>'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else if (modality === 'clustering') {
+                thead.innerHTML = `
+                    <tr>
+                        <th style="width: 100px;" class="ps-4"># Record</th>
+                        <th>Assigned Cluster</th>
+                        <th>Cohort Name</th>
+                        <th>Distance to Centroid</th>
+                        <th class="pe-4 text-end">Sample Profile</th>
+                    </tr>
+                `;
+                samplePreds.forEach(p => {
+                    const tr = document.createElement('tr');
+                    const clName = p.cluster_name || p.assigned_cluster || 'Cluster 1';
+                    tr.innerHTML = `
+                        <td class="ps-4 text-secondary font-monospace fw-semibold">#${p.record_id || 1}</td>
+                        <td><span class="badge bg-primary-subtle text-primary border px-3 py-1 rounded-pill fw-bold">${p.assigned_cluster || clName}</span></td>
+                        <td class="fw-semibold text-body">${clName}</td>
+                        <td class="text-secondary font-monospace">${formatMlNumber(p.distance_to_center, 3)}</td>
+                        <td class="pe-4 text-end text-muted small">${p.sample_features_summary || p.features_summary || '--'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else if (modality === 'forecasting') {
+                thead.innerHTML = `
+                    <tr>
+                        <th class="ps-4">Period</th>
+                        <th>Projected Forecast</th>
+                        <th>95% Lower Band</th>
+                        <th>95% Upper Band</th>
+                        <th class="pe-4 text-end">Trend Direction</th>
+                    </tr>
+                `;
+                samplePreds.forEach(p => {
+                    const tr = document.createElement('tr');
+                    const isUp = p.trend_direction === 'Upward';
+                    const trendBadge = isUp
+                        ? '<span class="badge bg-success-subtle text-success border px-3 py-1 rounded-pill"><i class="bi bi-arrow-up-right me-1"></i> Upward</span>'
+                        : '<span class="badge bg-danger-subtle text-danger border px-3 py-1 rounded-pill"><i class="bi bi-arrow-down-right me-1"></i> Downward</span>';
+                    tr.innerHTML = `
+                        <td class="ps-4 fw-bold text-primary"><i class="bi bi-calendar-event me-1"></i> ${p.period}</td>
+                        <td class="fw-bold text-success font-monospace fs-6">${formatMlNumber(p.projected_forecast)}</td>
+                        <td class="text-secondary font-monospace">${formatMlNumber(p.lower_bound_95)}</td>
+                        <td class="text-secondary font-monospace">${formatMlNumber(p.upper_bound_95)}</td>
+                        <td class="pe-4 text-end">${trendBadge}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else if (modality === 'anomaly') {
+                thead.innerHTML = `
+                    <tr>
+                        <th style="width: 100px;" class="ps-4"># Record</th>
+                        <th>Anomaly Score</th>
+                        <th>Severity</th>
+                        <th>Primary Driver</th>
+                        <th class="pe-4 text-end">Values Summary</th>
+                    </tr>
+                `;
+                samplePreds.forEach(p => {
+                    const tr = document.createElement('tr');
+                    const isCrit = p.severity === 'Critical';
+                    const sevBadge = isCrit
+                        ? '<span class="badge bg-danger text-white border px-3 py-1 rounded-pill"><i class="bi bi-fire me-1"></i> Critical Outlier</span>'
+                        : '<span class="badge bg-warning text-dark border px-3 py-1 rounded-pill"><i class="bi bi-exclamation-triangle me-1"></i> High Risk</span>';
+                    tr.innerHTML = `
+                        <td class="ps-4 text-secondary font-monospace fw-semibold">#${p.record_id || 1}</td>
+                        <td class="fw-bold text-danger font-monospace">${formatMlNumber(p.anomaly_score, 3)}</td>
+                        <td>${sevBadge}</td>
+                        <td class="fw-semibold text-primary">${p.primary_driver || 'Multivariate deviation'}</td>
+                        <td class="pe-4 text-end text-muted small">${p.values_summary || '--'}</td>
                     `;
                     tbody.appendChild(tr);
                 });
             }
         }
 
-        // Instant Single-Record Predictor Input Fields
+        // 5. Instant Single-Record Predictor (Show only for Regression)
+        const instantPredictorBox = document.getElementById('step7InstantPredictorBox');
         const instantInputsRow = document.getElementById('step7InstantInputsRow');
         const instantResultBox = document.getElementById('step7InstantPredictionResult');
         const btnCalculate = document.getElementById('btnStep7CalculatePrediction');
 
+        if (instantPredictorBox) {
+            if (modality === 'regression') {
+                instantPredictorBox.classList.remove('d-none');
+            } else {
+                instantPredictorBox.classList.add('d-none');
+            }
+        }
+
         if (instantResultBox) instantResultBox.classList.add('d-none');
 
-        if (instantInputsRow) {
+        if (modality === 'regression' && instantInputsRow) {
             instantInputsRow.innerHTML = '';
             const coefs = result.coefficients || {};
             const feats = result.feature_columns || Object.keys(coefs);
@@ -6215,7 +7186,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     col.className = 'col-6 col-md-3';
                     col.innerHTML = `
                         <label class="form-label extra-small text-secondary mb-1 font-monospace fw-semibold text-truncate w-100" title="${feat}">
-                            ${feat} ${coef !== 0 ? `<span class="badge bg-light text-secondary border font-monospace ms-1" style="font-size:0.65rem;">β: ${coef >= 0 ? '+' : ''}${coef}</span>` : ''}
+                            ${feat} ${coef !== 0 ? `<span class="badge bg-light text-secondary border font-monospace ms-1" style="font-size:0.65rem;">β: ${coef >= 0 ? '+' : ''}${formatMlNumber(coef, 3)}</span>` : ''}
                         </label>
                         <input type="number" step="any" class="form-control form-control-sm step7-instant-input" data-feature="${feat}" placeholder="Enter ${feat}">
                     `;
@@ -6253,11 +7224,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (instantResultBox) {
                     instantResultBox.classList.remove('d-none');
-                    instantResultBox.className = 'mt-2 p-2.5 rounded-2 bg-success-subtle text-success border border-success-subtle text-center shadow-sm';
+                    instantResultBox.className = 'mt-3 p-3 rounded-3 bg-success-subtle text-success border border-success-subtle text-center shadow-sm';
                     instantResultBox.innerHTML = `
-                        <div class="small fw-semibold text-secondary mb-1">Instant Single-Record Prediction Result (&hat;y)</div>
+                        <div class="small fw-semibold text-secondary mb-1">Instant Single-Record Prediction Result (ŷ)</div>
                         <div class="fs-4 fw-bold text-success mb-1">${result.target_column || 'Target'}: <span class="badge bg-success text-white fs-4 font-monospace px-3 py-1 me-1">${formattedVal}</span></div>
-                        <div class="extra-small text-muted">Calculated via equation: &hat;y = ${intercept} + &sum; (&beta;<sub>i</sub> &times; X<sub>i</sub>) using inputs [${inputSummary.join(', ')}]</div>
+                        <div class="extra-small text-muted">Calculated via equation: ŷ = ${formatMlNumber(intercept)} + ∑ (β<sub>i</sub> × X<sub>i</sub>) using inputs [${inputSummary.join(', ')}]</div>
                     `;
                 }
             };
@@ -6417,153 +7388,480 @@ document.addEventListener('DOMContentLoaded', function () {
         const badge = document.getElementById('mlPredictionsCountBadge');
         const tableTitle = document.getElementById('mlTableTitle');
         const modality = result.model_type || currentMlModality;
-        const predictions = result.sample_predictions || [];
+        mlCurrentPredictions = [...(result.sample_predictions || [])];
 
-        if (badge) badge.textContent = `${predictions.length} Predictions`;
+        if (badge) badge.textContent = `${mlCurrentPredictions.length} Predictions`;
         if (tableTitle) {
             tableTitle.textContent = `${result.model_name || 'Model'} Predictions & Decision Table`;
         }
 
         if (!thead || !tbody) return;
-        thead.innerHTML = '';
-        tbody.innerHTML = '';
 
-        if (predictions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No prediction records available.</td></tr>';
-            return;
+        function sortAndDrawTable() {
+            let sortedData = [...mlCurrentPredictions];
+            if (mlTableSortColumn) {
+                sortedData.sort((a, b) => {
+                    let valA = a[mlTableSortColumn];
+                    let valB = b[mlTableSortColumn];
+                    if (valA === undefined) valA = a.actual_value !== undefined ? a.actual_value : (a.actual || 0);
+                    if (valB === undefined) valB = b.actual_value !== undefined ? b.actual_value : (b.actual || 0);
+                    if (typeof valA === 'string' && valA.endsWith('%')) valA = parseFloat(valA) || 0;
+                    if (typeof valB === 'string' && valB.endsWith('%')) valB = parseFloat(valB) || 0;
+                    if (!isNaN(Number(valA)) && !isNaN(Number(valB))) {
+                        return mlTableSortAsc ? (Number(valA) - Number(valB)) : (Number(valB) - Number(valA));
+                    }
+                    return mlTableSortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+                });
+            }
+
+            tbody.innerHTML = '';
+            if (sortedData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No prediction records available.</td></tr>';
+                return;
+            }
+
+            const filter = mlSearchPredictionsInput ? mlSearchPredictionsInput.value.toLowerCase().trim() : '';
+
+            sortedData.forEach(p => {
+                const tr = document.createElement('tr');
+                if (modality === 'regression') {
+                    const actVal = (p.actual_value !== undefined) ? p.actual_value : ((p.actual !== undefined) ? p.actual : 0);
+                    const predVal = (p.predicted_value !== undefined) ? p.predicted_value : ((p.predicted !== undefined) ? p.predicted : 0);
+                    const resErr = (p.residual_error !== undefined) ? p.residual_error : ((p.error !== undefined) ? p.error : 0);
+                    const varPctStr = (p.variance_pct !== undefined) ? String(p.variance_pct) : ((p.pct_error !== undefined) ? `${p.pct_error}%` : '0.0%');
+                    const errPct = parseFloat(varPctStr) || 0;
+
+                    let rowClass = 'ml-row-good';
+                    let badgeClass = '';
+
+                    // Status & Error-Coding: Green for low (<= 15%), Yellow for moderate (<= 35%), Red for high (> 35%)
+                    const statusTag = p.status || (errPct <= 15 ? 'Accurate (±15%)' : (errPct <= 35 ? 'Moderate (±35%)' : 'High Deviation'));
+                    if (statusTag.includes('Accurate') || errPct <= 15) {
+                        rowClass = 'ml-row-good';
+                        badgeClass = 'bg-success-subtle text-success border-success-subtle';
+                    } else if (statusTag.includes('Moderate') || errPct <= 35) {
+                        rowClass = 'ml-row-warn';
+                        badgeClass = 'bg-warning-subtle text-warning border-warning-subtle';
+                    } else {
+                        rowClass = 'ml-row-high';
+                        badgeClass = 'bg-danger-subtle text-danger border-danger-subtle';
+                    }
+
+                    const diffFormatted = (resErr > 0 ? `+${formatMlNumber(resErr)}` : `${formatMlNumber(resErr)}`);
+
+                    tr.className = rowClass;
+                    tr.innerHTML = `
+                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
+                        <td class="fw-bold">${formatMlNumber(actVal)}</td>
+                        <td class="text-primary fw-bold">${formatMlNumber(predVal)}</td>
+                        <td class="text-secondary font-monospace">${diffFormatted}</td>
+                        <td><span class="badge ${badgeClass} border">${varPctStr.includes('%') ? varPctStr : varPctStr + '%'}</span></td>
+                        <td class="text-end"><span class="badge ${badgeClass} border">${statusTag}</span></td>
+                    `;
+                } else if (modality === 'classification') {
+                    const isCorrect = (p.is_correct !== undefined) ? p.is_correct : (p.actual_class === p.predicted_class);
+                    const statusBadge = isCorrect
+                        ? '<span class="badge bg-success-subtle text-success border"><i class="bi bi-check-circle me-1"></i> Correct Match</span>'
+                        : '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-x-circle me-1"></i> Misclassified</span>';
+                    tr.className = isCorrect ? 'ml-row-good' : 'ml-row-high';
+                    tr.innerHTML = `
+                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
+                        <td class="fw-semibold">${p.actual_class !== undefined ? p.actual_class : (p.actual || '--')}</td>
+                        <td class="fw-bold text-primary">${p.predicted_class !== undefined ? p.predicted_class : (p.predicted || '--')}</td>
+                        <td><span class="badge bg-info-subtle text-info border">${p.confidence_pct || 85}% Confidence</span></td>
+                        <td class="text-end">${statusBadge}</td>
+                    `;
+                } else if (modality === 'clustering') {
+                    const clName = p.cluster_name || p.assigned_cluster || 'Segment 1';
+                    tr.innerHTML = `
+                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
+                        <td><span class="badge bg-primary-subtle text-primary border fw-bold">${p.assigned_cluster || clName}</span></td>
+                        <td class="fw-semibold">${clName}</td>
+                        <td class="text-secondary font-monospace">${formatMlNumber(p.distance_to_center, 3)}</td>
+                        <td class="text-end text-muted small">${p.sample_features_summary || p.features_summary || '--'}</td>
+                    `;
+                } else if (modality === 'forecasting') {
+                    const isUp = p.trend_direction === 'Upward';
+                    const trendBadge = isUp
+                        ? '<span class="badge bg-success-subtle text-success border"><i class="bi bi-arrow-up-right me-1"></i> Upward</span>'
+                        : '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-arrow-down-right me-1"></i> Downward</span>';
+                    tr.innerHTML = `
+                        <td class="fw-bold text-primary"><i class="bi bi-calendar-event me-1"></i> ${p.period}</td>
+                        <td class="fw-bold fs-6 text-success">${formatMlNumber(p.projected_forecast)}</td>
+                        <td class="text-secondary font-monospace">${formatMlNumber(p.lower_bound_95)}</td>
+                        <td class="text-secondary font-monospace">${formatMlNumber(p.upper_bound_95)}</td>
+                        <td class="fw-semibold">${p.growth_trend}</td>
+                        <td class="text-end">${trendBadge}</td>
+                    `;
+                } else if (modality === 'anomaly') {
+                    const isCrit = p.severity === 'Critical';
+                    const sevBadge = isCrit
+                        ? '<span class="badge bg-danger text-white border"><i class="bi bi-fire me-1"></i> Critical Outlier</span>'
+                        : '<span class="badge bg-warning text-dark border"><i class="bi bi-exclamation-triangle me-1"></i> High Risk</span>';
+                    tr.className = isCrit ? 'ml-row-high' : 'ml-row-warn';
+                    tr.innerHTML = `
+                        <td class="text-secondary font-monospace">#${p.record_id || 1}</td>
+                        <td class="fw-bold text-danger font-monospace">${formatMlNumber(p.anomaly_score, 3)}</td>
+                        <td>${sevBadge}</td>
+                        <td class="fw-semibold text-primary">${p.primary_driver || 'Multivariate deviation'}</td>
+                        <td class="text-end text-muted small">${p.values_summary || '--'}</td>
+                    `;
+                }
+
+                if (filter && !tr.textContent.toLowerCase().includes(filter)) {
+                    tr.style.display = 'none';
+                }
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createSortHeader(title, key) {
+            const isCur = mlTableSortColumn === key;
+            const arrow = isCur ? (mlTableSortAsc ? ' ▲' : ' ▼') : ' ↕';
+            return `<th data-sort="${key}" style="cursor: pointer;" title="Click to sort by ${title}">${title} <span class="small opacity-50 font-monospace">${arrow}</span></th>`;
         }
 
         if (modality === 'regression') {
             thead.innerHTML = `
                 <tr>
-                    <th style="width: 70px;"># Record</th>
-                    <th>Actual ${result.target_column || 'Value'}</th>
-                    <th>Predicted (Linear OLS)</th>
-                    <th>Residual Error</th>
-                    <th>Variance Error %</th>
-                    <th class="text-end">Status</th>
+                    <th style="width: 70px; cursor: pointer;" data-sort="record_id" title="Click to sort by Record #"># Record <span class="small opacity-50">${mlTableSortColumn === 'record_id' ? (mlTableSortAsc ? '▲' : '▼') : '↕'}</span></th>
+                    ${createSortHeader('Actual ' + (result.target_column || 'Value'), 'actual_value')}
+                    ${createSortHeader('Predicted (Linear OLS)', 'predicted_value')}
+                    ${createSortHeader('Residual Error', 'residual_error')}
+                    ${createSortHeader('Variance Error %', 'pct_error')}
+                    <th class="text-end" data-sort="status" style="cursor: pointer;">Status <span class="small opacity-50">${mlTableSortColumn === 'status' ? (mlTableSortAsc ? '▲' : '▼') : '↕'}</span></th>
                 </tr>
             `;
-            predictions.forEach(p => {
-                const tr = document.createElement('tr');
-                const actVal = (p.actual_value !== undefined) ? p.actual_value : ((p.actual !== undefined) ? p.actual : '--');
-                const predVal = (p.predicted_value !== undefined) ? p.predicted_value : ((p.predicted !== undefined) ? p.predicted : '--');
-                const resErr = (p.residual_error !== undefined) ? p.residual_error : ((p.error !== undefined) ? p.error : 0);
-                const varPctStr = (p.variance_pct !== undefined) ? String(p.variance_pct) : ((p.pct_error !== undefined) ? `${p.pct_error}%` : '0.0%');
-                const errPct = parseFloat(varPctStr) || 0;
-                const badgeClass = errPct <= 10 ? 'bg-success-subtle text-success' : (errPct <= 25 ? 'bg-warning-subtle text-warning' : 'bg-danger-subtle text-danger');
-                const statusTag = p.status || (errPct <= 10 ? 'High Precision' : (errPct <= 25 ? 'Acceptable' : 'Evaluated'));
-
-                tr.innerHTML = `
-                    <td class="text-secondary">#${p.record_id || 1}</td>
-                    <td class="fw-bold">${actVal}</td>
-                    <td class="text-primary fw-bold">${predVal}</td>
-                    <td class="text-secondary">${resErr > 0 ? '+' : ''}${resErr}</td>
-                    <td><span class="badge ${badgeClass} border">${varPctStr.includes('%') ? varPctStr : varPctStr + '%'}</span></td>
-                    <td class="text-end"><span class="badge bg-secondary-subtle text-secondary border">${statusTag}</span></td>
-                `;
-                tbody.appendChild(tr);
-            });
         } else if (modality === 'classification') {
             thead.innerHTML = `
                 <tr>
-                    <th style="width: 70px;"># Record</th>
-                    <th>Actual Class</th>
-                    <th>Predicted Class</th>
-                    <th>Model Confidence</th>
-                    <th class="text-end">Prediction Status</th>
+                    <th style="width: 70px; cursor: pointer;" data-sort="record_id"># Record <span class="small opacity-50">↕</span></th>
+                    ${createSortHeader('Actual Class', 'actual_class')}
+                    ${createSortHeader('Predicted Class', 'predicted_class')}
+                    ${createSortHeader('Model Confidence', 'confidence_pct')}
+                    <th class="text-end" data-sort="is_correct" style="cursor: pointer;">Prediction Status <span class="small opacity-50">↕</span></th>
                 </tr>
             `;
-            predictions.forEach(p => {
-                const tr = document.createElement('tr');
-                const isCorrect = (p.is_correct !== undefined) ? p.is_correct : (p.actual_class === p.predicted_class);
-                const statusBadge = isCorrect
-                    ? '<span class="badge bg-success-subtle text-success border"><i class="bi bi-check-circle me-1"></i> Correct Match</span>'
-                    : '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-x-circle me-1"></i> Misclassified</span>';
-                tr.innerHTML = `
-                    <td class="text-secondary">#${p.record_id || 1}</td>
-                    <td class="fw-semibold">${p.actual_class !== undefined ? p.actual_class : (p.actual || '--')}</td>
-                    <td class="fw-bold text-primary">${p.predicted_class !== undefined ? p.predicted_class : (p.predicted || '--')}</td>
-                    <td><span class="badge bg-info-subtle text-info border">${p.confidence_pct || 85}% Confidence</span></td>
-                    <td class="text-end">${statusBadge}</td>
-                `;
-                tbody.appendChild(tr);
-            });
         } else if (modality === 'clustering') {
             thead.innerHTML = `
                 <tr>
-                    <th style="width: 70px;"># Record</th>
-                    <th>Assigned Cluster</th>
-                    <th>Cluster Cohort</th>
-                    <th>Proximity Distance</th>
+                    <th style="width: 70px; cursor: pointer;" data-sort="record_id"># Record <span class="small opacity-50">↕</span></th>
+                    ${createSortHeader('Assigned Cluster', 'assigned_cluster')}
+                    ${createSortHeader('Cluster Cohort', 'cluster_name')}
+                    ${createSortHeader('Proximity Distance', 'distance_to_center')}
                     <th class="text-end">Key Profile Features</th>
                 </tr>
             `;
-            predictions.forEach(p => {
-                const tr = document.createElement('tr');
-                const clName = p.cluster_name || p.assigned_cluster || 'Segment 1';
-                tr.innerHTML = `
-                    <td class="text-secondary">#${p.record_id || 1}</td>
-                    <td><span class="badge bg-primary-subtle text-primary border fw-bold">${p.assigned_cluster || clName}</span></td>
-                    <td class="fw-semibold">${clName}</td>
-                    <td class="text-secondary">${p.distance_to_center || 1.25}</td>
-                    <td class="text-end text-muted small">${p.sample_features_summary || p.features_summary || '--'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
         } else if (modality === 'forecasting') {
             thead.innerHTML = `
                 <tr>
-                    <th>Future Timeline</th>
-                    <th>Projected Value (${result.value_column || 'Metric'})</th>
-                    <th>Lower 95% Confidence</th>
-                    <th>Upper 95% Confidence</th>
-                    <th>Period Growth %</th>
+                    ${createSortHeader('Future Timeline', 'period')}
+                    ${createSortHeader('Projected Value (' + (result.value_column || 'Metric') + ')', 'projected_forecast')}
+                    ${createSortHeader('Lower 95% Confidence', 'lower_bound_95')}
+                    ${createSortHeader('Upper 95% Confidence', 'upper_bound_95')}
+                    ${createSortHeader('Period Growth %', 'growth_trend')}
                     <th class="text-end">Trend Direction</th>
                 </tr>
             `;
-            predictions.forEach(p => {
-                const tr = document.createElement('tr');
-                const isUp = p.trend_direction === 'Upward';
-                const trendBadge = isUp
-                    ? '<span class="badge bg-success-subtle text-success border"><i class="bi bi-arrow-up-right me-1"></i> Upward</span>'
-                    : '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-arrow-down-right me-1"></i> Downward</span>';
-                tr.innerHTML = `
-                    <td class="fw-bold text-primary"><i class="bi bi-calendar-event me-1"></i> ${p.period}</td>
-                    <td class="fw-bold fs-6 text-success">${p.projected_forecast}</td>
-                    <td class="text-secondary">${p.lower_bound_95}</td>
-                    <td class="text-secondary">${p.upper_bound_95}</td>
-                    <td class="fw-semibold">${p.growth_trend}</td>
-                    <td class="text-end">${trendBadge}</td>
-                `;
-                tbody.appendChild(tr);
-            });
         } else if (modality === 'anomaly') {
             thead.innerHTML = `
                 <tr>
-                    <th style="width: 70px;"># Record</th>
-                    <th>Outlier Score</th>
-                    <th>Severity Rating</th>
-                    <th>Primary Anomaly Driver</th>
+                    <th style="width: 70px; cursor: pointer;" data-sort="record_id"># Record <span class="small opacity-50">↕</span></th>
+                    ${createSortHeader('Outlier Score', 'anomaly_score')}
+                    ${createSortHeader('Severity Rating', 'severity')}
+                    ${createSortHeader('Primary Anomaly Driver', 'primary_driver')}
                     <th class="text-end">Key Metric Values</th>
                 </tr>
             `;
-            predictions.forEach(p => {
-                const tr = document.createElement('tr');
-                const isCrit = p.severity === 'Critical';
-                const sevBadge = isCrit
-                    ? '<span class="badge bg-danger text-white border"><i class="bi bi-fire me-1"></i> Critical Outlier</span>'
-                    : '<span class="badge bg-warning text-dark border"><i class="bi bi-exclamation-triangle me-1"></i> High Risk</span>';
-                tr.innerHTML = `
-                    <td class="text-secondary">#${p.record_id || 1}</td>
-                    <td class="fw-bold text-danger font-monospace">${p.anomaly_score}</td>
-                    <td>${sevBadge}</td>
-                    <td class="fw-semibold text-primary">${p.primary_driver || 'Multivariate deviation'}</td>
-                    <td class="text-end text-muted small">${p.values_summary || '--'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
+
+        thead.querySelectorAll('th[data-sort]').forEach(th => {
+            th.onclick = function() {
+                const sKey = this.getAttribute('data-sort');
+                if (mlTableSortColumn === sKey) {
+                    mlTableSortAsc = !mlTableSortAsc;
+                } else {
+                    mlTableSortColumn = sKey;
+                    mlTableSortAsc = true;
+                }
+                renderPredictionsTable(result);
+            };
+        });
+
+        sortAndDrawTable();
+    }
+
+    function exportCurrentModel(format = 'pkl') {
+        if (!currentMlResults || !currentMlResults.success) {
+            showToast('Please train a model first before exporting.', 'warning');
+            return;
+        }
+
+        if (format === 'json') {
+            const jsonStr = JSON.stringify(currentMlResults, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `datanova_model_${currentMlResults.model_type}_${currentMlResults.target_column || 'export'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Model JSON configuration downloaded successfully!', 'success');
+            return;
+        }
+
+        fetch('/api/ml/export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model_data: currentMlResults,
+                format: 'pkl'
+            })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Export error from server');
+            return res.blob();
+        })
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `datanova_model_${currentMlResults.model_type}_${currentMlResults.target_column || 'export'}.pkl`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Trained model (.pkl) artifact downloaded!', 'success');
+        })
+        .catch(err => {
+            console.error('Error downloading model artifact:', err);
+            showToast('Could not download model artifact.', 'danger');
+        });
+    }
+
+    function printExecutivePdfSummary() {
+        if (!currentMlResults || !currentMlResults.success) {
+            showToast('Please run a model first before downloading the executive summary.', 'warning');
+            return;
+        }
+        const r = currentMlResults;
+        const m = r.metrics || {};
+        const datasetBadge = document.getElementById('mlStudioDatasetBadge')?.textContent.trim() || 'Active Dataset';
+        const printWin = window.open('', '_blank', 'width=950,height=850');
+        if (!printWin) {
+            showToast('Popup blocked. Please allow popups to view Executive PDF.', 'warning');
+            return;
+        }
+
+        const sampleRows = (r.sample_predictions || []).slice(0, 20).map(p => `
+            <tr>
+                <td style="font-family: monospace;">#${p.record_id || 1}</td>
+                <td>${formatMlNumber(p.actual_value !== undefined ? p.actual_value : p.actual)}</td>
+                <td><strong>${formatMlNumber(p.predicted_value !== undefined ? p.predicted_value : p.predicted)}</strong></td>
+                <td style="font-family: monospace;">${formatMlNumber(p.residual_error !== undefined ? p.residual_error : p.error)}</td>
+                <td><span class="badge" style="background:#e0e7ff; color:#3730a3;">${p.variance_pct || (p.pct_error + '%')}</span></td>
+                <td>${p.status || (p.is_correct ? 'Correct Match' : 'Evaluated')}</td>
+            </tr>
+        `).join('');
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>DataNova Executive Summary - ${r.model_name}</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #0F172A; }
+                    .report-header { border-bottom: 2px solid #6366F1; padding-bottom: 20px; margin-bottom: 28px; }
+                    .kpi-card { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; text-align: center; }
+                    .kpi-num { font-size: 26px; font-weight: 700; color: #4338CA; }
+                    .equation-box { background: #F1F5F9; border: 1px solid #CBD5E1; padding: 14px; border-radius: 6px; font-family: monospace; font-size: 13px; margin-bottom: 24px; word-break: break-all; }
+                    @media print { .no-print { display: none !important; } body { padding: 15px; } }
+                </style>
+            </head>
+            <body>
+                <div class="no-print mb-4 d-flex justify-content-between align-items-center bg-light p-3 rounded">
+                    <span class="badge bg-primary fs-6">Executive Summary Preview</span>
+                    <button onclick="window.print()" class="btn btn-primary fw-semibold px-4">Print / Save as PDF</button>
+                </div>
+                <div class="report-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-1" style="color: #4F46E5;">DataNova Predictive Studio</h2>
+                        <div class="text-secondary">Executive Model Performance &amp; Decision Intelligence Summary</div>
+                    </div>
+                    <div class="text-end small text-muted">
+                        <div><strong>Dataset:</strong> ${datasetBadge}</div>
+                        <div><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <h5 class="fw-bold">${r.model_name || 'Machine Learning Model'}</h5>
+                    <div class="text-muted small mb-2">Target Metric: <strong>${r.target_column || 'Target'}</strong> | Predictor Features: <strong>${(r.features || []).join(', ')}</strong></div>
+                    <div class="equation-box">${r.formula || 'Target = β0 + (β1 × Feature1)...'}</div>
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-3">
+                        <div class="kpi-card">
+                            <div class="small text-muted text-uppercase fw-semibold">R² Fit Score</div>
+                            <div class="kpi-num">${m.r2_score !== undefined ? m.r2_score : (m.accuracy ? m.accuracy + '%' : '--')}</div>
+                            <div class="extra-small text-muted">${m.quality_rating || 'Goodness of Fit'}</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="kpi-card">
+                            <div class="small text-muted text-uppercase fw-semibold">MAE Error</div>
+                            <div class="kpi-num" style="color:#059669;">${m.mae !== undefined ? formatMlNumber(m.mae) : (m.f1_score ? m.f1_score + '%' : '--')}</div>
+                            <div class="extra-small text-muted">Mean Absolute Error</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="kpi-card">
+                            <div class="small text-muted text-uppercase fw-semibold">RMSE Error</div>
+                            <div class="kpi-num" style="color:#0284C7;">${m.rmse !== undefined ? formatMlNumber(m.rmse) : (m.precision ? m.precision + '%' : '--')}</div>
+                            <div class="extra-small text-muted">Root Mean Squared Error</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="kpi-card">
+                            <div class="small text-muted text-uppercase fw-semibold">Test Sample Rows</div>
+                            <div class="kpi-num" style="color:#64748B;">${m.test_samples !== undefined ? formatMlNumber(m.test_samples, 0) : (m.total_records ? formatMlNumber(m.total_records, 0) : '--')}</div>
+                            <div class="extra-small text-muted">Evaluated Holdout Set</div>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="fw-bold mb-2">Sample Evaluation Predictions &amp; Decisions</h6>
+                <table class="table table-bordered table-sm table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th># Record</th>
+                            <th>Actual (${r.target_column || 'Target'})</th>
+                            <th>Predicted Value</th>
+                            <th>Residual Difference</th>
+                            <th>Variance Error %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${sampleRows}</tbody>
+                </table>
+                <div class="text-center text-muted small mt-4 pt-3 border-top">
+                    Confidential Report — Generated by DataNova Smart Analytics Platform
+                </div>
+            </body>
+            </html>
+        `;
+        printWin.document.write(html);
+        printWin.document.close();
+    }
+
+    // --- Intelligent Offline ML Model Assistant ---
+    function askMlModelAssistant(query) {
+        if (!currentMlResults || !currentMlResults.success) {
+            showToast('Please train or evaluate a model first before asking questions.', 'warning');
+            return;
+        }
+
+        const q = String(query || '').trim();
+        if (!q) {
+            showToast('Please type a question or select one of the quick questions.', 'info');
+            return;
+        }
+
+        const inputEl = document.getElementById('mlAssistantQueryInput');
+        if (inputEl) inputEl.value = q;
+
+        const loadingSpinner = document.getElementById('mlAssistantLoadingSpinner');
+        const responseBox = document.getElementById('mlAssistantResponseBox');
+        const responseTitle = document.getElementById('mlAssistantResponseTitle');
+        const intentBadge = document.getElementById('mlAssistantIntentBadge');
+        const htmlContent = document.getElementById('mlAssistantHtmlContent');
+        const takeawaysContainer = document.getElementById('mlAssistantTakeawaysContainer');
+        const takeawaysList = document.getElementById('mlAssistantTakeawaysList');
+        const followupsContainer = document.getElementById('mlAssistantFollowupsContainer');
+        const followupsList = document.getElementById('mlAssistantFollowupsList');
+
+        if (loadingSpinner) loadingSpinner.classList.remove('d-none');
+        if (responseBox) responseBox.classList.add('d-none');
+
+        fetch('/api/ml/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model_data: currentMlResults,
+                query: q
+            })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Assistant API returned error status');
+            return res.json();
+        })
+        .then(data => {
+            if (loadingSpinner) loadingSpinner.classList.add('d-none');
+            if (!data.success) {
+                showToast(data.message || 'Unable to analyze question.', 'danger');
+                return;
+            }
+
+            if (responseBox) responseBox.classList.remove('d-none');
+            if (responseTitle) responseTitle.textContent = data.title || 'Model Analysis';
+            if (intentBadge) {
+                const intentNames = {
+                    'general_explain': 'Plain-Language Guide',
+                    'drivers': 'Key Drivers Analysis',
+                    'reliability': 'Model Fit & Health',
+                    'executive_summary': 'Executive Brief',
+                    'improve_tips': 'Optimization Tips',
+                    'feature_specific': 'Feature Sensitivity'
+                };
+                intentBadge.textContent = intentNames[data.intent] || 'Analysis';
+            }
+            if (htmlContent) htmlContent.innerHTML = data.html_content || '<p class="text-muted">No content.</p>';
+
+            // Render Key Takeaways
+            if (takeawaysContainer && takeawaysList) {
+                const takeaways = data.key_takeaways || [];
+                if (takeaways.length > 0) {
+                    takeawaysContainer.classList.remove('d-none');
+                    takeawaysList.innerHTML = takeaways.map(t => `<li><i class="bi bi-arrow-right-short text-success me-1"></i> ${t}</li>`).join('');
+                } else {
+                    takeawaysContainer.classList.add('d-none');
+                }
+            }
+
+            // Render Suggested Follow-up chips
+            if (followupsContainer && followupsList) {
+                const followups = data.suggested_questions || [];
+                if (followups.length > 0) {
+                    followupsContainer.classList.remove('d-none');
+                    followupsList.innerHTML = followups.map(fq => `
+                        <button type="button" class="ml-followup-btn" data-query="${fq.replace(/"/g, '&quot;')}">
+                            ${fq}
+                        </button>
+                    `).join('');
+
+                    followupsList.querySelectorAll('.ml-followup-btn').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            const followQuery = this.getAttribute('data-query');
+                            askMlModelAssistant(followQuery);
+                        });
+                    });
+                } else {
+                    followupsContainer.classList.add('d-none');
+                }
+            }
+
+            // Smooth scroll into response
+            if (responseBox) {
+                responseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        })
+        .catch(err => {
+            console.error('Error in askMlModelAssistant:', err);
+            if (loadingSpinner) loadingSpinner.classList.add('d-none');
+            showToast('Failed to communicate with Model Assistant engine.', 'danger');
+        });
     }
 
     // --- Saved Models & Instant Predictor Functions ---
@@ -6855,12 +8153,16 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Clear Selection / Reset to Defaults Button
+        if (btnClearMlStudio) {
+            btnClearMlStudio.addEventListener('click', () => {
+                resetMlStudioState();
+            });
+        }
+
         if (btnResetMlDefaults) {
             btnResetMlDefaults.addEventListener('click', () => {
-                if (currentMlOptions) {
-                    populateMlColumnOptions(currentMlOptions, currentMlModality);
-                    showToast('Reset feature inputs to automated ML recommendations.', 'info');
-                }
+                resetMlStudioState();
             });
         }
 
@@ -6885,9 +8187,10 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // Target column change listener to update correlation badges
+        // Target column change listener to update correlation badges & check guardrail
         if (mlTargetColSelect) {
             mlTargetColSelect.addEventListener('change', () => {
+                checkAndDisplayTargetGuardrail(mlTargetColSelect.value, currentMlModality);
                 if (currentMlOptions) {
                     const dsId = activeDatasetId || (document.getElementById('datasetSelect') ? document.getElementById('datasetSelect').value : null);
                     if (dsId) {
@@ -6900,6 +8203,31 @@ document.addEventListener('DOMContentLoaded', function () {
                             });
                     }
                 }
+            });
+        }
+
+        // Export Model Artifacts (.pkl, .json, Executive PDF)
+        if (btnExportModelPkl) {
+            btnExportModelPkl.addEventListener('click', () => {
+                exportCurrentModel('pkl');
+            });
+        }
+
+        if (btnExportModelJson) {
+            btnExportModelJson.addEventListener('click', () => {
+                exportCurrentModel('json');
+            });
+        }
+
+        if (btnDownloadExecutivePdf) {
+            btnDownloadExecutivePdf.addEventListener('click', () => {
+                printExecutivePdfSummary();
+            });
+        }
+
+        if (btnPrintExecutiveSummary) {
+            btnPrintExecutiveSummary.addEventListener('click', () => {
+                printExecutivePdfSummary();
             });
         }
 
@@ -6969,6 +8297,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 showToast('Predictions exported successfully as CSV!', 'success');
             });
         }
+
+        // Intelligent Model Assistant Listeners
+        const btnAskMlAssistant = document.getElementById('btnAskMlAssistant');
+        const mlAssistantQueryInput = document.getElementById('mlAssistantQueryInput');
+        if (btnAskMlAssistant) {
+            btnAskMlAssistant.addEventListener('click', () => {
+                const q = mlAssistantQueryInput ? mlAssistantQueryInput.value : '';
+                askMlModelAssistant(q);
+            });
+        }
+        if (mlAssistantQueryInput) {
+            mlAssistantQueryInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    askMlModelAssistant(mlAssistantQueryInput.value);
+                }
+            });
+        }
+        document.querySelectorAll('#mlAssistantQuickChips .ml-chip-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const q = this.getAttribute('data-query');
+                askMlModelAssistant(q);
+            });
+        });
     }
 
     initMlToolCardListeners();

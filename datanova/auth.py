@@ -2,12 +2,15 @@ import os
 import secrets
 import urllib.parse
 import requests
+import logging
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash, current_app
 import pymysql
 from . import bcrypt
 from database.db_connector import get_db_connection
 from functools import wraps
 
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('auth', __name__)
 
@@ -34,6 +37,22 @@ def is_maintenance_active():
     return bool(settings.get('maintenance_mode', False))
 
 
+def is_admin_registered() -> bool:
+    """Returns True if at least one Administrator account already exists in the system."""
+    conn = get_db_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1")
+            return cursor.fetchone() is not None
+    except Exception as e:
+        logger.error(f"Error checking existing admin status: {e}")
+        return False
+    finally:
+        conn.close()
+
+
 def create_user_account(first_name, last_name, email, password, role, organization=None, phone=None, allowed_roles=None):
     """
     Centralized account creation helper with role validation, organization tracking,
@@ -45,6 +64,10 @@ def create_user_account(first_name, last_name, email, password, role, organizati
     role_clean = str(role).lower().strip()
     if role_clean not in allowed_roles:
         return False, "Invalid or unauthorized role requested.", 400
+
+    # Safety Feature: Strictly only ONE Administrator is permitted on the platform
+    if role_clean == 'admin' and is_admin_registered():
+        return False, "An Administrator account is already registered on this platform. Only one Administrator is permitted for security reasons.", 403
 
     first_name = (first_name or '').strip()
     last_name = (last_name or '').strip()
@@ -85,6 +108,22 @@ def create_user_account(first_name, last_name, email, password, role, organizati
                 (first_name, last_name, email, hashed_password, role_clean, org_clean, phone_clean)
             )
         conn.commit()
+
+        # Dispatch executive onboarding Welcome Email to new user
+        try:
+            from .services import email_service
+            base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+            email_service.send_welcome_email(
+                user_email=email,
+                first_name=first_name,
+                last_name=last_name,
+                role=role_clean,
+                organization=org_clean,
+                base_url=base_url
+            )
+        except Exception as welcome_err:
+            logger.warning(f"Failed to dispatch welcome email: {welcome_err}")
+
         return True, "Account created successfully.", 200
     except pymysql.IntegrityError:
         return False, "An account with this email already exists.", 400
@@ -145,16 +184,12 @@ def login():
         if not data:
             return jsonify({'success': False, 'message': 'Invalid request format.'}), 400
 
-        email = data.get('email', '').strip()
+        email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         role = data.get('role', '').strip()
 
-        if not email or not password or not role:
-            return jsonify({'success': False, 'message': 'Email, password, and role selection are required.'}), 400
-
-        role_lower = role.lower()
-        if role_lower not in ALLOWED_ROLES:
-            return jsonify({'success': False, 'message': 'Invalid role selected.'}), 400
+        if not email or not password:
+            return jsonify({'success': False, 'message': 'Email and password are required.'}), 400
 
         conn = get_db_connection()
         if not conn:
@@ -162,9 +197,9 @@ def login():
 
         try:
             with conn.cursor() as cursor:
-                # Find user by email to check password and verify role
+                # Find user by email (case-insensitive) to check password and verify role
                 cursor.execute(
-                    "SELECT * FROM users WHERE email = %s",
+                    "SELECT * FROM users WHERE LOWER(TRIM(email)) = %s",
                     (email,)
                 )
                 user = cursor.fetchone()
@@ -185,12 +220,8 @@ def login():
                 'message': 'Your account has been deactivated. Please contact the system administrator.'
             }), 403
 
-        user_db_role = user['role'].lower()
-        if user_db_role != role_lower:
-            return jsonify({
-                'success': False,
-                'message': 'Role mismatch! The selected role does not match this account.'
-            }), 403
+        # Auto-resolve canonical role from database account
+        user_db_role = (user.get('role') or 'analyst').lower().strip()
 
         # Maintenance Mode Check - Restrict platform access to Admins only
         if is_maintenance_active() and user_db_role != 'admin':
@@ -209,6 +240,24 @@ def login():
         session['organization'] = user.get('organization') or 'General'
         session['phone'] = user.get('phone') or ''
         session.pop('active_dataset_id', None)
+
+        # Dispatch security login alert email with device, location, and IP
+        try:
+            from .services import email_service
+            device_str, client_ip, location_str = email_service.parse_client_device(request)
+            login_time_str = datetime.now().strftime('%B %d, %Y, %I:%M %p')
+            base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+            email_service.send_login_alert_email(
+                user_email=user['email'],
+                first_name=user.get('first_name', 'User'),
+                login_time=login_time_str,
+                ip_address=client_ip,
+                device_info=device_str,
+                location=location_str,
+                base_url=base_url
+            )
+        except Exception as alert_err:
+            logger.warning(f"Failed to dispatch login alert email: {alert_err}")
 
         # Role-based dashboard redirect URL
         redirect_url = get_role_dashboard_url(user_db_role)
@@ -240,31 +289,61 @@ def signup():
                 'message': 'New user self-registration is currently disabled by administrator. Please contact your system administrator.'
             }), 403
 
-        data = request.get_json()
+        data = request.get_json() if request.is_json else request.form
         if not data:
             return jsonify({'success': False, 'message': 'Invalid request format.'}), 400
 
+        action = str(data.get('action', '')).strip().lower()
+        base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+        from .services import otp_service
+
+        # Action 1: Verify OTP and create user account
+        if action == 'verify_otp' or ('otp_code' in data and not data.get('password')):
+            email = data.get('email', '').strip()
+            otp_code = data.get('otp_code', '').strip()
+            success, msg, status_code, user_data = otp_service.verify_signup_otp(
+                email=email,
+                otp_code=otp_code,
+                base_url=base_url
+            )
+            return jsonify({
+                'success': success,
+                'message': msg,
+                'redirect_url': url_for('auth.login') if success else None
+            }), status_code
+
+        # Action 2: Resend Signup OTP
+        if action == 'resend_otp':
+            email = data.get('email', '').strip()
+            success, msg, status_code = otp_service.resend_signup_otp(email=email, base_url=base_url)
+            return jsonify({'success': success, 'message': msg}), status_code
+
+        # Action 3: Initial Signup submission -> Generates OTP & Dispatches Professional Verification Email
         first_name = data.get('first_name')
         last_name = data.get('last_name')
         email = data.get('email')
         password = data.get('password')
         organization = data.get('organization')
         phone = data.get('phone')
-        
-        # Respect configured Default Role on Signup from SYSTEM_SETTINGS if default is requested
-        settings = current_app.config.get('SYSTEM_SETTINGS', {})
+
         default_signup_role = settings.get('default_role', 'developer').lower().strip()
         requested_role = data.get('role', '').lower().strip()
         role = requested_role if requested_role else default_signup_role
 
-        # Public signup is restricted to PUBLIC_ROLES (analyst, developer, manager, admin if allowed)
+        # Safety Feature: Strictly only ONE Administrator is permitted on the platform
+        if role == 'admin' and is_admin_registered():
+            return jsonify({
+                'success': False,
+                'message': 'An Administrator account is already registered on this platform. Only one Administrator is permitted for security reasons.'
+            }), 403
+
         if role not in PUBLIC_ROLES and role != default_signup_role:
             return jsonify({
                 'success': False,
                 'message': 'Public registration is restricted to Analyst and Developer roles.'
             }), 400
 
-        success, msg, status_code = create_user_account(
+        success, msg, status_code = otp_service.create_signup_otp(
             first_name=first_name,
             last_name=last_name,
             email=email,
@@ -272,20 +351,56 @@ def signup():
             role=role,
             organization=organization,
             phone=phone,
-            allowed_roles=PUBLIC_ROLES
+            allowed_roles=PUBLIC_ROLES,
+            base_url=base_url
         )
 
         if success:
             return jsonify({
                 'success': True,
-                'message': 'Account created! Redirecting to login...',
-                'redirect_url': url_for('auth.login')
-            })
+                'otp_sent': True,
+                'email': email,
+                'message': 'Verification code sent to your email address.'
+            }), 200
         else:
             return jsonify({'success': False, 'message': msg}), status_code
 
+    admin_exists = is_admin_registered()
     role = request.args.get('role', 'analyst').lower().strip()
-    return render_template('signup.html', selected_role=role)
+    if admin_exists and role == 'admin':
+        role = 'analyst'
+    return render_template('signup.html', selected_role=role, admin_exists=admin_exists)
+
+
+@bp.route('/signup/resend-otp', methods=['POST'])
+def signup_resend_otp():
+    """Explicit endpoint to resend signup OTP."""
+    data = request.get_json() if request.is_json else request.form
+    email = (data.get('email') or '').strip()
+    base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+    from .services import otp_service
+    success, msg, status_code = otp_service.resend_signup_otp(email=email, base_url=base_url)
+    return jsonify({'success': success, 'message': msg}), status_code
+
+
+@bp.route('/signup/verify-otp', methods=['POST'])
+def signup_verify_otp():
+    """Explicit endpoint to verify signup OTP."""
+    data = request.get_json() if request.is_json else request.form
+    email = (data.get('email') or '').strip()
+    otp_code = (data.get('otp_code') or '').strip()
+    base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+    from .services import otp_service
+    success, msg, status_code, user_data = otp_service.verify_signup_otp(
+        email=email,
+        otp_code=otp_code,
+        base_url=base_url
+    )
+    return jsonify({
+        'success': success,
+        'message': msg,
+        'redirect_url': url_for('auth.login') if success else None
+    }), status_code
 
 
 @bp.route('/logout')
@@ -298,78 +413,118 @@ def logout():
 @bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        if request.is_json:
-            data = request.get_json() or {}
-        else:
-            data = request.form
+        data = request.get_json() if request.is_json else request.form
+        if not data:
+            return jsonify({'success': False, 'message': 'Invalid request format.'}), 400
 
-        email = data.get('email', '').strip()
-        new_password = data.get('password', '').strip()
+        action = str(data.get('action', '')).strip().lower()
+        email = str(data.get('email', '')).strip()
+        base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+        from .services import otp_service
 
-        if not email:
-            return jsonify({'success': False, 'message': 'Email address is required.'}), 400
+        # Action 1: Resend OTP
+        if action == 'resend_otp':
+            success, msg, status_code = otp_service.resend_forgot_password_otp(
+                email=email,
+                req=request,
+                base_url=base_url
+            )
+            return jsonify({'success': success, 'message': msg}), status_code
 
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'message': 'Database connection error. Please try again later.'}), 500
+        # Action 2: Verify OTP and reset password
+        otp_code = str(data.get('otp_code', '')).strip()
+        new_password = str(data.get('password', '')).strip()
+        confirm_password = str(data.get('confirm_password', '')).strip()
 
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-                user = cursor.fetchone()
+        if action == 'verify_reset' or (otp_code and new_password):
+            success, msg, status_code = otp_service.verify_and_reset_password(
+                email=email,
+                otp_code=otp_code,
+                new_password=new_password,
+                confirm_password=confirm_password,
+                req=request,
+                base_url=base_url
+            )
+            return jsonify({
+                'success': success,
+                'message': msg,
+                'redirect_url': url_for('auth.login') if success else None
+            }), status_code
 
-                if not user:
-                    return jsonify({'success': False, 'message': 'No account found with this email address.'}), 404
-
-                # If new password is provided, update user password in database
-                if new_password:
-                    if len(new_password) < 6:
-                        return jsonify({'success': False, 'message': 'New password must be at least 6 characters.'}), 400
-
-                    hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
-                    cursor.execute("UPDATE users SET password = %s WHERE email = %s", (hashed_password, email))
-                    conn.commit()
-
-                    # Send notification email via SMTP if configured
-                    try:
-                        from .services.email_service import send_smtp_email
-                        send_smtp_email(
-                            to_email=email,
-                            subject="DataNova — Password Reset Notification",
-                            body_text=f"Hello {user.get('first_name', 'User')},\n\nYour DataNova account password has been updated successfully.\nIf you did not perform this change, please contact your System Administrator immediately."
-                        )
-                    except Exception as mail_err:
-                        current_app.logger.warning(f"SMTP reset notification dispatch warning: {mail_err}")
-
-                    return jsonify({
-                        'success': True,
-                        'message': 'Password updated successfully! Redirecting to login...',
-                        'redirect_url': url_for('auth.login')
-                    })
-                else:
-                    # Password reset request link notification
-                    try:
-                        from .services.email_service import send_smtp_email
-                        reset_link = url_for('auth.forgot_password', _external=True)
-                        send_smtp_email(
-                            to_email=email,
-                            subject="DataNova — Password Reset Request",
-                            body_text=f"Hello {user.get('first_name', 'User')},\n\nA password reset was requested for your DataNova account.\nPlease visit: {reset_link} to reset your password."
-                        )
-                    except Exception as mail_err:
-                        current_app.logger.warning(f"SMTP reset link dispatch warning: {mail_err}")
-
-                    return jsonify({
-                        'success': True,
-                        'message': 'Password reset link sent to your email address! Redirecting to login...',
-                        'redirect_url': url_for('auth.login')
-                    })
-        except Exception as e:
-            return jsonify({'success': False, 'message': 'An error occurred while resetting password.'}), 500
-        finally:
-            conn.close()
+        # Action 3: Send Password Reset OTP
+        success, msg, status_code = otp_service.create_forgot_password_otp(
+            email=email,
+            req=request,
+            base_url=base_url
+        )
+        return jsonify({
+            'success': success,
+            'otp_sent': True if success else False,
+            'email': email,
+            'message': msg
+        }), status_code
 
     return render_template('forgot_password.html')
+
+
+@bp.route('/forgot-password/send-otp', methods=['POST'])
+def forgot_password_send_otp():
+    """Explicit endpoint to request a password reset OTP."""
+    data = request.get_json() if request.is_json else request.form
+    email = (data.get('email') or '').strip()
+    base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+    from .services import otp_service
+    success, msg, status_code = otp_service.create_forgot_password_otp(
+        email=email,
+        req=request,
+        base_url=base_url
+    )
+    return jsonify({
+        'success': success,
+        'otp_sent': True if success else False,
+        'email': email,
+        'message': msg
+    }), status_code
+
+
+@bp.route('/forgot-password/verify-otp', methods=['POST'])
+def forgot_password_verify_otp():
+    """Explicit endpoint to verify reset OTP and update password."""
+    data = request.get_json() if request.is_json else request.form
+    email = (data.get('email') or '').strip()
+    otp_code = (data.get('otp_code') or '').strip()
+    new_password = (data.get('password') or '').strip()
+    confirm_password = (data.get('confirm_password') or '').strip()
+    base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+    from .services import otp_service
+    success, msg, status_code = otp_service.verify_and_reset_password(
+        email=email,
+        otp_code=otp_code,
+        new_password=new_password,
+        confirm_password=confirm_password,
+        req=request,
+        base_url=base_url
+    )
+    return jsonify({
+        'success': success,
+        'message': msg,
+        'redirect_url': url_for('auth.login') if success else None
+    }), status_code
+
+
+@bp.route('/forgot-password/resend-otp', methods=['POST'])
+def forgot_password_resend_otp():
+    """Explicit endpoint to resend password reset OTP."""
+    data = request.get_json() if request.is_json else request.form
+    email = (data.get('email') or '').strip()
+    base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+    from .services import otp_service
+    success, msg, status_code = otp_service.resend_forgot_password_otp(
+        email=email,
+        req=request,
+        base_url=base_url
+    )
+    return jsonify({'success': success, 'message': msg}), status_code
 
 
 @bp.route('/google')
@@ -391,6 +546,10 @@ def google_login():
         role = settings.get('default_role', 'analyst').lower().strip()
         if role not in ALLOWED_ROLES:
             role = 'analyst'
+
+    # Safety Feature: If Admin is already registered, fallback role to analyst
+    if role == 'admin' and is_admin_registered():
+        role = 'analyst'
 
     session['google_oauth_role'] = role
     state = secrets.token_urlsafe(16)
@@ -506,15 +665,42 @@ def google_callback():
                         return redirect(url_for('auth.login'))
 
                     # Log in existing user
+                    current_org = (user.get('organization') or '').strip()
+                    if current_org == 'Google Auth':
+                        current_org = ''
+                        try:
+                            cursor.execute("UPDATE users SET organization = NULL WHERE id = %s", (user['id'],))
+                            conn.commit()
+                        except Exception:
+                            pass
+
                     session['loggedin'] = True
                     session['id'] = user['id']
                     session['email'] = user['email']
                     session['role'] = user_role
                     session['first_name'] = user.get('first_name', first_name)
                     session['last_name'] = user.get('last_name', last_name)
-                    session['organization'] = user.get('organization') or 'Google Auth'
+                    session['organization'] = current_org
                     session['phone'] = user.get('phone') or ''
                     session.pop('active_dataset_id', None)
+
+                    # Dispatch Google login alert email
+                    try:
+                        from .services import email_service
+                        device_str, client_ip, location_str = email_service.parse_client_device(request)
+                        login_time_str = datetime.now().strftime('%B %d, %Y, %I:%M %p')
+                        base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+                        email_service.send_login_alert_email(
+                            user_email=user['email'],
+                            first_name=user.get('first_name', first_name),
+                            login_time=login_time_str,
+                            ip_address=client_ip,
+                            device_info=f"{device_str} (via Google OAuth)",
+                            location=location_str,
+                            base_url=base_url
+                        )
+                    except Exception as g_alert_err:
+                        logger.warning(f"Failed to dispatch Google login alert: {g_alert_err}")
 
                     flash(f"Welcome back, {session['first_name']}! Signed in with Google.", 'success')
                     return redirect(get_role_dashboard_url(user_role))
@@ -532,6 +718,9 @@ def google_callback():
 
                     requested_role = session.pop('google_oauth_role', 'analyst')
                     role = requested_role if requested_role in PUBLIC_ROLES else 'analyst'
+                    if role == 'admin' and is_admin_registered():
+                        role = 'analyst'
+                        flash('An Administrator account is already registered on this platform. Assigned Analyst role.', 'info')
 
                     # Generate random dummy password for google user
                     random_password = secrets.token_hex(16)
@@ -540,9 +729,9 @@ def google_callback():
                     cursor.execute(
                         """
                         INSERT INTO users (first_name, last_name, email, password, role, organization)
-                        VALUES (%s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, NULL)
                         """,
-                        (first_name, last_name, email, hashed_password, role, 'Google Auth')
+                        (first_name, last_name, email, hashed_password, role)
                     )
                     conn.commit()
                     new_user_id = cursor.lastrowid
@@ -553,11 +742,26 @@ def google_callback():
                     session['role'] = role
                     session['first_name'] = first_name
                     session['last_name'] = last_name
-                    session['organization'] = 'Google Auth'
+                    session['organization'] = ''
                     session['phone'] = ''
                     session.pop('active_dataset_id', None)
 
-                    flash(f"Account created successfully! Welcome to DataNova, {first_name}.", 'success')
+                    # Dispatch Google signup welcome email
+                    try:
+                        from .services import email_service
+                        base_url = request.host_url.rstrip('/') if request else 'http://127.0.0.1:5000'
+                        email_service.send_welcome_email(
+                            user_email=email,
+                            first_name=first_name,
+                            last_name=last_name,
+                            role=role,
+                            organization='General',
+                            base_url=base_url
+                        )
+                    except Exception as g_welcome_err:
+                        logger.warning(f"Failed to dispatch Google welcome email: {g_welcome_err}")
+
+                    flash(f"Account created successfully! Welcome to DataNova, {first_name}. Please set your organization in your profile.", 'success')
                     return redirect(get_role_dashboard_url(role))
 
         finally:

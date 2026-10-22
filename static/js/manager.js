@@ -869,7 +869,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             let statusBadge = '<span class="badge bg-warning text-dark" style="background:#f59e0b"><i class="bi bi-clock me-1"></i>Pending</span>';
             if (t.status === 'Completed') {
-                statusBadge = '<span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Completed</span>';
+                statusBadge = '<span class="badge bg-info text-white"><i class="bi bi-check-circle me-1"></i>Completed (Review)</span>';
+            } else if (t.status === 'Approved') {
+                statusBadge = '<span class="badge bg-success text-white"><i class="bi bi-patch-check-fill me-1"></i>Approved</span>';
             } else if (t.status === 'In Progress') {
                 statusBadge = '<span class="badge bg-primary text-white"><i class="bi bi-hourglass-split me-1"></i>In Progress</span>';
             } else if (t.status === 'Reopened') {
@@ -882,11 +884,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
             let actionBtns = `
                 <div class="btn-group btn-group-sm">
-                    ${t.status !== 'Completed'
-                ? `<button class="btn btn-outline-success" data-action="update-task-status" data-task-id="${t.id}" data-status="Completed"><i class="bi bi-check-lg"></i> Done</button>
-                   <button class="btn btn-outline-primary" data-action="update-task-status" data-task-id="${t.id}" data-status="In Progress"><i class="bi bi-play-fill"></i> In Progress</button>`
-                : `<button class="btn btn-outline-warning" data-action="reopen-task-modal" data-task-id="${t.id}" data-task-title="${escapeHtml(t.task_title || '')}" data-assigned-to="${escapeHtml(t.assigned_to_name || '')}"><i class="bi bi-arrow-counterclockwise"></i> Re-open</button>`}
-                    <button class="btn btn-outline-danger" data-action="delete-task" data-task-id="${t.id}"><i class="bi bi-trash"></i></button>
+                    ${t.status === 'Completed'
+                ? `<button class="btn btn-outline-success" data-action="update-task-status" data-task-id="${t.id}" data-status="Approved" title="Approve Task Deliverables"><i class="bi bi-patch-check-fill me-1"></i>Approve</button>
+                   <button class="btn btn-outline-warning" data-action="reopen-task-modal" data-task-id="${t.id}" data-task-title="${escapeHtml(t.task_title || '')}" data-assigned-to="${escapeHtml(t.assigned_to_name || '')}" title="Reopen Task with Feedback"><i class="bi bi-arrow-counterclockwise me-1"></i>Re-open</button>`
+                : (t.status === 'Approved'
+                    ? `<button class="btn btn-outline-warning" data-action="reopen-task-modal" data-task-id="${t.id}" data-task-title="${escapeHtml(t.task_title || '')}" data-assigned-to="${escapeHtml(t.assigned_to_name || '')}" title="Reopen Task with Feedback"><i class="bi bi-arrow-counterclockwise me-1"></i>Re-open</button>`
+                    : `<button class="btn btn-outline-success" data-action="update-task-status" data-task-id="${t.id}" data-status="Completed"><i class="bi bi-check-lg"></i> Done</button>
+                       <button class="btn btn-outline-primary" data-action="update-task-status" data-task-id="${t.id}" data-status="In Progress"><i class="bi bi-play-fill"></i> In Progress</button>`
+                )}
+                    <button class="btn btn-outline-danger" data-action="delete-task" data-task-id="${t.id}" title="Delete Task"><i class="bi bi-trash"></i></button>
                 </div>`;
 
             return `
@@ -1430,10 +1436,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             ` : '';
 
-            // Render recipient user badges
+            // Render recipient user badges (excluding developer accounts)
             let recipientsHtml = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle extra-small">All Team Members</span>';
-            if (sd.shared_with_users && sd.shared_with_users.length > 0) {
-                recipientsHtml = sd.shared_with_users.map(u => {
+            const validRecipients = (sd.shared_with_users || []).filter(u => (u.role || '').toLowerCase() !== 'developer');
+            if (validRecipients.length > 0) {
+                recipientsHtml = validRecipients.map(u => {
                     return `<span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small" title="${escapeHtml(u.email || '')}">${escapeHtml(u.name)} (${escapeHtml(u.role || 'User')})</span>`;
                 }).join(' ');
             }

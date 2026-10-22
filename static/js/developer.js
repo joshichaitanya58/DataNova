@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST', path: '/api/v1/analysis/auto',
             description: 'One call for the whole pipeline: validation, cleaning, EDA, visualizations, insights, and ML recommendations.',
             sample_payload: { dataset_id: 101, enable_ai: true },
-            sdk: 'result = client.run_auto_analysis(dataset_id=101, enable_ai=True)',
+            sdk: 'result = client.run_auto_analysis(dataset_id=101)',
             sample_response: { success: true, request_id: 'req_ee819f2a', analysis_id: 'an_101', dataset_id: 101, status: 'completed', eda: { rows: 5000, columns: 12 }, insights: [{ title: 'Strong Correlation Detected' }], ml_recommendations: [{ model: 'RandomForestRegressor' }] }
         },
         {
@@ -501,8 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST', path: '/api/v1/ask',
             description: 'Asks a natural-language question about your data, optionally scoped to one dataset.',
             sample_payload: { query: 'What is the total revenue trend?', dataset_id: 101 },
-            sdk: 'result = client.ask_question(\n    query="What is the total revenue trend?",\n    dataset_id=101,\n)',
-            sample_response: { success: true, request_id: 'req_2d7e5a10', answer: 'Revenue grew steadily quarter over quarter.', insights: [] }
+            sample_response: { success: true, request_id: 'req_2d7e5a10', status: 'temporarily_unavailable', service_status: 'temporarily_unavailable', answer: 'The Natural Language AI Q&A service is temporarily unavailable via Developer REST API integrations. Please visit the DataNova Web Dashboard for live interactive AI queries.', message: 'AI service is temporarily unavailable via REST API. Please use the DataNova Web Dashboard.', available_in_web_dashboard: true }
         },
         {
             id: 'v1_ml_classification', name: 'ML Classification Training', category: 'Machine Learning',
@@ -809,9 +808,22 @@ public class DataNovaExample {
         if (e.target.closest('a[href="#"]')) e.preventDefault();
     });
 
-    // ------------------------------------------------------------------
-    // Init
-    // ------------------------------------------------------------------
+    // Endpoint Reference instant search filter
+    const epSearch = byId('endpointSearchInput');
+    if (epSearch) {
+        epSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            $$('.endpoint-card-item').forEach((card) => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(query) ? '' : 'none';
+            });
+            $$('.endpoint-category-section').forEach((sec) => {
+                const hasVisible = $$('.endpoint-card-item', sec).some((c) => c.style.display !== 'none');
+                sec.style.display = hasVisible ? '' : 'none';
+            });
+        });
+    }
+
     updateApiKeyDisplay();
 
     const firstBtn = $('#endpointsListGroup .endpoint-select-btn');

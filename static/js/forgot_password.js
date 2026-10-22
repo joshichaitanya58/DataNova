@@ -277,25 +277,46 @@
   startBlackBlink();
   render();
 
-  // ---------- FORGOT PASSWORD FORM LOGIC ----------
-  const form = document.getElementById('forgot-form');
+  // ---------- FORGOT PASSWORD 2-STEP OTP & RESET LOGIC ----------
+  let activeResetEmail = '';
+  let resendInterval = null;
+
+  // Step 1 Elements
+  const stepEmail = document.getElementById('forgot-step-email');
+  const emailForm = document.getElementById('forgot-email-form');
   const emailInput = document.getElementById('email');
-  const passwordInput = document.getElementById('password');
-
   const emailError = document.getElementById('email-error');
-  const passwordError = document.getElementById('password-error');
-  const formError = document.getElementById('form-error');
+  const emailFormError = document.getElementById('email-form-error');
+  const sendOtpBtn = document.getElementById('send-otp-btn');
+  const sendOtpLabel = document.getElementById('send-otp-label');
+  const sendOtpLabelHover = document.getElementById('send-otp-label-hover');
 
-  const submitBtn = document.getElementById('submit-btn');
-  const submitLabel = document.getElementById('submit-label');
-  const submitLabelHover = document.getElementById('submit-label-hover');
+  // Step 2 Elements
+  const stepReset = document.getElementById('forgot-step-reset');
+  const resetForm = document.getElementById('forgot-reset-form');
+  const resetDisplayEmail = document.getElementById('reset-display-email');
+  const otpDigits = Array.from(document.querySelectorAll('#forgot-otp-inputs .otp-digit'));
+  const resendTimerText = document.getElementById('reset-resend-timer-text');
+  const resendCountdown = document.getElementById('reset-resend-countdown');
+  const btnResendOtp = document.getElementById('btn-reset-resend');
+  const btnChangeEmail = document.getElementById('btn-reset-change-email');
+
+  const passwordInput = document.getElementById('password');
+  const confirmPasswordInput = document.getElementById('confirm_password');
+  const passwordError = document.getElementById('password-error');
+  const confirmPasswordError = document.getElementById('confirm-password-error');
+  const resetFormError = document.getElementById('reset-form-error');
+
+  const resetSubmitBtn = document.getElementById('reset-submit-btn');
+  const resetSubmitLabel = document.getElementById('reset-submit-label');
+  const resetSubmitLabelHover = document.getElementById('reset-submit-label-hover');
+
   const togglePasswordBtn = document.getElementById('toggle-password');
   const eyeOpen = document.getElementById('eye-open');
   const eyeClosed = document.getElementById('eye-closed');
-  const confirmPasswordInput = document.getElementById('confirm_password');
-  const confirmPasswordError = document.getElementById('confirm-password-error');
 
   function validateEmail() {
+    if (!emailInput) return '';
     const val = emailInput.value.trim();
     if (!val) {
       if (emailError) emailError.textContent = 'Email address is required.';
@@ -309,7 +330,11 @@
   function validatePassword() {
     if (!passwordInput) return '';
     const val = passwordInput.value;
-    if (val && val.length < 6) {
+    if (!val) {
+      if (passwordError) passwordError.textContent = 'New password is required.';
+      return 'New password is required.';
+    }
+    if (val.length < 6) {
       if (passwordError) passwordError.textContent = 'New password must be at least 6 characters.';
       return 'New password must be at least 6 characters.';
     }
@@ -321,6 +346,10 @@
     if (!confirmPasswordInput || !passwordInput) return '';
     const val = confirmPasswordInput.value;
     const orig = passwordInput.value;
+    if (!val) {
+      if (confirmPasswordError) confirmPasswordError.textContent = 'Please confirm your new password.';
+      return 'Please confirm your new password.';
+    }
     if (orig && val !== orig) {
       if (confirmPasswordError) confirmPasswordError.textContent = 'Passwords do not match.';
       return 'Passwords do not match.';
@@ -328,6 +357,132 @@
     if (confirmPasswordError) confirmPasswordError.textContent = '';
     return '';
   }
+
+  function startResendTimer(seconds = 30) {
+    clearInterval(resendInterval);
+    if (btnResendOtp) btnResendOtp.style.display = 'none';
+    if (resendTimerText) resendTimerText.style.display = 'inline';
+    let timeLeft = seconds;
+    if (resendCountdown) resendCountdown.textContent = `00:${timeLeft < 10 ? '0' : ''}${timeLeft}`;
+
+    resendInterval = setInterval(() => {
+      timeLeft -= 1;
+      if (timeLeft <= 0) {
+        clearInterval(resendInterval);
+        if (resendTimerText) resendTimerText.style.display = 'none';
+        if (btnResendOtp) {
+          btnResendOtp.style.display = 'inline-flex';
+          btnResendOtp.disabled = false;
+        }
+      } else {
+        if (resendCountdown) resendCountdown.textContent = `00:${timeLeft < 10 ? '0' : ''}${timeLeft}`;
+      }
+    }, 1000);
+  }
+
+  function getEnteredOtp() {
+    return otpDigits.map(d => d.value.trim()).join('');
+  }
+
+  function clearOtpInputs() {
+    otpDigits.forEach(d => {
+      d.value = '';
+      d.classList.remove('filled');
+    });
+    if (otpDigits[0]) otpDigits[0].focus();
+  }
+
+  function showResetStep(email) {
+    activeResetEmail = email;
+    if (resetDisplayEmail) resetDisplayEmail.textContent = email;
+    if (stepEmail) stepEmail.style.display = 'none';
+    if (stepReset) stepReset.style.display = 'block';
+    if (resetFormError) {
+      resetFormError.style.display = 'none';
+      resetFormError.textContent = '';
+      resetFormError.style.background = '';
+      resetFormError.style.borderColor = '';
+      resetFormError.style.color = '';
+    }
+    clearOtpInputs();
+    if (passwordInput) passwordInput.value = '';
+    if (confirmPasswordInput) confirmPasswordInput.value = '';
+    startResendTimer(30);
+  }
+
+  function showEmailStep() {
+    clearInterval(resendInterval);
+    if (stepReset) stepReset.style.display = 'none';
+    if (stepEmail) stepEmail.style.display = 'block';
+    if (emailInput) emailInput.focus();
+  }
+
+  function setupOtpDigitInputs() {
+    otpDigits.forEach((input, index) => {
+      input.addEventListener('focus', () => {
+        input.select();
+        setTyping(true);
+        scheduleRender();
+      });
+
+      input.addEventListener('blur', () => {
+        setTyping(false);
+        scheduleRender();
+      });
+
+      input.addEventListener('input', () => {
+        const val = input.value.replace(/[^0-9]/g, '');
+        input.value = val ? val[val.length - 1] : '';
+        if (input.value) {
+          input.classList.add('filled');
+          if (index < otpDigits.length - 1) {
+            otpDigits[index + 1].focus();
+          } else {
+            if (passwordInput) passwordInput.focus();
+          }
+        } else {
+          input.classList.remove('filled');
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace') {
+          if (!input.value && index > 0) {
+            otpDigits[index - 1].focus();
+            otpDigits[index - 1].value = '';
+            otpDigits[index - 1].classList.remove('filled');
+            e.preventDefault();
+          }
+        } else if (e.key === 'ArrowLeft' && index > 0) {
+          otpDigits[index - 1].focus();
+        } else if (e.key === 'ArrowRight' && index < otpDigits.length - 1) {
+          otpDigits[index + 1].focus();
+        }
+      });
+
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text').trim();
+        const numeric = text.replace(/[^0-9]/g, '').slice(0, 6);
+        if (numeric) {
+          numeric.split('').forEach((ch, i) => {
+            if (otpDigits[i]) {
+              otpDigits[i].value = ch;
+              otpDigits[i].classList.add('filled');
+            }
+          });
+          const nextIdx = Math.min(numeric.length, 5);
+          if (numeric.length === 6 && passwordInput) {
+            passwordInput.focus();
+          } else if (otpDigits[nextIdx]) {
+            otpDigits[nextIdx].focus();
+          }
+        }
+      });
+    });
+  }
+
+  setupOtpDigitInputs();
 
   if (emailInput) {
     emailInput.addEventListener('focus', () => { setTyping(true); scheduleRender(); });
@@ -357,77 +512,217 @@
     togglePasswordBtn.addEventListener('click', () => {
       showPassword = !showPassword;
       passwordInput.type = showPassword ? 'text' : 'password';
-      eyeOpen.style.display = showPassword ? 'block' : 'none';
-      eyeClosed.style.display = showPassword ? 'none' : 'block';
+      if (confirmPasswordInput) confirmPasswordInput.type = showPassword ? 'text' : 'password';
+      if (eyeOpen) eyeOpen.style.display = showPassword ? 'block' : 'none';
+      if (eyeClosed) eyeClosed.style.display = showPassword ? 'none' : 'block';
       updatePeekWatcher();
       scheduleRender();
     });
   }
 
-  function setLoading(loading) {
-    submitBtn.disabled = loading;
-    const text = loading ? 'Processing...' : 'Reset Password';
-    if (submitLabel) submitLabel.textContent = text;
-    if (submitLabelHover) submitLabelHover.textContent = text;
+  if (btnChangeEmail) {
+    btnChangeEmail.addEventListener('click', showEmailStep);
   }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    formError.style.display = 'none';
-    formError.textContent = '';
-    formError.style.background = '';
-    formError.style.borderColor = '';
-    formError.style.color = '';
-
-    const emailErr = validateEmail();
-    const passErr = validatePassword();
-    const confirmErr = validateConfirmPassword();
-
-    if (emailErr || passErr || confirmErr) {
-      formError.textContent = emailErr || passErr || confirmErr;
-      formError.style.display = 'block';
-      return;
-    }
-
-    const payload = {
-      email: emailInput.value.trim(),
-      password: passwordInput ? passwordInput.value : ''
-    };
-
-    setLoading(true);
-
-    try {
-      const response = await fetch('/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        formError.style.display = 'block';
-        formError.style.background = 'rgba(16, 185, 129, 0.12)';
-        formError.style.borderColor = 'rgba(16, 185, 129, 0.35)';
-        formError.style.color = '#10B981';
-        formError.textContent = data.message || 'Password reset link / update processed! Redirecting...';
-
-        setTimeout(() => {
-          window.location.href = data.redirect_url || '/login';
-        }, 1500);
-      } else {
-        setLoading(false);
-        formError.style.display = 'block';
-        formError.textContent = data.message || 'Password reset failed.';
+  if (btnResendOtp) {
+    btnResendOtp.addEventListener('click', async () => {
+      btnResendOtp.disabled = true;
+      if (resetFormError) {
+        resetFormError.style.display = 'none';
+        resetFormError.textContent = '';
       }
-    } catch (err) {
-      setLoading(false);
-      formError.style.display = 'block';
-      formError.textContent = 'Server connection error. Please try again.';
-      console.error('Forgot password error:', err);
-    }
-  });
+
+      try {
+        const response = await fetch('/forgot-password/resend-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ email: activeResetEmail })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          if (resetFormError) {
+            resetFormError.style.display = 'block';
+            resetFormError.style.background = 'rgba(16, 185, 129, 0.12)';
+            resetFormError.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+            resetFormError.style.color = '#10B981';
+            resetFormError.textContent = data.message || 'A new verification code has been sent!';
+          }
+          clearOtpInputs();
+          startResendTimer(30);
+        } else {
+          btnResendOtp.disabled = false;
+          if (resetFormError) {
+            resetFormError.style.display = 'block';
+            resetFormError.style.background = '';
+            resetFormError.style.borderColor = '';
+            resetFormError.style.color = '';
+            resetFormError.textContent = data.message || 'Failed to resend reset code.';
+          }
+        }
+      } catch (err) {
+        btnResendOtp.disabled = false;
+        if (resetFormError) {
+          resetFormError.style.display = 'block';
+          resetFormError.textContent = 'Server connection error. Please try again.';
+        }
+      }
+    });
+  }
+
+  function setSendLoading(loading) {
+    if (sendOtpBtn) sendOtpBtn.disabled = loading;
+    const text = loading ? 'Sending Verification Code...' : 'Send Verification Code';
+    if (sendOtpLabel) sendOtpLabel.textContent = text;
+    if (sendOtpLabelHover) sendOtpLabelHover.textContent = text;
+  }
+
+  function setResetLoading(loading) {
+    if (resetSubmitBtn) resetSubmitBtn.disabled = loading;
+    const text = loading ? 'Updating Password...' : 'Verify & Reset Password';
+    if (resetSubmitLabel) resetSubmitLabel.textContent = text;
+    if (resetSubmitLabelHover) resetSubmitLabelHover.textContent = text;
+  }
+
+  // STEP 1 FORM SUBMISSION
+  if (emailForm) {
+    emailForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (emailFormError) {
+        emailFormError.style.display = 'none';
+        emailFormError.textContent = '';
+      }
+
+      const emailErr = validateEmail();
+      if (emailErr) {
+        if (emailFormError) {
+          emailFormError.textContent = emailErr;
+          emailFormError.style.display = 'block';
+        }
+        return;
+      }
+
+      const emailVal = emailInput.value.trim();
+      setSendLoading(true);
+
+      try {
+        const response = await fetch('/forgot-password/send-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ email: emailVal })
+        });
+
+        const data = await response.json();
+        setSendLoading(false);
+
+        if (data.success && data.otp_sent) {
+          showResetStep(emailVal);
+        } else {
+          if (emailFormError) {
+            emailFormError.style.display = 'block';
+            emailFormError.textContent = data.message || 'Failed to send reset code.';
+          }
+        }
+      } catch (err) {
+        setSendLoading(false);
+        if (emailFormError) {
+          emailFormError.style.display = 'block';
+          emailFormError.textContent = 'Server connection error. Please try again.';
+        }
+        console.error('Forgot password send OTP error:', err);
+      }
+    });
+  }
+
+  // STEP 2 FORM SUBMISSION
+  if (resetForm) {
+    resetForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (resetFormError) {
+        resetFormError.style.display = 'none';
+        resetFormError.textContent = '';
+        resetFormError.style.background = '';
+        resetFormError.style.borderColor = '';
+        resetFormError.style.color = '';
+      }
+
+      const code = getEnteredOtp();
+      if (code.length !== 6) {
+        if (resetFormError) {
+          resetFormError.style.display = 'block';
+          resetFormError.textContent = 'Please enter the complete 6-digit verification code.';
+        }
+        return;
+      }
+
+      const passErr = validatePassword();
+      const confirmErr = validateConfirmPassword();
+      if (passErr || confirmErr) {
+        if (resetFormError) {
+          resetFormError.style.display = 'block';
+          resetFormError.textContent = passErr || confirmErr;
+        }
+        return;
+      }
+
+      setResetLoading(true);
+
+      try {
+        const response = await fetch('/forgot-password/verify-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({
+            email: activeResetEmail,
+            otp_code: code,
+            password: passwordInput.value,
+            confirm_password: confirmPasswordInput.value
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          if (resetFormError) {
+            resetFormError.style.display = 'block';
+            resetFormError.style.background = 'rgba(16, 185, 129, 0.12)';
+            resetFormError.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+            resetFormError.style.color = '#10B981';
+            resetFormError.textContent = data.message || 'Password reset successfully! Redirecting to login...';
+          }
+
+          setTimeout(() => {
+            window.location.href = data.redirect_url || '/login';
+          }, 1500);
+        } else {
+          setResetLoading(false);
+          if (resetFormError) {
+            resetFormError.style.display = 'block';
+            resetFormError.style.background = '';
+            resetFormError.style.borderColor = '';
+            resetFormError.style.color = '';
+            resetFormError.textContent = data.message || 'Password reset failed.';
+          }
+        }
+      } catch (err) {
+        setResetLoading(false);
+        if (resetFormError) {
+          resetFormError.style.display = 'block';
+          resetFormError.style.background = '';
+          resetFormError.style.borderColor = '';
+          resetFormError.style.color = '';
+          resetFormError.textContent = 'Server connection error. Please try again.';
+        }
+        console.error('Password reset verify error:', err);
+      }
+    });
+  }
 })();

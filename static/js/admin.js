@@ -1792,6 +1792,7 @@ window.showSystemSettingsModal = function () {
                 if (document.getElementById('settingDefaultRole')) document.getElementById('settingDefaultRole').value = s.default_role || 'developer';
                 if (document.getElementById('settingMaxFileSize')) document.getElementById('settingMaxFileSize').value = s.max_file_size_mb || '50';
                 if (document.getElementById('settingAllowedExtensions')) document.getElementById('settingAllowedExtensions').value = s.allowed_extensions || '.csv, .xlsx, .xls, .json';
+                if (document.getElementById('settingStorageMode')) document.getElementById('settingStorageMode').value = s.storage_mode || 'drive';
                 if (document.getElementById('settingAllowUserRegistration')) document.getElementById('settingAllowUserRegistration').checked = s.allow_user_registration !== false;
                 if (document.getElementById('settingMaintenanceMode')) document.getElementById('settingMaintenanceMode').checked = Boolean(s.maintenance_mode);
 
@@ -2038,6 +2039,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 default_role: document.getElementById('settingDefaultRole') ? document.getElementById('settingDefaultRole').value : 'developer',
                 max_file_size_mb: document.getElementById('settingMaxFileSize') ? document.getElementById('settingMaxFileSize').value : '50',
                 allowed_extensions: document.getElementById('settingAllowedExtensions') ? document.getElementById('settingAllowedExtensions').value : '.csv, .xlsx, .xls, .json',
+                storage_mode: document.getElementById('settingStorageMode') ? document.getElementById('settingStorageMode').value : 'drive',
                 allow_user_registration: document.getElementById('settingAllowUserRegistration') ? document.getElementById('settingAllowUserRegistration').checked : true,
                 maintenance_mode: document.getElementById('settingMaintenanceMode') ? document.getElementById('settingMaintenanceMode').checked : false,
 
@@ -2721,8 +2723,11 @@ function exportCurrentDatabaseViewCSV() {
                             attachBtn +
                         '</td>' +
                         '<td>' + statusBadge + '</td>' +
-                        '<td class="text-end">' +
-                            '<button class="btn btn-sm btn-outline-success me-1 btn-resolve-msg" data-id="' + msg.id + '" data-status="' + (msg.status === 'Resolved' ? 'Pending' : 'Resolved') + '" title="Toggle Status"><i class="bi bi-check-lg"></i></button>' +
+                        '<td class="text-end text-nowrap">' +
+                            (msg.status === 'Resolved'
+                                ? '<button class="btn btn-sm btn-outline-warning me-1 btn-resolve-msg" data-id="' + msg.id + '" data-status="Pending" title="Reopen Ticket"><i class="bi bi-arrow-counterclockwise me-1"></i>Reopen</button>'
+                                : '<button class="btn btn-sm btn-success text-white me-1 btn-resolve-msg" data-id="' + msg.id + '" data-status="Resolved" title="Mark as Resolved & Notify User"><i class="bi bi-check2-circle me-1"></i>Resolve</button>'
+                            ) +
                             '<button class="btn btn-sm btn-outline-danger btn-delete-msg" data-id="' + msg.id + '" title="Delete Message"><i class="bi bi-trash"></i></button>' +
                         '</td>' +
                     '</tr>';

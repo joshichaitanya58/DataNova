@@ -12,7 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=2.2">
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/favicon.png') }}">
@@ -117,6 +117,307 @@
             letter-spacing: 0.08em;
             font-weight: 700;
             opacity: 0.65;
+        }
+
+        /* ==========================================================================
+           DATANOVA PREDICTIVE STUDIO - PREMIUM MODERN UI & DARK MODE ENHANCEMENTS
+           ========================================================================== */
+        .dn-ml-studio-dialog {
+            max-width: 1360px !important;
+            width: 95vw !important;
+        }
+
+        .dn-ml-modal-content {
+            border: 1px solid var(--bs-border-color) !important;
+            border-radius: 18px !important;
+            overflow: hidden;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35) !important;
+        }
+
+        /* Modality Nav Pills */
+        #mlModalityNav {
+            background-color: var(--bs-tertiary-bg);
+            border-radius: 12px;
+            padding: 0.35rem !important;
+            border: 1px solid var(--bs-border-color);
+        }
+
+        #mlModalityNav .nav-link {
+            font-size: 0.88rem;
+            font-weight: 600;
+            border-radius: 10px;
+            color: var(--bs-body-color);
+            padding: 0.65rem 1rem !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid transparent;
+        }
+
+        #mlModalityNav .nav-link:hover {
+            background-color: rgba(99, 102, 241, 0.08);
+            color: #6366f1;
+            transform: translateY(-1px);
+        }
+
+        #mlModalityNav .nav-link.active {
+            background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
+        }
+
+        #mlModalityNav .nav-link.active i {
+            color: #ffffff !important;
+        }
+
+        html[data-bs-theme="dark"] #mlModalityNav .nav-link:hover {
+            background-color: rgba(99, 102, 241, 0.18);
+            color: #a5b4fc;
+        }
+
+        /* KPI Cards */
+        .ml-kpi-card {
+            border-radius: 14px !important;
+            border: 1px solid var(--bs-border-color) !important;
+            background-color: var(--bs-body-bg) !important;
+            padding: 1.25rem 1rem !important;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .ml-kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            border-color: rgba(99, 102, 241, 0.3) !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-kpi-card {
+            background-color: rgba(26, 32, 44, 0.7) !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-kpi-card:hover {
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+            border-color: rgba(99, 102, 241, 0.4) !important;
+        }
+
+        /* Mathematical Formula Card */
+        .ml-equation-card {
+            border-radius: 14px !important;
+            border: 1px solid rgba(99, 102, 241, 0.22) !important;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.03)) !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-equation-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.55)) !important;
+            border-color: rgba(99, 102, 241, 0.3) !important;
+        }
+
+        #mlFormulaText {
+            background-color: var(--bs-body-bg) !important;
+            border: 1px solid var(--bs-border-color) !important;
+            color: var(--bs-body-color) !important;
+            border-radius: 10px !important;
+            padding: 0.85rem 1.15rem !important;
+            font-size: 0.88rem !important;
+            letter-spacing: 0.01em;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        html[data-bs-theme="dark"] #mlFormulaText {
+            background-color: #0b1120 !important;
+            border-color: rgba(99, 102, 241, 0.25) !important;
+            color: #e2e8f0 !important;
+        }
+
+        /* Results Container Bottom Margin */
+        .ml-results-container {
+            padding-bottom: 4.5rem !important;
+        }
+
+        /* Predictions Table Dark Mode & Hover Highlighting */
+        .ml-table-header th {
+            background-color: var(--bs-tertiary-bg) !important;
+            color: var(--bs-body-color) !important;
+            border-bottom: 2px solid var(--bs-border-color) !important;
+            padding: 0.8rem 1rem !important;
+            font-weight: 600 !important;
+            font-size: 0.76rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.03em !important;
+            white-space: nowrap;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .ml-table-header th:hover {
+            background-color: rgba(99, 102, 241, 0.08) !important;
+            color: #6366f1 !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-table-header th:hover {
+            background-color: rgba(99, 102, 241, 0.2) !important;
+            color: #a5b4fc !important;
+        }
+
+        #mlPredictionsTable tbody tr {
+            transition: background-color 0.15s ease, transform 0.15s ease;
+            cursor: default;
+        }
+
+        #mlPredictionsTable tbody td {
+            padding: 0.7rem 1rem !important;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--bs-border-color-translucent);
+        }
+
+        .ml-row-good {
+            background-color: rgba(16, 185, 129, 0.07) !important;
+        }
+
+        .ml-row-warn {
+            background-color: rgba(245, 158, 11, 0.07) !important;
+        }
+
+        .ml-row-high {
+            background-color: rgba(239, 68, 68, 0.07) !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-row-good {
+            background-color: rgba(16, 185, 129, 0.12) !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-row-warn {
+            background-color: rgba(245, 158, 11, 0.12) !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-row-high {
+            background-color: rgba(239, 68, 68, 0.12) !important;
+        }
+
+        #mlPredictionsTable tbody tr:hover {
+            background-color: rgba(99, 102, 241, 0.12) !important;
+            box-shadow: inset 3px 0 0 #6366f1;
+        }
+
+        html[data-bs-theme="dark"] #mlPredictionsTable tbody tr:hover {
+            background-color: rgba(99, 102, 241, 0.25) !important;
+            box-shadow: inset 3px 0 0 #818cf8;
+        }
+
+        /* Intelligent Assistant Card */
+        .ml-assistant-card {
+            border-radius: 16px !important;
+            border: 1px solid rgba(99, 102, 241, 0.25) !important;
+            box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.08), 0 0 1px 1px rgba(99, 102, 241, 0.1) !important;
+            margin-top: 2.25rem !important;
+            margin-bottom: 2.5rem !important;
+            background: var(--bs-body-bg) !important;
+            overflow: hidden;
+        }
+
+        html[data-bs-theme="dark"] .ml-assistant-card {
+            background: #111726 !important;
+            border-color: rgba(99, 102, 241, 0.3) !important;
+            box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.4), 0 0 1px 1px rgba(99, 102, 241, 0.15) !important;
+        }
+
+        .ml-assistant-header {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05)) !important;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.15) !important;
+            padding: 1rem 1.35rem !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-assistant-header {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.12)) !important;
+            border-bottom-color: rgba(99, 102, 241, 0.25) !important;
+        }
+
+        /* Quick Question Chips */
+        .ml-chip-btn {
+            background: var(--bs-body-bg);
+            border: 1px solid rgba(99, 102, 241, 0.25) !important;
+            color: var(--bs-body-color) !important;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.42rem 0.95rem !important;
+            border-radius: 9999px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            text-decoration: none;
+            outline: none;
+        }
+
+        .ml-chip-btn:hover,
+        .ml-chip-btn:focus {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.12)) !important;
+            border-color: #6366f1 !important;
+            color: #4f46e5 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.18);
+        }
+
+        html[data-bs-theme="dark"] .ml-chip-btn {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(99, 102, 241, 0.3) !important;
+            color: #e2e8f0 !important;
+        }
+
+        html[data-bs-theme="dark"] .ml-chip-btn:hover,
+        html[data-bs-theme="dark"] .ml-chip-btn:focus {
+            background: rgba(99, 102, 241, 0.28) !important;
+            border-color: #818cf8 !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+        }
+
+        /* Suggested Follow-up Chips */
+        .ml-followup-btn {
+            background: var(--bs-body-bg);
+            border: 1px solid var(--bs-border-color);
+            color: var(--bs-secondary-color);
+            font-size: 0.76rem;
+            font-weight: 500;
+            padding: 0.28rem 0.75rem;
+            border-radius: 9999px;
+            transition: all 0.18s ease;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .ml-followup-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: #6366f1;
+            color: #4f46e5;
+            transform: translateY(-1px);
+        }
+
+        html[data-bs-theme="dark"] .ml-followup-btn {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+        }
+
+        html[data-bs-theme="dark"] .ml-followup-btn:hover {
+            background: rgba(99, 102, 241, 0.22);
+            border-color: #818cf8;
+            color: #ffffff;
+        }
+
+        /* Assistant Response Box */
+        #mlAssistantResponseBox {
+            background: var(--bs-body-bg) !important;
+            border: 1px solid rgba(99, 102, 241, 0.25) !important;
+            border-radius: 14px !important;
+            padding: 1.35rem 1.6rem !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+            margin-bottom: 1.25rem !important;
+        }
+
+        html[data-bs-theme="dark"] #mlAssistantResponseBox {
+            background: #0f172a !important;
+            border-color: rgba(99, 102, 241, 0.3) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
     </style>
 
@@ -372,14 +673,14 @@
                                 <button id="dnUploadAnotherBtn" class="btn dn-btn-outline-dn btn-sm" style="display: none;"><i
                                         class="bi bi-arrow-clockwise"></i> Upload Another</button>
                                 <button
-                                    class="btn btn-sm btn-outline-info border-info-subtle fw-semibold rounded-pill px-3"
-                                    id="btnOpenMysqlModal" data-bs-toggle="modal" data-bs-target="#dnMysqlModal">
-                                    <i class="bi bi-database-fill-gear me-1"></i> Connect MySQL DB
-                                </button>
-                                <button
                                     class="btn btn-sm btn-outline-success border-success-subtle fw-semibold rounded-pill px-3"
                                     id="btnOpenGSheetModal" data-bs-toggle="modal" data-bs-target="#dnGoogleSheetModal">
                                     <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Import Google Sheet
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-outline-primary border-primary-subtle fw-semibold rounded-pill px-3"
+                                    id="btnOpenMySQLModal" data-bs-toggle="modal" data-bs-target="#dnMySQLModal">
+                                    <i class="bi bi-database me-1"></i> Connect MySQL
                                 </button>
                                 <button class="btn btn-sm dn-btn-outline-dn" id="btnUploadPanelPrevious"
                                     data-bs-toggle="modal" data-bs-target="#previousDatasetsModal">
@@ -389,43 +690,30 @@
                         </div>
                         <form id="dnUploadForm" class="dn-dropzone" novalidate>
                             <input type="file" id="dnFileInput" name="file"
-                                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                accept=".csv, .xlsx, .xls, .sql, text/sql, application/sql, application/x-sql, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                                 hidden>
                             <i class="bi bi-cloud-arrow-up"></i>
                             <h4>Drag and drop a file here, or click to browse</h4>
-                            <p>Supports CSV, Excel (.xlsx), Google Sheets &amp; MySQL Database &mdash; up to 200 MB / 500k rows</p>
-                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap align-items-center">
-                                <div class="dn-source-pill" data-action="upload-file">
-                                    <div class="dn-source-icon bg-primary-subtle text-primary"><i class="bi bi-filetype-csv"></i></div>
-                                    <div class="dn-source-text">
-                                        <span class="dn-source-title">CSV</span>
-                                        <span class="dn-source-sub">.csv dataset</span>
-                                    </div>
-                                </div>
-
-                                <div class="dn-source-pill" data-action="upload-file">
-                                    <div class="dn-source-icon bg-success-subtle text-success"><i class="bi bi-file-earmark-excel"></i></div>
-                                    <div class="dn-source-text">
-                                        <span class="dn-source-title">Excel</span>
-                                        <span class="dn-source-sub">.xlsx / .xls</span>
-                                    </div>
-                                </div>
-
-                                <div class="dn-source-pill" data-bs-toggle="modal" data-bs-target="#dnGoogleSheetModal">
-                                    <div class="dn-source-icon" style="background: rgba(16, 185, 129, 0.12) !important; color: #10B981 !important;"><i class="bi bi-file-earmark-spreadsheet"></i></div>
-                                    <div class="dn-source-text">
-                                        <span class="dn-source-title">Google Sheet</span>
-                                        <span class="dn-source-sub">Public Link</span>
-                                    </div>
-                                </div>
-
-                                <div class="dn-source-pill" data-bs-toggle="modal" data-bs-target="#dnMysqlModal">
-                                    <div class="dn-source-icon bg-info-subtle text-info"><i class="bi bi-database-fill-gear"></i></div>
-                                    <div class="dn-source-text">
-                                        <span class="dn-source-title">MySQL DB</span>
-                                        <span class="dn-source-sub">Tables &amp; SQL</span>
-                                    </div>
-                                </div>
+                            <p>Supports CSV, Excel (.xlsx), Google Sheets, &amp; MySQL Database &mdash; up to 200 MB per file</p>
+                            <div class="d-flex justify-content-center gap-2 mt-3 flex-wrap align-items-center dn-dropzone-badges">
+                                <span class="dn-badge-status neutral" role="button" tabindex="0" id="dnDropzoneCsvBadge" style="cursor: pointer;"
+                                    title="Choose CSV File" onclick="document.getElementById('dnFileInput').click();">
+                                    <i class="bi bi-filetype-csv me-1"></i> CSV
+                                </span>
+                                <span class="dn-badge-status neutral" role="button" tabindex="0" id="dnDropzoneExcelBadge" style="cursor: pointer;"
+                                    title="Choose Excel File" onclick="document.getElementById('dnFileInput').click();">
+                                    <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                                </span>
+                                <span class="dn-badge-status neutral" role="button" tabindex="0" id="dnDropzoneGSheetBadge" data-bs-toggle="modal"
+                                    data-bs-target="#dnGoogleSheetModal" style="cursor: pointer;"
+                                    onclick="event.stopPropagation(); if (window.bootstrap && bootstrap.Modal) { bootstrap.Modal.getOrCreateInstance(document.getElementById('dnGoogleSheetModal')).show(); }">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i> Google Sheet
+                                </span>
+                                <span class="dn-badge-status neutral" role="button" tabindex="0" id="dnDropzoneMySQLBadge" data-bs-toggle="modal"
+                                    data-bs-target="#dnMySQLModal" style="cursor: pointer;"
+                                    onclick="event.stopPropagation(); if (window.bootstrap && bootstrap.Modal) { bootstrap.Modal.getOrCreateInstance(document.getElementById('dnMySQLModal')).show(); }">
+                                    <i class="bi bi-database me-1"></i> MySQL Database
+                                </span>
                             </div>
                         </form>
                         <!-- Upload Progress Indicator (hidden by default) -->
@@ -1102,81 +1390,102 @@
                     </div>
 
                     <!-- ML / Prediction -->
-                    <div class="dn-panel mb-4" id="ml">
-                        <div class="dn-panel-head">
-                            <h3 class="dn-panel-title"><i class="bi bi-cpu"></i> ML &amp; Predictive Analytics</h3>
-                            <span class="dn-badge dn-badge-success">Advanced</span>
+                    <!-- ML / Prediction -->
+                    <div class="dn-panel mb-5" id="ml">
+                        <div class="dn-panel-head mb-4">
+                            <h3 class="dn-panel-title fs-5"><i class="bi bi-cpu"></i> ML &amp; Predictive Analytics</h3>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1.5 rounded-pill fw-semibold">
+                                <i class="bi bi-stars me-1"></i> Automated AI Models
+                            </span>
                         </div>
-                        <div class="row g-3">
-                            <div class="col-6 col-md-4 col-lg-2 text-center">
-                                <div class="dn-predict-card dn-clickable-tool" data-tool="regression"
-                                    style="cursor:pointer;"><i class="bi bi-graph-up"
-                                        style="font-size:1.5rem;color:var(--dn-primary)"></i>
-                                    <div class="mt-2 fw-semibold small">Regression</div>
+
+                        <!-- 5 Tool Cards Grid with generous margins & padding -->
+                        <div class="row g-3 g-lg-4 mb-4" id="step7ToolCardsRow">
+                            <div class="col-6 col-md-4 col-lg">
+                                <div class="dn-predict-card dn-clickable-tool active" data-tool="regression">
+                                    <div class="dn-predict-icon-bubble" style="background: rgba(99, 102, 241, 0.12); color: #6366F1;">
+                                        <i class="bi bi-graph-up-arrow"></i>
+                                    </div>
+                                    <div class="dn-predict-card-title">Regression</div>
+                                    <div class="text-secondary extra-small mt-1">Continuous target</div>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-4 col-lg-2 text-center">
-                                <div class="dn-predict-card dn-clickable-tool" data-tool="classification"
-                                    style="cursor:pointer;"><i class="bi bi-diagram-3"
-                                        style="font-size:1.5rem;color:var(--dn-violet)"></i>
-                                    <div class="mt-2 fw-semibold small">Classification</div>
+                            <div class="col-6 col-md-4 col-lg">
+                                <div class="dn-predict-card dn-clickable-tool" data-tool="classification">
+                                    <div class="dn-predict-icon-bubble" style="background: rgba(139, 92, 246, 0.12); color: #8B5CF6;">
+                                        <i class="bi bi-diagram-3"></i>
+                                    </div>
+                                    <div class="dn-predict-card-title">Classification</div>
+                                    <div class="text-secondary extra-small mt-1">Discrete classes</div>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-4 col-lg-2 text-center">
-                                <div class="dn-predict-card dn-clickable-tool" data-tool="clustering"
-                                    style="cursor:pointer;"><i class="bi bi-bounding-box-circles"
-                                        style="font-size:1.5rem;color:var(--dn-cyan)"></i>
-                                    <div class="mt-2 fw-semibold small">Clustering</div>
+                            <div class="col-6 col-md-4 col-lg">
+                                <div class="dn-predict-card dn-clickable-tool" data-tool="clustering">
+                                    <div class="dn-predict-icon-bubble" style="background: rgba(6, 182, 212, 0.12); color: #06B6D4;">
+                                        <i class="bi bi-bounding-box-circles"></i>
+                                    </div>
+                                    <div class="dn-predict-card-title">Clustering</div>
+                                    <div class="text-secondary extra-small mt-1">Customer groups</div>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-4 col-lg-2 text-center">
-                                <div class="dn-predict-card dn-clickable-tool" data-tool="forecasting"
-                                    style="cursor:pointer;"><i class="bi bi-cpu"
-                                        style="font-size:1.5rem;color:var(--dn-green)"></i>
-                                    <div class="mt-2 fw-semibold small">Forecasting</div>
+                            <div class="col-6 col-md-4 col-lg">
+                                <div class="dn-predict-card dn-clickable-tool" data-tool="forecasting">
+                                    <div class="dn-predict-icon-bubble" style="background: rgba(16, 185, 129, 0.12); color: #10B981;">
+                                        <i class="bi bi-clock-history"></i>
+                                    </div>
+                                    <div class="dn-predict-card-title">Forecasting</div>
+                                    <div class="text-secondary extra-small mt-1">Time series trends</div>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-4 col-lg-2 text-center">
-                                <div class="dn-predict-card dn-clickable-tool" data-tool="anomaly"
-                                    style="cursor:pointer;"><i class="bi bi-exclamation-diamond"
-                                        style="font-size:1.5rem;color:var(--dn-red)"></i>
-                                    <div class="mt-2 fw-semibold small">Anomaly Detection</div>
+                            <div class="col-6 col-md-4 col-lg">
+                                <div class="dn-predict-card dn-clickable-tool" data-tool="anomaly">
+                                    <div class="dn-predict-icon-bubble" style="background: rgba(244, 63, 94, 0.12); color: #F43F5E;">
+                                        <i class="bi bi-exclamation-diamond"></i>
+                                    </div>
+                                    <div class="dn-predict-card-title">Anomaly Detection</div>
+                                    <div class="text-secondary extra-small mt-1">Outlier detection</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Step 7 Live Model Predictions & Output Panel -->
-                        <div class="mt-4 pt-3 border-top" id="step7PredictionResultsContainer">
-                            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-primary-subtle text-primary border px-2.5 py-1.5 fw-bold"
-                                        id="step7ModelBadge">
+                        <div id="step7PredictionResultsContainer">
+                            <!-- Spacious, Modern Action Toolbar -->
+                            <div class="dn-ml-action-bar">
+                                <div class="d-flex align-items-center flex-wrap gap-2.5">
+                                    <span class="dn-ml-badge-pill" id="step7ModelBadge">
                                         <i class="bi bi-cpu-fill me-1"></i> Live Model Predictions
                                     </span>
-                                    <span class="small text-secondary fw-semibold" id="step7ModelTarget">Target
-                                        Variable: <strong class="text-body" id="step7TargetName">--</strong></span>
+                                    <span class="dn-ml-target-pill" id="step7ModelTarget">
+                                        Target Variable: <strong id="step7TargetName">--</strong>
+                                    </span>
+                                    <span class="badge bg-body-secondary text-secondary border px-3 py-1.5 rounded-pill fw-semibold" id="step7ModalityPill">
+                                        <i class="bi bi-diagram-3 me-1"></i> Regression Pipeline
+                                    </span>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-sm btn-outline-primary fw-semibold dn-clickable-tool"
+                                <div class="dn-ml-action-btns d-flex align-items-center gap-3 flex-wrap">
+                                    <button class="btn btn-primary fw-semibold px-4 py-2.5 rounded-pill shadow-sm d-inline-flex align-items-center gap-2 dn-clickable-tool"
                                         data-tool="regression" id="btnStep7TrainModel">
-                                        <i class="bi bi-play-fill me-1"></i> Train / Re-Run Model
+                                        <i class="bi bi-play-fill fs-5"></i>
+                                        <span>Train / Re-Run Model</span>
                                     </button>
-                                    <button class="btn btn-sm btn-primary fw-semibold" data-bs-toggle="modal"
-                                        data-bs-target="#modalMlStudio">
-                                        <i class="bi bi-arrows-fullscreen me-1"></i> Open Full ML Studio
+                                    <button class="btn btn-outline-secondary fw-semibold px-4 py-2.5 rounded-pill d-inline-flex align-items-center gap-2"
+                                        data-bs-toggle="modal" data-bs-target="#dnMlStudioModal">
+                                        <i class="bi bi-sliders2 fs-6"></i>
+                                        <span>Open Full ML Studio</span>
                                     </button>
                                 </div>
                             </div>
 
                             <!-- Empty State (before model is trained) -->
-                            <div class="p-4 text-center rounded-3 bg-light-subtle border border-dashed"
+                            <div class="p-5 text-center rounded-4 bg-light-subtle border border-dashed my-4"
                                 id="step7PredictionsEmptyState">
-                                <div class="mb-2 text-primary fs-3"><i class="bi bi-calculator"></i></div>
-                                <h6 class="fw-bold mb-1">Model Predictions Output Area</h6>
-                                <p class="text-secondary small mb-3">Train a Linear Regression or ML model to
-                                    automatically display predicted values (&hat;y), regression mathematical equations,
-                                    and accuracy error metrics right here.</p>
-                                <button class="btn btn-sm btn-primary px-3 py-1.5 fw-semibold dn-clickable-tool"
+                                <div class="mb-3 text-primary" style="font-size: 2.2rem;"><i class="bi bi-calculator"></i></div>
+                                <h5 class="fw-bold mb-2">Model Predictions Output Area</h5>
+                                <p class="text-secondary small mb-4" style="max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                                    Train a Linear Regression or ML model to automatically display predicted values (ŷ), regression mathematical equations, and accuracy error metrics right here.
+                                </p>
+                                <button class="btn btn-primary px-4 py-2.5 rounded-pill fw-semibold dn-clickable-tool"
                                     data-tool="regression">
                                     <i class="bi bi-play-fill me-1"></i> Train Model &amp; Predict Now
                                 </button>
@@ -1184,57 +1493,82 @@
 
                             <!-- Active Predictions Content -->
                             <div class="d-none" id="step7PredictionsActiveContent">
-                                <!-- Model Summary Strip -->
-                                <div class="row g-2 mb-3">
-                                    <div class="col-12 col-md-4">
-                                        <div class="p-2.5 rounded-2 border bg-body h-100">
-                                            <div class="text-muted extra-small fw-semibold text-uppercase">R² Accuracy
-                                                Score</div>
-                                            <div class="fs-4 fw-bold text-primary" id="step7R2Value">--</div>
-                                            <div class="extra-small text-secondary" id="step7R2Sub">Model Goodness of
-                                                Fit</div>
+                                <!-- 4 Modern Professional KPI Cards -->
+                                <div class="row g-3 g-xl-4 mb-4" id="step7KpiRow">
+                                    <!-- KPI Card 1: Fit / Accuracy -->
+                                    <div class="col-12 col-sm-6 col-xl-3">
+                                        <div class="dn-ml-metric-card" id="step7KpiCard1">
+                                            <div class="dn-ml-metric-label">
+                                                <span id="step7Kpi1Label">Fit &amp; Accuracy</span>
+                                                <div class="dn-ml-icon-bubble bg-primary-subtle text-primary" id="step7Kpi1Icon">
+                                                    <i class="bi bi-bullseye"></i>
+                                                </div>
+                                            </div>
+                                            <div class="dn-ml-metric-value text-primary" id="step7R2Value">--</div>
+                                            <div class="dn-ml-metric-subtext" id="step7R2Sub">Model Goodness of Fit</div>
                                         </div>
                                     </div>
-                                    <div class="col-12 col-md-4">
-                                        <div class="p-2.5 rounded-2 border bg-body h-100">
-                                            <div class="text-muted extra-small fw-semibold text-uppercase">Mean Absolute
-                                                Error (MAE)</div>
-                                            <div class="fs-4 fw-bold text-dark" id="step7MaeValue">--</div>
-                                            <div class="extra-small text-secondary" id="step7MaeSub">Average Deviation
-                                                Metric</div>
+                                    <!-- KPI Card 2: Primary Error (MAE / Loss) -->
+                                    <div class="col-12 col-sm-6 col-xl-3">
+                                        <div class="dn-ml-metric-card" id="step7KpiCard2">
+                                            <div class="dn-ml-metric-label">
+                                                <span id="step7Kpi2Label">Error &amp; Deviation</span>
+                                                <div class="dn-ml-icon-bubble bg-warning-subtle text-warning" id="step7Kpi2Icon">
+                                                    <i class="bi bi-activity"></i>
+                                                </div>
+                                            </div>
+                                            <div class="dn-ml-metric-value text-body" id="step7MaeValue">--</div>
+                                            <div class="dn-ml-metric-subtext" id="step7MaeSub">Average Deviation Metric</div>
                                         </div>
                                     </div>
-                                    <div class="col-12 col-md-4">
-                                        <div class="p-2.5 rounded-2 border bg-body h-100">
-                                            <div class="text-muted extra-small fw-semibold text-uppercase">Regression
-                                                Formula</div>
-                                            <div class="font-monospace small fw-bold text-success text-truncate mt-1"
-                                                id="step7FormulaText">--</div>
-                                            <div class="extra-small text-secondary" id="step7InterceptText">Intercept
-                                                (&beta;0): --</div>
+                                    <!-- KPI Card 3: Precision Margin (RMSE) -->
+                                    <div class="col-12 col-sm-6 col-xl-3">
+                                        <div class="dn-ml-metric-card" id="step7KpiCard3">
+                                            <div class="dn-ml-metric-label">
+                                                <span id="step7Kpi3Label">Precision Margin</span>
+                                                <div class="dn-ml-icon-bubble bg-success-subtle text-success" id="step7Kpi3Icon">
+                                                    <i class="bi bi-shield-check"></i>
+                                                </div>
+                                            </div>
+                                            <div class="dn-ml-metric-value text-success" id="step7Kpi3Value">--</div>
+                                            <div class="dn-ml-metric-subtext" id="step7Kpi3Sub">Root Mean Squared Error</div>
+                                        </div>
+                                    </div>
+                                    <!-- KPI Card 4: Architecture / Formula -->
+                                    <div class="col-12 col-sm-6 col-xl-3">
+                                        <div class="dn-ml-metric-card" id="step7KpiCard4">
+                                            <div class="dn-ml-metric-label">
+                                                <span id="step7Kpi4Label">Pipeline Architecture</span>
+                                                <div class="dn-ml-icon-bubble bg-info-subtle text-info" id="step7Kpi4Icon">
+                                                    <i class="bi bi-cpu"></i>
+                                                </div>
+                                            </div>
+                                            <div class="dn-ml-formula-badge text-truncate" id="step7FormulaText">--</div>
+                                            <div class="dn-ml-metric-subtext" id="step7InterceptText">Intercept (β0): --</div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Sample Predictions Table -->
-                                <div class="card border mb-3 shadow-sm">
-                                    <div
-                                        class="card-header bg-light-subtle d-flex justify-content-between align-items-center py-2">
-                                        <span class="fw-bold small text-body"><i
-                                                class="bi bi-table me-1.5 text-primary"></i> Model Predicted Values
-                                            Sample (&hat;y)</span>
-                                        <span class="badge bg-secondary-subtle text-secondary border"
+                                <div class="dn-ml-table-card">
+                                    <div class="card-header">
+                                        <div>
+                                            <span class="fw-bold text-body d-flex align-items-center gap-2 fs-6">
+                                                <i class="bi bi-table text-primary fs-5"></i> Model Predicted Values Sample (ŷ)
+                                            </span>
+                                            <div class="small text-muted mt-1">Real-time sample rows evaluated on 25% unseen test data</div>
+                                        </div>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1.5 rounded-pill fw-semibold"
                                             id="step7PredCountBadge">0 Predictions</span>
                                     </div>
-                                    <div class="table-responsive" style="max-height: 280px;">
-                                        <table class="table table-hover table-sm align-middle mb-0 text-nowrap"
-                                            style="font-size: 0.85rem;">
-                                            <thead class="table-light sticky-top" id="step7PredThead">
+                                    <div class="table-responsive dn-ml-table-scroll">
+                                        <table class="table dn-ml-table align-middle text-nowrap" id="step7PredictionsTable">
+                                            <thead id="step7PredThead">
                                                 <tr>
                                                     <th># Record</th>
                                                     <th>Actual Value (y)</th>
-                                                    <th>Predicted Value (&hat;y)</th>
-                                                    <th>Difference (&Delta;)</th>
+                                                    <th>Predicted Value (ŷ)</th>
+                                                    <th>Difference (Δ)</th>
                                                     <th class="text-end">Prediction Status</th>
                                                 </tr>
                                             </thead>
@@ -1246,24 +1580,23 @@
                                 </div>
 
                                 <!-- Instant Single Predictor -->
-                                <div class="p-3 rounded-3 border bg-light-subtle" id="step7InstantPredictorBox">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                        <span class="fw-bold small"><i
-                                                class="bi bi-lightning-charge-fill text-warning me-1"></i> Quick Instant
-                                            Single-Record Predictor</span>
-                                        <span class="extra-small text-muted">Test custom inputs with active trained
-                                            model</span>
+                                <div class="dn-ml-predictor-box" id="step7InstantPredictorBox">
+                                    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                        <span class="fw-bold d-flex align-items-center gap-2">
+                                            <i class="bi bi-lightning-charge-fill text-warning"></i> Quick Instant Single-Record Predictor
+                                        </span>
+                                        <span class="small text-muted">Test custom inputs with active trained model</span>
                                     </div>
-                                    <div class="row g-2 align-items-end" id="step7InstantInputsRow">
+                                    <div class="row g-3 align-items-end" id="step7InstantInputsRow">
                                         <!-- Dynamic feature inputs inserted via JS -->
                                     </div>
-                                    <div class="mt-2 text-end">
-                                        <button class="btn btn-sm btn-success fw-semibold px-3"
+                                    <div class="mt-3 text-end">
+                                        <button class="btn btn-success fw-semibold px-4 py-2 rounded-pill shadow-sm"
                                             id="btnStep7CalculatePrediction">
                                             <i class="bi bi-calculator me-1"></i> Calculate Predicted Value
                                         </button>
                                     </div>
-                                    <div class="mt-2 p-2 rounded-2 bg-success-subtle text-success border border-success-subtle fw-bold d-none text-center"
+                                    <div class="mt-3 p-3 rounded-3 bg-success-subtle text-success border border-success-subtle fw-bold d-none text-center"
                                         id="step7InstantPredictionResult">
                                         <!-- Instant result rendered here -->
                                     </div>
@@ -1739,17 +2072,21 @@
             <div class="modal-content dn-panel p-3">
                 <div class="modal-header border-0">
                     <h5 class="modal-title fw-bold" id="rollbackConfirmModalLabel"><i
-                            class="bi bi-exclamation-triangle text-warning me-2"></i>Confirm Dataset Rollback</h5>
+                            class="bi bi-exclamation-triangle text-warning me-2"></i>Confirm Dashboard Rollback &amp; Clean</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to roll back this dataset to its original, raw state? All cleaning and
-                        transformation steps you have applied will be permanently lost.</p>
+                    <p class="mb-2">Are you sure you want to rollback and completely clean the dashboard?</p>
+                    <ul class="text-muted small mb-0 ps-3">
+                        <li>All cleaning steps and transformations on this dataset will be reverted to raw.</li>
+                        <li>The active dataset will be cleared so no dataset remains active.</li>
+                        <li>The dashboard will return to a completely clean slate ready for a new dataset.</li>
+                    </ul>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-sm dn-btn-danger" id="confirmRollbackBtn"><i
-                            class="bi bi-arrow-counterclockwise"></i> Yes, Rollback</button>
+                            class="bi bi-arrow-counterclockwise"></i> Yes, Rollback &amp; Clean Dashboard</button>
                 </div>
             </div>
         </div>
@@ -1812,16 +2149,27 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-semibold text-black">Organization / Company</label>
+                                {% if not user.organization or user.organization == 'Google Auth' %}
+                                <div class="input-group">
+                                    <span class="input-group-text border-end-0"><i class="bi bi-building"></i></span>
+                                    <input type="text"
+                                        class="form-control border-start-0 userProfileOrganization"
+                                        placeholder="Enter your organization name"
+                                        value="">
+                                </div>
+                                <small class="text-primary" style="font-size: 0.72rem;"><i
+                                        class="bi bi-info-circle-fill"></i> Set your organization once. Once saved, it will be locked.</small>
+                                {% else %}
                                 <div class="input-group">
                                     <span class="input-group-text bg-light text-muted border-end-0"><i
                                             class="bi bi-building"></i></span>
                                     <input type="text"
                                         class="form-control bg-light border-start-0 userProfileOrganization"
-                                        value="{{ user.organization|default('General') }}" readonly>
+                                        value="{{ user.organization }}" readonly>
                                 </div>
                                 <small class="text-secondary" style="font-size: 0.72rem;"><i
-                                        class="bi bi-lock-fill"></i> Organization cannot be changed by user (Contact
-                                    Administrator).</small>
+                                        class="bi bi-lock-fill"></i> Organization is permanently locked for your account.</small>
+                                {% endif %}
                             </div>
                             <div class="col-12">
                                 <label class="form-label small fw-semibold text-black">Phone / Mobile</label>
@@ -2076,86 +2424,156 @@
         </div>
     </div>
 
-    <!-- ===================== MYSQL DATABASE ANALYSIS MODAL ===================== -->
-    <div class="modal fade" id="dnMysqlModal" tabindex="-1" aria-labelledby="dnMysqlModalLabel" aria-hidden="true">
+    <!-- ===================== MYSQL DATABASE IMPORT MODAL ===================== -->
+    <div class="modal fade" id="dnMySQLModal" tabindex="-1" aria-labelledby="dnMySQLModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
-                <div class="modal-header border-0 pb-0 pt-4 px-4">
-                    <div class="d-flex align-items-center gap-3">
-                        <span style="background: linear-gradient(135deg, #0284C7, #4F46E5); width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.3rem;">
+            <div class="modal-content dn-panel p-4">
+                <div class="modal-header border-0 pb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="dn-kpi-icon"
+                            style="background: linear-gradient(135deg, #00758F 0%, #005266 100%); width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.25rem; box-shadow: 0 4px 12px rgba(0, 117, 143, 0.25);">
                             <i class="bi bi-database-fill-gear"></i>
                         </span>
                         <div>
-                            <h5 class="modal-title fw-bold mb-0" id="dnMysqlModalLabel">Connect MySQL Database</h5>
-                            <p class="text-muted small mb-0">Extract MySQL tables or SQL queries directly into DataNova for automated EDA &amp; AI insights</p>
+                            <h5 class="modal-title fw-bold mb-0" id="dnMySQLModalLabel">Connect MySQL Database</h5>
+                            <p class="text-muted small mb-0">Fetch database tables or run custom SQL queries to analyze live records</p>
                         </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div id="analystMysqlStatus" class="alert d-none shadow-sm mb-3"></div>
+                <div class="modal-body py-3">
+                    <!-- MySQL Connection Form -->
+                    <form id="dnMySQLForm" novalidate autocomplete="off">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-7">
+                                <label for="dnMySQLHost" class="form-label fw-semibold small text-body mb-1">Host / Server Address <span class="text-danger">*</span></label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-body-tertiary border-end-0 text-secondary"><i class="bi bi-hdd-network"></i></span>
+                                    <input type="text" class="form-control border-start-0" id="dnMySQLHost" placeholder="e.g. localhost or 127.0.0.1" value="" required>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="dnMySQLPort" class="form-label fw-semibold small text-body mb-1">Port <span class="text-danger">*</span></label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-body-tertiary border-end-0 text-secondary"><i class="bi bi-ethernet"></i></span>
+                                    <input type="number" class="form-control border-start-0" id="dnMySQLPort" placeholder="3306" value="3306" required>
+                                </div>
+                            </div>
+                        </div>
 
-                    <form id="dnMysqlForm" novalidate>
-                        <div class="card border-0 bg-body-tertiary p-3 mb-3" style="border-radius: 12px;">
-                            <h6 class="fw-bold text-body mb-3"><i class="bi bi-hdd-network text-primary me-2"></i>1. MySQL Credentials</h6>
-                            <div class="row g-3">
-                                <div class="col-md-8">
-                                    <label class="form-label small fw-semibold text-body-secondary">Host / IP Address *</label>
-                                    <input type="text" class="form-control form-control-sm" id="analystMysqlHost" placeholder="e.g. 127.0.0.1 or db.example.com" value="127.0.0.1" required>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label for="dnMySQLDatabase" class="form-label fw-semibold small text-body mb-1">Database Name <span class="text-danger">*</span></label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-body-tertiary border-end-0 text-secondary"><i class="bi bi-database"></i></span>
+                                    <input type="text" class="form-control border-start-0" id="dnMySQLDatabase" placeholder="e.g. sales_db" value="" autocomplete="off" required>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small fw-semibold text-body-secondary">Port *</label>
-                                    <input type="number" class="form-control form-control-sm" id="analystMysqlPort" value="3306" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="dnMySQLUser" class="form-label fw-semibold small text-body mb-1">Username <span class="text-danger">*</span></label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-body-tertiary border-end-0 text-secondary"><i class="bi bi-person"></i></span>
+                                    <input type="text" class="form-control border-start-0" id="dnMySQLUser" placeholder="e.g. root or db_user" value="" autocomplete="username" required>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-body-secondary">Username *</label>
-                                    <input type="text" class="form-control form-control-sm" id="analystMysqlUser" placeholder="root" value="root" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-body-secondary">Password</label>
-                                    <input type="password" class="form-control form-control-sm" id="analystMysqlPassword" placeholder="••••••••" autocomplete="current-password">
-                                </div>
-                                <div class="col-md-8">
-                                    <label class="form-label small fw-semibold text-body-secondary">Database Name *</label>
-                                    <input type="text" class="form-control form-control-sm" id="analystMysqlDatabase" placeholder="e.g. sales_db" required>
-                                </div>
-                                <div class="col-md-4 d-flex align-items-end">
-                                    <button type="button" class="btn btn-sm btn-primary w-100 fw-semibold py-1.5" id="btnAnalystTestMysql">
-                                        <i class="bi bi-lightning-charge me-1"></i> Test &amp; Fetch Tables
+                            </div>
+                            <div class="col-md-4">
+                                <label for="dnMySQLPassword" class="form-label fw-semibold small text-body mb-1">Password</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-body-tertiary border-end-0 text-secondary"><i class="bi bi-key"></i></span>
+                                    <input type="password" class="form-control border-start-0 border-end-0" id="dnMySQLPassword" placeholder="Password" autocomplete="new-password">
+                                    <button class="btn btn-outline-secondary border-start-0" type="button" id="btnToggleMySQLPass" title="Toggle password visibility">
+                                        <i class="bi bi-eye" id="iconToggleMySQLPass"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card border-0 bg-body-tertiary p-3 mb-3" style="border-radius: 12px;">
-                            <h6 class="fw-bold text-body mb-3"><i class="bi bi-table text-info me-2"></i>2. Choose Data Table or Query</h6>
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold text-body-secondary">Select Table</label>
-                                <select class="form-select form-select-sm" id="analystMysqlTableSelect">
-                                    <option value="">-- Click 'Test & Fetch Tables' or type query below --</option>
-                                </select>
+                        <!-- Action Controls: Test Connection -->
+                        <div class="d-flex align-items-center justify-content-end mb-3 flex-wrap gap-2">
+                            <button type="button" class="btn btn-sm btn-primary fw-semibold rounded-pill px-3 shadow-sm" id="btnTestMySQLConn">
+                                <i class="bi bi-arrow-repeat me-1" id="iconTestMySQLSpinner"></i> Test Connection &amp; Load Tables
+                            </button>
+                        </div>
+
+                        <!-- Live Connection Status Alert -->
+                        <div id="dnMySQLConnAlert" class="alert d-none p-2 mb-3 rounded-3 small"></div>
+
+                        <!-- Extraction Options Panel -->
+                        <div class="border rounded-3 p-3 bg-body-tertiary mb-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-bold small text-body"><i class="bi bi-funnel me-1 text-primary"></i> Data Extraction Mode</span>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <input type="radio" class="btn-check" name="mysqlModeRadio" id="modeSelectTable" autocomplete="off" checked>
+                                    <label class="btn btn-outline-secondary px-3 py-0 fw-semibold" for="modeSelectTable"><i class="bi bi-table me-1"></i> Select Table</label>
+
+                                    <input type="radio" class="btn-check" name="mysqlModeRadio" id="modeCustomQuery" autocomplete="off">
+                                    <label class="btn btn-outline-secondary px-3 py-0 fw-semibold" for="modeCustomQuery"><i class="bi bi-terminal me-1"></i> Custom SQL</label>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold text-body-secondary">OR Custom SQL Query (Optional)</label>
-                                <textarea class="form-control font-monospace form-control-sm" id="analystMysqlQuery" rows="2" placeholder="e.g. SELECT * FROM orders WHERE status = 'COMPLETED'"></textarea>
-                                <small class="text-muted">Overrides table selection if filled. SELECT queries only.</small>
+
+                            <!-- Pane 1: Table Extraction -->
+                            <div id="paneMySQLTable">
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-7">
+                                        <label for="dnMySQLTableSelect" class="form-label fw-semibold small text-body mb-1">Target Table <span class="text-danger">*</span></label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-body border-end-0 text-primary"><i class="bi bi-table"></i></span>
+                                            <select class="form-select border-start-0" id="dnMySQLTableSelect" required>
+                                                <option value="">-- Connect DB to Load Tables --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label for="dnMySQLLimitSelect" class="form-label fw-semibold small text-body mb-1">Row Limit</label>
+                                        <select class="form-select form-select-sm" id="dnMySQLLimitSelect">
+                                            <option value="5000" selected>5,000 rows (Fastest)</option>
+                                            <option value="10000">10,000 rows (Recommended)</option>
+                                            <option value="25000">25,000 rows</option>
+                                            <option value="50000">50,000 rows</option>
+                                            <option value="0">All records</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-1">
+                                    <label for="dnMySQLWhereClause" class="form-label fw-semibold small text-body mb-1">Optional WHERE Filter</label>
+                                    <input type="text" class="form-control form-control-sm" id="dnMySQLWhereClause" placeholder="e.g. status = 'active' AND created_at >= '2024-01-01'">
+                                    <div class="form-text small text-secondary">Apply conditions without typing the "WHERE" keyword.</div>
+                                </div>
                             </div>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-body-secondary">Max Row Import Limit</label>
-                                    <input type="number" class="form-control form-control-sm" id="analystMysqlLimit" value="50000" min="100" max="500000">
+
+                            <!-- Pane 2: Custom SQL Query -->
+                            <div id="paneMySQLQuery" class="d-none">
+                                <label for="dnMySQLQueryText" class="form-label fw-semibold small text-body mb-1">SQL Query <span class="text-danger">*</span></label>
+                                <textarea class="form-control font-monospace form-control-sm" id="dnMySQLQueryText" rows="4" placeholder="SELECT * FROM table_name WHERE status = 'active' LIMIT 5000;"></textarea>
+                                <div class="d-flex justify-content-between align-items-center mt-1 flex-wrap gap-1">
+                                    <small class="text-muted"><i class="bi bi-shield-lock me-1"></i>Only SELECT and read-only queries are permitted.</small>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none small text-secondary" id="btnQuickQuerySelect">Template</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="d-flex align-items-center justify-content-between pt-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4 py-2 fw-bold shadow" id="btnAnalystRunMysql">
-                                <span id="analystMysqlSpinner" class="spinner-border spinner-border-sm me-2 d-none" role="status"></span>
-                                <i class="bi bi-cpu-fill me-1"></i> Import &amp; Analyze Dataset
-                            </button>
+                        <!-- Dataset Name (Optional) -->
+                        <div class="mb-3">
+                            <label for="dnMySQLDatasetName" class="form-label fw-semibold small text-body mb-1">Dataset Name in DataNova (Optional)</label>
+                            <input type="text" class="form-control form-control-sm" id="dnMySQLDatasetName" placeholder="e.g. Sales_Records_2025 (auto-generated if empty)">
                         </div>
                     </form>
+
+                    <!-- Fetch / Progress Status Box -->
+                    <div id="dnMySQLStatus" class="mt-3 p-3 rounded bg-body-tertiary d-none">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status" id="dnMySQLSpinner"></div>
+                            <span class="small fw-semibold text-body" id="dnMySQLStatusMsg">Connecting to MySQL database...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-2 d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold shadow-sm" id="btnImportMySQL">
+                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> Fetch &amp; Analyze Dataset
+                    </button>
                 </div>
             </div>
         </div>
@@ -2711,7 +3129,7 @@
                         <button type="button"
                             class="btn btn-sm dn-btn-primary px-3 d-inline-flex align-items-center gap-1"
                             id="btnRunStudioCode" title="Execute Python Code (Shortcut: Ctrl + Enter)">
-                            <i class="bi bi-play-fill"></i> Run Code &amp; Sync Vis <kbd
+                            <i class="bi bi-play-fill"></i> Run Code <kbd
                                 class="bg-white text-dark ms-1 px-1 py-0 rounded small fw-bold"
                                 style="font-size:0.68rem; opacity:0.9;">Ctrl+Enter</kbd>
                         </button>
@@ -2848,20 +3266,20 @@
     <!-- ================= 10. ADVANCED ML & PREDICTIVE STUDIO MODAL ================= -->
     <div class="modal fade" id="dnMlStudioModal" tabindex="-1" aria-labelledby="dnMlStudioModalLabel"
         aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 1180px;">
-            <div class="modal-content shadow-lg border-0">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable dn-ml-studio-dialog" style="max-width: 1360px; width: 95vw;">
+            <div class="modal-content dn-ml-modal-content border-0 shadow-lg">
                 <!-- Modal Header -->
                 <div
-                    class="modal-header bg-body-tertiary border-bottom py-2.5 px-4 d-flex align-items-center justify-content-between">
+                    class="modal-header bg-body-tertiary border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-3">
                         <div class="rounded-3 p-2 d-flex align-items-center justify-content-center"
-                            style="background: linear-gradient(135deg, #6366F1, #8B5CF6); color: white; width: 40px; height: 40px;">
+                            style="background: linear-gradient(135deg, #6366F1, #8B5CF6); color: white; width: 42px; height: 42px;">
                             <i class="bi bi-cpu fs-5"></i>
                         </div>
                         <div>
                             <h5 class="modal-title fw-bold mb-0" id="dnMlStudioModalLabel">DataNova Predictive Studio
                             </h5>
-                            <div class="small text-secondary d-flex align-items-center gap-2">
+                            <div class="small text-secondary d-flex align-items-center gap-2 mt-0.5">
                                 <span id="mlStudioDatasetBadge" class="badge bg-primary-subtle text-primary border"><i
                                         class="bi bi-database me-1"></i> Active Dataset</span>
                                 <span id="mlStudioModelBadge" class="badge bg-success-subtle text-success border">Linear
@@ -2883,7 +3301,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="modal-body p-4 bg-body">
+                <div class="modal-body p-4 p-md-5 bg-body">
                     <!-- 1. Modality Navigation Pills -->
                     <ul class="nav nav-pills nav-fill p-1.5 bg-body-tertiary rounded-3 border mb-4" id="mlModalityNav"
                         role="tablist">
@@ -2974,17 +3392,34 @@
                                     </div>
                                 </div>
 
-                                <!-- Run Model Button -->
+                                <!-- Run Model & Clear Reset Buttons -->
                                 <div class="col-12 col-md-5 d-flex gap-2">
                                     <button
                                         class="btn btn-sm btn-primary flex-grow-1 fw-semibold d-flex align-items-center justify-content-center gap-2"
                                         id="btnRunMlStudio">
                                         <i class="bi bi-play-fill fs-6"></i> <span>Run Model &amp; Predict</span>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-secondary" id="btnResetMlDefaults"
+                                    <button class="btn btn-sm btn-outline-secondary fw-semibold d-flex align-items-center gap-1.5 px-3"
+                                        id="btnClearMlStudio" title="Clear selections and reset to default recommendations">
+                                        <i class="bi bi-arrow-counterclockwise"></i> <span>Clear / Reset</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary d-none" id="btnResetMlDefaults"
                                         title="Reset Recommended Features">
                                         <i class="bi bi-arrow-counterclockwise"></i>
                                     </button>
+                                </div>
+
+                                <!-- Logical Feature Selection Guardrail Warning Banner -->
+                                <div class="col-12 d-none" id="mlTargetWarningBanner">
+                                    <div class="alert alert-warning border border-warning-subtle shadow-sm p-2.5 mb-0 rounded-2">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <i class="bi bi-exclamation-triangle-fill text-warning fs-6 mt-0.5"></i>
+                                            <div class="small">
+                                                <strong class="d-block text-warning-emphasis" id="mlTargetWarningTitle">Discrete / Categorical Target Guardrail Warning</strong>
+                                                <span id="mlTargetWarningText" class="text-body">Selected column is an identifier or categorical code. Linear Regression is not designed for non-continuous targets. Consider using Classification or selecting a continuous numeric target.</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Feature Columns Multi-Select Pills -->
@@ -3029,20 +3464,40 @@
                     </div>
 
                     <!-- 4. ML Results Workspace -->
-                    <div id="mlResultsContainer">
+                    <div id="mlResultsContainer" class="ml-results-container">
+                        <!-- Model Weak Fit / Invalid Target Alert Ribbon (for R2 < 0) -->
+                        <div id="mlWeakFitAlert" class="alert alert-danger border border-danger-subtle shadow-sm p-3 mb-4 rounded-3 d-none">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="rounded-circle p-2 bg-danger text-white d-flex align-items-center justify-content-center"
+                                    style="width: 36px; height: 36px; min-width: 36px;">
+                                    <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <h6 class="fw-bold mb-0 text-danger" id="mlWeakFitBadge">⚠️ Weak Fit / Invalid Target Variable</h6>
+                                        <span class="badge bg-danger-subtle text-danger border font-monospace" id="mlWeakFitScore">R² &lt; 0</span>
+                                    </div>
+                                    <p class="small mb-0 text-body" id="mlWeakFitMessage">
+                                        The regression model performs worse than a simple horizontal average baseline. The selected target variable likely has no continuous linear relationship with predictors, or is a discrete ID/geographical code (such as Postal Code). Consider using Classification or selecting a continuous numerical target.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Model Equation & Formula Card (Linear Regression) -->
-                        <div class="card border shadow-sm mb-4 bg-primary-subtle text-primary border-primary-subtle"
+                        <div class="card border shadow-sm mb-4 ml-equation-card"
                             id="mlFormulaCard">
-                            <div class="card-body p-3">
+                            <div class="card-body p-3.5">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <div
-                                        class="fw-bold small text-uppercase tracking-wider d-flex align-items-center gap-2">
+                                        class="fw-bold small text-uppercase tracking-wider d-flex align-items-center gap-2 text-primary">
                                         <i class="bi bi-calculator fs-6"></i> Linear Regression Mathematical Equation
                                     </div>
                                     <span class="badge bg-primary text-white font-monospace small"
-                                        id="mlInterceptBadge">Intercept: --</span>
+                                        id="mlInterceptBadge" data-bs-toggle="tooltip" data-bs-placement="top"
+                                        title="Intercept (β0): Baseline expected target value when all input features equal zero.">Intercept: --</span>
                                 </div>
-                                <div class="p-2.5 rounded-2 bg-body font-monospace text-body fw-semibold small shadow-inner border text-break"
+                                <div class="p-2.5 rounded-2 font-monospace fw-semibold small text-break"
                                     id="mlFormulaText">
                                     Target = β0 + (β1 × Feature1) + (β2 × Feature2)...
                                 </div>
@@ -3052,33 +3507,49 @@
                         <!-- Model KPIs Summary Cards -->
                         <div class="row g-3 mb-4" id="mlKpiCardsRow">
                             <div class="col-6 col-md-3">
-                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
-                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi1Label">R²
-                                        Determination</div>
+                                <div class="card border shadow-sm p-3 ml-kpi-card text-center h-100 position-relative" id="mlKpi1Card">
+                                    <div class="small text-secondary fw-semibold text-uppercase d-flex align-items-center justify-content-center gap-1">
+                                        <span id="mlKpi1Label">R² Determination</span>
+                                        <i class="bi bi-info-circle text-muted" style="cursor: pointer;"
+                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                            title="R² (Coefficient of Determination) measures the proportion of variance in the target explained by the model (1.0 = perfect fit, < 0 = worse than mean baseline)."></i>
+                                    </div>
                                     <div class="fs-3 fw-bold text-primary mt-1" id="mlKpi1Value">--</div>
                                     <div class="small text-muted" id="mlKpi1Sub">Model Goodness of Fit</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
-                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi2Label">MAE
-                                        Error</div>
+                                <div class="card border shadow-sm p-3 ml-kpi-card text-center h-100 position-relative" id="mlKpi2Card">
+                                    <div class="small text-secondary fw-semibold text-uppercase d-flex align-items-center justify-content-center gap-1">
+                                        <span id="mlKpi2Label">MAE Error</span>
+                                        <i class="bi bi-info-circle text-muted" style="cursor: pointer;"
+                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                            title="MAE (Mean Absolute Error) measures the average magnitude of prediction errors in original target units."></i>
+                                    </div>
                                     <div class="fs-3 fw-bold text-success mt-1" id="mlKpi2Value">--</div>
                                     <div class="small text-muted" id="mlKpi2Sub">Mean Absolute Deviation</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
-                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi3Label">RMSE
-                                        Error</div>
+                                <div class="card border shadow-sm p-3 ml-kpi-card text-center h-100 position-relative" id="mlKpi3Card">
+                                    <div class="small text-secondary fw-semibold text-uppercase d-flex align-items-center justify-content-center gap-1">
+                                        <span id="mlKpi3Label">RMSE Error</span>
+                                        <i class="bi bi-info-circle text-muted" style="cursor: pointer;"
+                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                            title="RMSE (Root Mean Squared Error) measures the standard deviation of residuals, penalizing larger errors more heavily than MAE."></i>
+                                    </div>
                                     <div class="fs-3 fw-bold text-info mt-1" id="mlKpi3Value">--</div>
                                     <div class="small text-muted" id="mlKpi3Sub">Root Mean Squared Error</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="card border shadow-sm p-3 bg-body-tertiary text-center">
-                                    <div class="small text-secondary fw-semibold text-uppercase" id="mlKpi4Label">Sample
-                                        Size</div>
+                                <div class="card border shadow-sm p-3 ml-kpi-card text-center h-100 position-relative" id="mlKpi4Card">
+                                    <div class="small text-secondary fw-semibold text-uppercase d-flex align-items-center justify-content-center gap-1">
+                                        <span id="mlKpi4Label">Sample Size</span>
+                                        <i class="bi bi-info-circle text-muted" style="cursor: pointer;"
+                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                            title="Total number of evaluated validation/test records used to calculate model metrics."></i>
+                                    </div>
                                     <div class="fs-3 fw-bold text-secondary mt-1" id="mlKpi4Value">--</div>
                                     <div class="small text-muted" id="mlKpi4Sub">Evaluated Test Rows</div>
                                 </div>
@@ -3110,81 +3581,134 @@
                             </div>
                         </div>
 
-                        <!-- Plain-Language Human Explanations Box -->
-                        <div class="card border shadow-sm mb-4 bg-body-tertiary" id="mlHumanExplanationsSection">
-                            <div
-                                class="card-header bg-body border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
-                                <div class="fw-bold small text-primary d-flex align-items-center gap-2">
-                                    <i class="bi bi-lightbulb-fill text-warning fs-6"></i> Model Summary &amp;
-                                    Plain-Language Business Interpretation
-                                </div>
-                                <span class="badge bg-success-subtle text-success border">Easy-to-Understand
-                                    Guide</span>
+                        <!-- Optional In-Depth Statistical Diagnostics (Collapsible for Clean, Professional UI) -->
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <button class="btn btn-sm btn-outline-secondary py-1 px-3 small d-inline-flex align-items-center gap-1.5 rounded-pill" type="button" data-bs-toggle="collapse" data-bs-target="#mlDiagnosticsCollapse" aria-expanded="false" aria-controls="mlDiagnosticsCollapse">
+                                    <i class="bi bi-sliders text-primary"></i> <span>View In-Depth Feature Slopes &amp; Graph Guides</span> <i class="bi bi-chevron-down ms-1"></i>
+                                </button>
+                                <small class="text-secondary">Optional statistical diagnostics &amp; unit coefficients</small>
                             </div>
-                            <div class="card-body p-3.5">
-                                <div class="row g-3">
-                                    <div class="col-12 col-md-6">
-                                        <div class="p-3 rounded-3 border bg-body h-100">
-                                            <h6
-                                                class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
-                                                <i class="bi bi-pie-chart-fill text-primary"></i> Variance &amp; Error
-                                                Explanation
-                                            </h6>
-                                            <p class="small mb-2 text-body" id="expR2Text">
-                                                Loading model variance explanation...
-                                            </p>
-                                            <p class="small mb-0 text-muted" id="expErrorText">
-                                                Loading average prediction error...
-                                            </p>
+                            <div class="collapse" id="mlDiagnosticsCollapse">
+                                <!-- Plain-Language Human Explanations Box -->
+                                <div class="card border shadow-sm mb-3 bg-body-tertiary" id="mlHumanExplanationsSection">
+                                    <div
+                                        class="card-header bg-body border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
+                                        <div class="fw-bold small text-primary d-flex align-items-center gap-2">
+                                            <i class="bi bi-lightbulb-fill text-warning fs-6"></i> Model Summary &amp;
+                                            Plain-Language Business Interpretation
                                         </div>
+                                        <span class="badge bg-success-subtle text-success border">Easy-to-Understand
+                                            Guide</span>
                                     </div>
-                                    <div class="col-12 col-md-6">
-                                        <div class="p-3 rounded-3 border bg-body h-100">
-                                            <h6
-                                                class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
-                                                <i class="bi bi-compass-fill text-info"></i> How to Read Output Graphs
-                                            </h6>
-                                            <ul class="list-unstyled small mb-0 text-body d-flex flex-column gap-1.5"
-                                                id="expGraphGuideList">
-                                                <li><i class="bi bi-check-circle-fill text-success me-1"></i> Dots close
-                                                    to green line mean high accuracy.</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="p-3 rounded-3 border bg-body">
-                                            <h6
-                                                class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
-                                                <i class="bi bi-sliders text-warning"></i> Feature Slopes &amp; Unit
-                                                Impact Analysis
-                                            </h6>
-                                            <div class="d-flex flex-column gap-1 small text-body"
-                                                id="expSlopesContainer">
-                                                <!-- Dynamic Slope Explanations -->
+                                    <div class="card-body p-3.5">
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-6">
+                                                <div class="p-3 rounded-3 border bg-body h-100">
+                                                    <h6
+                                                        class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
+                                                        <i class="bi bi-pie-chart-fill text-primary"></i> Variance &amp; Error
+                                                        Explanation
+                                                    </h6>
+                                                    <p class="small mb-2 text-body" id="expR2Text">
+                                                        Loading model variance explanation...
+                                                    </p>
+                                                    <p class="small mb-0 text-muted" id="expErrorText">
+                                                        Loading average prediction error...
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="col-12 col-md-6">
+                                                <div class="p-3 rounded-3 border bg-body h-100">
+                                                    <h6
+                                                        class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
+                                                        <i class="bi bi-compass-fill text-info"></i> How to Read Output Graphs
+                                                    </h6>
+                                                    <ul class="list-unstyled small mb-0 text-body d-flex flex-column gap-1.5"
+                                                        id="expGraphGuideList">
+                                                        <li><i class="bi bi-check-circle-fill text-success me-1"></i> Dots close
+                                                            to green line mean high accuracy.</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="p-3 rounded-3 border bg-body">
+                                                    <h6
+                                                        class="fw-bold small text-secondary mb-2 d-flex align-items-center gap-1.5">
+                                                        <i class="bi bi-sliders text-warning"></i> Feature Slopes &amp; Unit
+                                                        Impact Analysis
+                                                    </h6>
+                                                    <div class="d-flex flex-column gap-1 small text-body"
+                                                        id="expSlopesContainer">
+                                                        <!-- Dynamic Slope Explanations -->
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Feature Importances / Driver Ranking -->
+                                <div class="card border shadow-sm mb-3" id="mlImportanceSection">
+                                    <div class="card-header bg-body-tertiary py-2 px-3 border-bottom">
+                                        <div class="fw-semibold small d-flex align-items-center gap-2">
+                                            <i class="bi bi-bar-chart-line text-warning"></i>
+                                            <span id="mlImportanceTitle">Key Drivers &amp; Relative Impact Weights</span>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-3" id="mlImportanceBars">
+                                        <!-- Dynamic progress bars -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Feature Importances / Driver Ranking -->
-                        <div class="card border shadow-sm mb-4" id="mlImportanceSection">
-                            <div class="card-header bg-body-tertiary py-2 px-3 border-bottom">
-                                <div class="fw-semibold small d-flex align-items-center gap-2">
-                                    <i class="bi bi-bar-chart-line text-warning"></i>
-                                    <span id="mlImportanceTitle">Key Drivers &amp; Relative Impact Weights</span>
+                        <!-- Live Prediction Playground (Single Record Predictor) -->
+                        <div class="card border shadow-sm mb-4 bg-body-tertiary" id="mlLivePlaygroundCard">
+                            <div
+                                class="card-header bg-body border-bottom py-2.5 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-2 p-1.5 bg-primary text-white d-flex align-items-center justify-content-center"
+                                        style="width: 28px; height: 28px;">
+                                        <i class="bi bi-calculator-fill fs-6"></i>
+                                    </div>
+                                    <div>
+                                        <span class="fw-bold small text-body">Live Prediction Playground</span>
+                                        <span class="badge bg-primary-subtle text-primary border ms-1">Single Record Predictor</span>
+                                    </div>
                                 </div>
+                                <small class="text-secondary">Simulate live predictions by entering custom feature values</small>
                             </div>
-                            <div class="card-body p-3" id="mlImportanceBars">
-                                <!-- Dynamic progress bars -->
+                            <div class="card-body p-3">
+                                <p class="small text-secondary mb-2.5">
+                                    Test immediate predictions using the trained mathematical regression equation:
+                                </p>
+                                <div class="row g-2.5 align-items-end" id="mlPlaygroundInputsContainer">
+                                    <!-- Dynamic Feature Input Fields (Quantity, Profit, etc.) -->
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-2.5 border-top">
+                                    <button type="button" class="btn btn-sm btn-primary fw-semibold d-flex align-items-center gap-1.5"
+                                        id="btnRunPlaygroundPrediction">
+                                        <i class="bi bi-lightning-charge-fill text-warning"></i> Calculate Instant Prediction
+                                    </button>
+                                    <div id="mlPlaygroundResultContainer" class="d-none d-flex align-items-center gap-2">
+                                        <span class="small fw-semibold text-secondary">Predicted <span id="mlPlaygroundTargetLabel"
+                                                class="text-primary font-monospace">Target</span>:</span>
+                                        <span class="badge bg-success text-white fs-6 font-monospace px-3 py-1.5 shadow-sm"
+                                            id="mlPlaygroundResultValue">--</span>
+                                    </div>
+                                </div>
+                                <div id="mlPlaygroundEquationBreakdown"
+                                    class="mt-2.5 p-2 rounded-2 bg-body border small font-monospace text-muted d-none">
+                                    <!-- Equation breakdown calculation -->
+                                </div>
                             </div>
                         </div>
 
                         <!-- 5. Predictions & Decision Table ("What was Predicted") -->
-                        <div class="card border shadow-sm mb-2" id="mlPredictionsSection">
+                        <div class="card border shadow-sm mb-5" id="mlPredictionsSection">
                             <div
-                                class="card-header bg-body-tertiary py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                class="card-header bg-body-tertiary py-3 px-3.5 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
                                 <div class="d-flex align-items-center gap-2">
                                     <i class="bi bi-table text-success fs-6"></i>
                                     <span class="fw-bold small" id="mlTableTitle">Model Predictions &amp; Decision
@@ -3193,7 +3717,7 @@
                                         id="mlPredictionsCountBadge">50 Predictions</span>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
-                                    <div class="input-group input-group-sm" style="width: 220px;">
+                                    <div class="input-group input-group-sm" style="width: 200px;">
                                         <span class="input-group-text bg-body border-end-0"><i
                                                 class="bi bi-search text-secondary"></i></span>
                                         <input type="text" class="form-control border-start-0"
@@ -3201,22 +3725,116 @@
                                     </div>
                                     <button
                                         class="btn btn-sm btn-outline-primary fw-semibold d-flex align-items-center gap-1"
-                                        id="btnExportPredictionsCsv">
+                                        id="btnExportPredictionsCsv" title="Export Predictions Table as CSV">
                                         <i class="bi bi-download"></i> Export CSV
+                                    </button>
+                                    <button
+                                        class="btn btn-sm btn-outline-info fw-semibold d-flex align-items-center gap-1"
+                                        id="btnPrintExecutiveSummary" title="Download Printable Executive Summary Report">
+                                        <i class="bi bi-printer-fill"></i> Executive PDF
                                     </button>
                                 </div>
                             </div>
-                            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                            <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
                                 <table
-                                    class="table table-hover table-striped table-sm align-middle mb-0 font-monospace small"
+                                    class="table table-hover table-sm align-middle mb-0 font-monospace small"
                                     id="mlPredictionsTable">
-                                    <thead class="table-light sticky-top" id="mlPredictionsThead">
-                                        <!-- Dynamic Thead -->
+                                    <thead class="sticky-top user-select-none ml-table-header" id="mlPredictionsThead">
+                                        <!-- Dynamic Thead with Click-to-Sort -->
                                     </thead>
                                     <tbody id="mlPredictionsTbody">
-                                        <!-- Dynamic Rows -->
+                                        <!-- Dynamic Rows with Error % Row Color-Coding -->
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        <!-- 6. DataNova Intelligent Model Assistant (Ask Anything about this Model) -->
+                        <div class="card shadow-sm mb-4 bg-body rounded-4 ml-assistant-card" id="mlAskAssistantCard">
+                            <div class="card-header ml-assistant-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2 text-primary">
+                                    <div class="rounded-circle p-1.5 bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        <i class="bi bi-robot fs-6"></i>
+                                    </div>
+                                    <div>
+                                        <span class="fw-bold small text-body">Ask Model Assistant &amp; Predictions Guide</span>
+                                        <span class="badge bg-success-subtle text-success border ms-1 font-monospace" style="font-size:0.65rem;">
+                                            <i class="bi bi-shield-check"></i> 100% Offline Statistical NLP • 0% API Failure
+                                        </span>
+                                    </div>
+                                </div>
+                                <small class="text-secondary">Ask any question in plain English (e.g., "Key drivers", "Model reliability", "Plain explanation")</small>
+                            </div>
+                            <div class="card-body p-3.5">
+                                <!-- Quick Question Chips -->
+                                <div class="mb-3">
+                                    <div class="small fw-semibold text-secondary mb-2 d-flex align-items-center gap-1.5">
+                                        <i class="bi bi-lightning-charge text-warning"></i> Quick Questions:
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2" id="mlAssistantQuickChips">
+                                        <button type="button" class="ml-chip-btn" data-query="Explain this model and predictions in simple words">
+                                            💡 Explain in Plain English
+                                        </button>
+                                        <button type="button" class="ml-chip-btn" data-query="Which feature has the highest impact or is the main driver?">
+                                            🔍 Top Driving Features
+                                        </button>
+                                        <button type="button" class="ml-chip-btn" data-query="Is this model reliable and fit for production?">
+                                            🛡️ Model Health &amp; Fit Check
+                                        </button>
+                                        <button type="button" class="ml-chip-btn" data-query="Give me an executive summary for stakeholders">
+                                            📋 Executive Brief
+                                        </button>
+                                        <button type="button" class="ml-chip-btn" data-query="How can I reduce error and improve model accuracy?">
+                                            📈 How to Improve Accuracy
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Question Input Group -->
+                                <div class="input-group input-group-sm mb-3">
+                                    <span class="input-group-text bg-body-tertiary border-end-0"><i class="bi bi-chat-left-dots text-primary"></i></span>
+                                    <input type="text" class="form-control border-start-0" id="mlAssistantQueryInput"
+                                        placeholder="Ask any question about this model's logic, features, error, or business meaning...">
+                                    <button class="btn btn-primary fw-semibold px-3 d-flex align-items-center gap-1.5" type="button" id="btnAskMlAssistant">
+                                        <i class="bi bi-send-fill"></i> <span>Ask Assistant</span>
+                                    </button>
+                                </div>
+
+                                <!-- Response Display Area -->
+                                <div id="mlAssistantResponseBox" class="p-3 rounded-3 border bg-body-tertiary d-none">
+                                    <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle-fill text-success fs-6"></i>
+                                            <h6 class="fw-bold mb-0 text-body small" id="mlAssistantResponseTitle">Model Insights</h6>
+                                        </div>
+                                        <span class="badge bg-primary-subtle text-primary border" id="mlAssistantIntentBadge">Analysis</span>
+                                    </div>
+                                    <div class="small text-body mb-3" id="mlAssistantHtmlContent">
+                                        <!-- Formatted explanation -->
+                                    </div>
+                                    <!-- Key Takeaways -->
+                                    <div id="mlAssistantTakeawaysContainer" class="p-2.5 rounded-2 bg-body border mb-2 d-none">
+                                        <div class="small fw-bold text-success mb-1 d-flex align-items-center gap-1">
+                                            <i class="bi bi-bookmark-check-fill"></i> Key Business Takeaways:
+                                        </div>
+                                        <ul class="list-unstyled mb-0 small text-body ps-1 d-flex flex-column gap-1" id="mlAssistantTakeawaysList">
+                                            <!-- Takeaway items -->
+                                        </ul>
+                                    </div>
+                                    <!-- Suggested Follow-ups -->
+                                    <div id="mlAssistantFollowupsContainer" class="mt-2.5 pt-2 border-top d-flex flex-wrap align-items-center gap-1.5 small text-secondary">
+                                        <span class="extra-small text-muted me-1">Suggested follow-ups:</span>
+                                        <div class="d-flex flex-wrap gap-1" id="mlAssistantFollowupsList">
+                                            <!-- Followup chips -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Loading Spinner -->
+                                <div id="mlAssistantLoadingSpinner" class="d-none text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                    <span class="small text-secondary fw-semibold">Analyzing model weights, residuals, and feature variances...</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3227,12 +3845,25 @@
                     class="modal-footer border-top py-2.5 px-4 d-flex justify-content-between align-items-center bg-body-tertiary">
                     <small class="text-secondary"><i class="bi bi-shield-check text-success me-1"></i> Predictions
                         calculated using Ordinary Least Squares (OLS) linear statistical pipeline.</small>
-                    <div class="d-flex gap-2">
-                        <button type="button"
-                            class="btn btn-sm btn-success fw-semibold d-flex align-items-center gap-1.5"
-                            id="btnSaveCurrentModel">
-                            <i class="bi bi-save2-fill"></i> Save Trained Model
-                        </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="btn-group">
+                            <button type="button"
+                                class="btn btn-sm btn-success fw-semibold d-flex align-items-center gap-1.5"
+                                id="btnSaveCurrentModel">
+                                <i class="bi bi-save2-fill"></i> Save Trained Model
+                            </button>
+                            <button type="button" class="btn btn-sm btn-success dropdown-toggle dropdown-toggle-split"
+                                data-bs-toggle="dropdown" aria-expanded="false" title="Export Model Artifacts">
+                                <span class="visually-hidden">Toggle Export Dropdown</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm small">
+                                <li><h6 class="dropdown-header">Export Model Artifacts</h6></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2" href="javascript:void(0)" id="btnExportModelPkl"><i class="bi bi-file-earmark-code text-primary"></i> Export Pickle (.pkl)</a></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2" href="javascript:void(0)" id="btnExportModelJson"><i class="bi bi-filetype-json text-info"></i> Export Config (.json)</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2" href="javascript:void(0)" id="btnDownloadExecutivePdf"><i class="bi bi-file-earmark-pdf text-danger"></i> Executive PDF Summary</a></li>
+                            </ul>
+                        </div>
                         <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
@@ -3650,7 +4281,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/analyst.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/analyst.js') }}?v=5.0"></script>
 </body>
 
 </html>

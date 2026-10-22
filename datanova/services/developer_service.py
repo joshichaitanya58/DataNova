@@ -134,7 +134,11 @@ def create_developer_key(user_id: int, key_name: str = "Default API Key", enviro
                     VALUES (%s, %s, %s, %s, %s, %s, %s, 'active')
                 """, (user_id, key_name, prefix, key_hash, last_chars, env_clean, scopes_str))
                 key_id = cursor.lastrowid
-                cursor.execute("UPDATE users SET api_key = %s WHERE id = %s", (raw_key, user_id))
+                # Only update users.api_key if the new key has full permissions or user has no active key
+                cursor.execute("SELECT api_key FROM users WHERE id = %s", (user_id,))
+                current_u = cursor.fetchone()
+                if not current_u or not current_u.get('api_key') or set(scopes) >= set(ALL_SCOPES) or key_name == "Default Live Key":
+                    cursor.execute("UPDATE users SET api_key = %s WHERE id = %s", (raw_key, user_id))
                 conn.commit()
 
             return {

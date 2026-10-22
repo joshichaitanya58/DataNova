@@ -1185,6 +1185,18 @@
                                         <input type="text" class="form-control" id="settingAllowedExtensions"
                                             value=".csv, .xlsx, .xls, .json" placeholder=".csv, .xlsx, .xls">
                                     </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-semibold">
+                                            <i class="bi bi-hdd-network text-primary me-1"></i> Storage Destination Mode
+                                        </label>
+                                        <select class="form-select" id="settingStorageMode">
+                                            <option value="drive">Google Drive (Cloud Storage + Local Fallback)</option>
+                                            <option value="local">Local Storage (Instance Folder Only)</option>
+                                        </select>
+                                        <div class="text-secondary" style="font-size: 0.75rem; margin-top: 0.25rem;">
+                                            Select <strong>Local Storage</strong> to bypass Google Drive and save files strictly to local <code>instance/uploads</code>.
+                                        </div>
+                                    </div>
                                     <div class="col-12">
                                         <div class="p-3 rounded bg-body-tertiary border">
                                             <div class="form-check form-switch mb-2">
@@ -1605,11 +1617,19 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold text-black">Organization / Company</label>
+                                    {% if not user.organization or user.organization == 'Google Auth' %}
+                                    <div class="input-group">
+                                        <span class="input-group-text border-end-0"><i class="bi bi-building"></i></span>
+                                        <input type="text" id="userProfileOrganization" class="form-control border-start-0 userProfileOrganization" placeholder="Enter organization name" value="">
+                                    </div>
+                                    <small class="text-primary" style="font-size: 0.72rem;"><i class="bi bi-info-circle-fill"></i> Set your organization once. Once saved, it will be locked.</small>
+                                    {% else %}
                                     <div class="input-group">
                                         <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-building"></i></span>
-                                        <input type="text" id="userProfileOrganization" class="form-control bg-light border-start-0 userProfileOrganization" value="{{ user.organization|default('General') }}" readonly>
+                                        <input type="text" id="userProfileOrganization" class="form-control bg-light border-start-0 userProfileOrganization" value="{{ user.organization }}" readonly>
                                     </div>
                                     <small class="text-secondary" style="font-size: 0.72rem;"><i class="bi bi-lock-fill"></i> Organization is locked.</small>
+                                    {% endif %}
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold text-black">Phone / Mobile</label>

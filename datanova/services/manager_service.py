@@ -494,6 +494,7 @@ def get_available_platform_users(conn=None, manager_id=None, organization=None) 
                        COALESCE(u.status, 'active') as status, u.created_at
                 FROM users u
                 WHERE (u.status = 'active' OR u.status IS NULL)
+                  AND u.role NOT IN ('admin', 'developer')
             """
             params = []
             if organization:
@@ -633,7 +634,7 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
                             d.user_id = %s
                             OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
                             OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
-                            OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                            OR (u.organization IS NOT NULL AND u.organization != '' AND u.organization != 'Google Auth' AND u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
                         )
                     """, (user_id, user_id, user_id, user_id))
                     active_datasets_count = (cursor.fetchone() or {}).get('count', 0)
@@ -645,7 +646,7 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
                             r.user_id = %s
                             OR r.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s)
                             OR r.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s)
-                            OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
+                            OR (u.organization IS NOT NULL AND u.organization != '' AND u.organization != 'Google Auth' AND u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst')
                         )
                     """, (user_id, user_id, user_id, user_id))
                     reports_generated_count = (cursor.fetchone() or {}).get('count', 0)
@@ -653,17 +654,17 @@ def get_manager_full_dashboard_analytics(df: Optional[pd.DataFrame], conn=None, 
                     cursor.execute("""
                         (SELECT u.first_name, u.last_name, 'uploaded dataset' as act_type, d.file_name as item_name, d.uploaded_at as event_time
                          FROM datasets d JOIN users u ON d.user_id = u.id
-                         WHERE (d.user_id = %s OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
+                         WHERE (d.user_id = %s OR d.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR d.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization IS NOT NULL AND u.organization != '' AND u.organization != 'Google Auth' AND u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
                          ORDER BY d.uploaded_at DESC LIMIT 3)
                         UNION ALL
                         (SELECT u.first_name, u.last_name, 'generated report' as act_type, r.report_name as item_name, r.created_at as event_time
                          FROM reports r JOIN users u ON r.user_id = u.id
-                         WHERE (r.user_id = %s OR r.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR r.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
+                         WHERE (r.user_id = %s OR r.user_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR r.user_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization IS NOT NULL AND u.organization != '' AND u.organization != 'Google Auth' AND u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
                          ORDER BY r.created_at DESC LIMIT 3)
                         UNION ALL
                         (SELECT u.first_name, u.last_name, 'shared dashboard' as act_type, s.title as item_name, s.created_at as event_time
                          FROM shared_dashboards s JOIN users u ON s.owner_id = u.id
-                         WHERE (s.owner_id = %s OR s.owner_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR s.owner_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
+                         WHERE (s.owner_id = %s OR s.owner_id IN (SELECT user_id FROM manager_team_members WHERE manager_id = %s) OR s.owner_id IN (SELECT assigned_to_id FROM manager_tasks WHERE manager_id = %s) OR (u.organization IS NOT NULL AND u.organization != '' AND u.organization != 'Google Auth' AND u.organization = (SELECT organization FROM users WHERE id = %s) AND u.role = 'analyst'))
                          ORDER BY s.created_at DESC LIMIT 3)
                         ORDER BY event_time DESC LIMIT 5
                     """, (user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id))
@@ -1087,6 +1088,7 @@ def assign_manager_task(conn, manager_id: int, assigned_to_id: int, task_title: 
 
                 if assignee and assignee.get('email'):
                     mgr_name = f"{manager.get('first_name', 'Manager')} {manager.get('last_name', '')}".strip() if manager else "Manager"
+                    mgr_email = manager.get('email', 'manager@datanova.com') if manager else 'manager@datanova.com'
                     assignee_name = f"{assignee.get('first_name', 'User')} {assignee.get('last_name', '')}".strip()
                     
                     # 1. In-App Notification
@@ -1096,30 +1098,30 @@ def assign_manager_task(conn, manager_id: int, assigned_to_id: int, task_title: 
                     """, (assigned_to_id, f"New Task Assigned: {task_title}", f"You have been assigned a new task '{task_title}' by {mgr_name}."))
                     conn.commit()
 
-                    # 2. SMTP Email Notification
-                    from .email_service import send_smtp_email
-                    subject = f"📋 [DataNova Task Assigned] {task_title}"
-                    body_text = f"Hello {assignee_name},\n\nYou have been assigned a new task on DataNova:\n\nTask: {task_title}\nPriority: {priority}\nDue Date: {parsed_due or 'Not specified'}\nAssigned By: {mgr_name}\nDescription: {description or 'No details provided'}\n\nPlease log in to your DataNova dashboard to review and complete the task."
-                    body_html = f"""
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
-                        <h2 style="color: #4F46E5; margin-top: 0;">📋 New Task Assigned</h2>
-                        <p style="color: #334155; font-size: 15px;">Hello <strong>{assignee_name}</strong>,</p>
-                        <p style="color: #475569; font-size: 14px;"><strong>{mgr_name}</strong> has assigned a new task to you on the DataNova platform:</p>
-                        
-                        <div style="background-color: #f8fafc; border-left: 4px solid #4F46E5; padding: 15px; border-radius: 4px; margin: 15px 0;">
-                            <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 16px;">{task_title}</h3>
-                            <p style="margin: 4px 0; color: #475569; font-size: 13px;"><strong>Priority:</strong> <span style="color: #d97706;">{priority}</span></p>
-                            <p style="margin: 4px 0; color: #475569; font-size: 13px;"><strong>Due Date:</strong> {parsed_due or 'Not specified'}</p>
-                            <p style="margin: 8px 0 0 0; color: #334155; font-size: 13px;"><strong>Details:</strong> {description or 'No details provided'}</p>
-                        </div>
-                        
-                        <p style="color: #64748b; font-size: 13px;">Please log in to your DataNova dashboard to review and submit this task.</p>
-                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center;">
-                            DataNova Smart Analytics Platform &bull; Automated Task Dispatch
-                        </div>
-                    </div>
-                    """
-                    send_smtp_email(assignee['email'], subject, body_text, body_html)
+                    # 2. Dataset lookup if attached
+                    ds_name = None
+                    if dataset_id:
+                        try:
+                            cursor.execute("SELECT file_name FROM datasets WHERE id = %s", (dataset_id,))
+                            ds_row = cursor.fetchone()
+                            if ds_row:
+                                ds_name = ds_row.get('file_name')
+                        except Exception:
+                            pass
+
+                    # 3. SMTP Email Notification (Rich Enterprise Template)
+                    from .email_service import send_task_assigned_email
+                    send_task_assigned_email(
+                        assignee_email=assignee['email'],
+                        assignee_name=assignee_name,
+                        manager_name=mgr_name,
+                        manager_email=mgr_email,
+                        task_title=task_title,
+                        priority=priority or 'Medium',
+                        due_date=parsed_due,
+                        description=description or '',
+                        dataset_name=ds_name
+                    )
             except Exception as notify_err:
                 logger.warning(f"Failed to send task assignment email/notification: {notify_err}")
 
@@ -1130,7 +1132,7 @@ def assign_manager_task(conn, manager_id: int, assigned_to_id: int, task_title: 
 
 
 def update_manager_task_status(conn, manager_id: int, task_id: int, status: str, remark: Optional[str] = None) -> Dict[str, Any]:
-    """Updates the status of an assigned task and optionally records a remark. Sends email notification when task is completed."""
+    """Updates the status of an assigned task and optionally records a remark. Sends email notification when task is completed, approved, or reopened."""
     ensure_manager_tables_exist(conn)
     if not conn:
         return {'success': False, 'message': 'Database connection unavailable.'}
@@ -1154,51 +1156,73 @@ def update_manager_task_status(conn, manager_id: int, task_id: int, status: str,
                 """, (status, task_id, manager_id, manager_id))
             conn.commit()
 
-            # --- Trigger Email Notification to Manager when Task is Completed ---
-            if task and status in ('Completed', 'Submitted'):
+            # --- Trigger Email Notification when Task status is updated ---
+            if task:
                 try:
                     cursor.execute("SELECT id, first_name, last_name, email FROM users WHERE id = %s", (task['manager_id'],))
                     manager = cursor.fetchone()
                     cursor.execute("SELECT id, first_name, last_name, email FROM users WHERE id = %s", (task['assigned_to_id'],))
                     assignee = cursor.fetchone()
 
-                    if manager and manager.get('email'):
-                        mgr_name = f"{manager.get('first_name', 'Manager')} {manager.get('last_name', '')}".strip()
-                        assignee_name = f"{assignee.get('first_name', 'User')} {assignee.get('last_name', '')}".strip() if assignee else "Team Member"
-                        t_title = task.get('task_title', 'Assigned Task')
+                    mgr_name = f"{manager.get('first_name', 'Manager')} {manager.get('last_name', '')}".strip() if manager else "Manager"
+                    mgr_email = manager.get('email', 'manager@datanova.com') if manager else 'manager@datanova.com'
+                    assignee_name = f"{assignee.get('first_name', 'User')} {assignee.get('last_name', '')}".strip() if assignee else "Team Member"
+                    assignee_email = assignee.get('email') if assignee else None
+                    t_title = task.get('task_title', 'Assigned Task')
 
-                        # 1. In-App Notification to Manager
+                    # 1. Member Completed / Submitted task -> Notify Manager
+                    if status in ('Completed', 'Submitted'):
                         cursor.execute("""
                             INSERT INTO notifications (user_id, title, message, type)
                             VALUES (%s, %s, %s, 'success')
                         """, (task['manager_id'], f"Task Completed: {t_title}", f"{assignee_name} has completed the task '{t_title}'."))
                         conn.commit()
 
-                        # 2. SMTP Email Notification to Manager
-                        from .email_service import send_smtp_email
-                        subject = f"✅ [DataNova Task Completed] {t_title}"
-                        body_text = f"Hello {mgr_name},\n\n{assignee_name} has completed the assigned task '{t_title}'.\n\nRemark/Notes: {remark or 'Task finished successfully.'}\n\nPlease check your DataNova Manager Dashboard for details."
-                        body_html = f"""
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
-                            <h2 style="color: #10B981; margin-top: 0;">✅ Task Completed &amp; Submitted</h2>
-                            <p style="color: #334155; font-size: 15px;">Hello <strong>{mgr_name}</strong>,</p>
-                            <p style="color: #475569; font-size: 14px;"><strong>{assignee_name}</strong> has successfully completed and submitted the task:</p>
-                            
-                            <div style="background-color: #f0fdf4; border-left: 4px solid #10B981; padding: 15px; border-radius: 4px; margin: 15px 0;">
-                                <h3 style="margin: 0 0 10px 0; color: #065f46; font-size: 16px;">{t_title}</h3>
-                                <p style="margin: 4px 0; color: #047857; font-size: 13px;"><strong>Status:</strong> Completed</p>
-                                <p style="margin: 8px 0 0 0; color: #1e293b; font-size: 13px;"><strong>Submission Remark:</strong> {remark or 'Task finished successfully.'}</p>
-                            </div>
-                            
-                            <p style="color: #64748b; font-size: 13px;">You can view the full task report and submitted artifacts in your Manager Dashboard.</p>
-                            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center;">
-                                DataNova Smart Analytics Platform &bull; Automated Task Tracking
-                            </div>
-                        </div>
-                        """
-                        send_smtp_email(manager['email'], subject, body_text, body_html)
+                        if manager and manager.get('email'):
+                            from .email_service import send_task_completed_and_dashboard_shared_email
+                            ds_row = {}
+                            if task.get('dataset_id'):
+                                cursor.execute("SELECT file_name, row_count, column_count FROM datasets WHERE id = %s", (task['dataset_id'],))
+                                ds_row = cursor.fetchone() or {}
+
+                            send_task_completed_and_dashboard_shared_email(
+                                manager_email=manager['email'],
+                                manager_name=mgr_name,
+                                assignee_name=assignee_name,
+                                assignee_email=assignee_email or 'member@datanova.com',
+                                task_title=t_title,
+                                dashboard_title=f"Analysis: {t_title}",
+                                dataset_name=ds_row.get('file_name', 'Assigned Dataset'),
+                                row_count=ds_row.get('row_count', 0),
+                                col_count=ds_row.get('column_count', 0),
+                                remark=remark
+                            )
+
+                    # 2. Manager Approved or Reopened task -> Notify Assignee
+                    elif status in ('Approved', 'Accepted', 'Reopened', 'Rejected'):
+                        is_approved = status in ('Approved', 'Accepted')
+                        notif_type = 'success' if is_approved else 'warning'
+                        notif_title = f"Task Approved: {t_title}" if is_approved else f"Task Reopened: {t_title}"
+                        notif_msg = f"Your task '{t_title}' was approved by {mgr_name}." if is_approved else f"Your task '{t_title}' was reopened by {mgr_name} with notes: {remark or 'Please review.'}"
+
+                        cursor.execute("""
+                            INSERT INTO notifications (user_id, title, message, type)
+                            VALUES (%s, %s, %s, %s)
+                        """, (task['assigned_to_id'], notif_title, notif_msg, notif_type))
+                        conn.commit()
+
+                        if assignee_email:
+                            from .email_service import send_task_review_status_email
+                            send_task_review_status_email(
+                                assignee_email=assignee_email,
+                                assignee_name=assignee_name,
+                                manager_name=mgr_name,
+                                task_title=t_title,
+                                new_status='Approved' if is_approved else 'Reopened',
+                                remark=remark
+                            )
                 except Exception as notify_err:
-                    logger.warning(f"Failed to send task completion email/notification: {notify_err}")
+                    logger.warning(f"Failed to send task review email/notification: {notify_err}")
 
             return {'success': True, 'message': f'Task status updated to {status}.'}
     except Exception as e:

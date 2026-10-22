@@ -118,6 +118,64 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    /* ---------------------------------------------------------------------
+       7. Dark / Light Mode Theme Toggle
+       Persisted in localStorage with key 'datanova-theme'
+       Synchronized across DataNova application
+       ------------------------------------------------------------------- */
+    var THEME_KEY = 'datanova-theme';
+    var root = document.documentElement;
+
+    function applyTheme(theme) {
+        var isDark = theme === 'dark';
+        if (isDark) {
+            root.setAttribute('data-theme', 'dark');
+            root.setAttribute('data-bs-theme', 'dark');
+        } else {
+            root.removeAttribute('data-theme');
+            root.removeAttribute('data-bs-theme');
+        }
+
+        document.querySelectorAll('.dn-theme-toggle, .dn-theme-toggle-btn').forEach(function (btn) {
+            var icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+            }
+            btn.setAttribute('aria-label', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+            btn.setAttribute('title', isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode');
+        });
+    }
+
+    var savedTheme = null;
+    try {
+        savedTheme = window.localStorage.getItem(THEME_KEY);
+    } catch (err) { }
+
+    if (!savedTheme) {
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        savedTheme = prefersDark ? 'dark' : 'light';
+    }
+
+    applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
+
+    document.querySelectorAll('.dn-theme-toggle, .dn-theme-toggle-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var currentDark = root.getAttribute('data-theme') === 'dark';
+            var nextTheme = currentDark ? 'light' : 'dark';
+            applyTheme(nextTheme);
+            try {
+                window.localStorage.setItem(THEME_KEY, nextTheme);
+            } catch (err) { }
+        });
+    });
+
+    window.addEventListener('storage', function (e) {
+        if (e.key === THEME_KEY && e.newValue) {
+            applyTheme(e.newValue);
+        }
+    });
+
 });
 
 /* Developer API Terminal Tab Switcher */

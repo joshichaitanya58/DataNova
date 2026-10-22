@@ -90,136 +90,197 @@
         <span style="font-weight: 700; font-size: 1.2rem; color: #000000;">Data<span style="color: #4F46E5;">Nova</span></span>
       </a>
 
-      <div class="header-text">
-        <p class="eyebrow">Get Started</p>
-        <h1>Create your account</h1>
-        <p class="subtitle">Join DataNova & start analyzing your data effortlessly</p>
+      <!-- STEP 1: REGISTRATION DETAILS -->
+      <div id="signup-step-details">
+        <div class="header-text">
+          <p class="eyebrow">Get Started</p>
+          <h1>Create your account</h1>
+          <p class="subtitle">Join DataNova & start analyzing your data effortlessly</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert-box alert-{{ category }}" style="padding: 10px 14px; border-radius: 12px; font-size: 0.88rem; margin-bottom: 16px; background: rgba(79, 70, 229, 0.08); border: 1px solid rgba(79, 70, 229, 0.2); color: #4F46E5;">
+                      <i class="bi bi-info-circle-fill"></i> {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form id="signup-form" novalidate>
+          <div class="form-row">
+            <div class="field">
+              <label for="first_name">First Name</label>
+              <input id="first_name" type="text" placeholder="John" autocomplete="given-name" class="login-input" />
+              <p class="field-error" id="first-name-error"></p>
+            </div>
+            <div class="field">
+              <label for="last_name">Last Name</label>
+              <input id="last_name" type="text" placeholder="Doe" autocomplete="family-name" class="login-input" />
+              <p class="field-error" id="last-name-error"></p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="you@example.com" autocomplete="email" class="login-input" />
+            <p class="field-error" id="email-error"></p>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="organization"><i class="bi bi-building me-1"></i> Organization / Company</label>
+              <input id="organization" type="text" placeholder="e.g. Acme Corp" class="login-input" required />
+              <p class="field-error" id="organization-error"></p>
+            </div>
+            <div class="field">
+              <label for="phone"><i class="bi bi-telephone me-1"></i> Mobile / Phone</label>
+              <input id="phone" type="tel" placeholder="+91 9876543210" class="login-input" />
+              <p class="field-error" id="phone-error"></p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="password-wrap">
+              <input id="password" type="password" placeholder="••••••••" autocomplete="new-password" class="login-input" />
+              <button type="button" class="toggle-password" id="toggle-password" aria-label="Toggle password visibility">
+                <svg id="eye-closed" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg>
+                <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <p class="field-error" id="password-error"></p>
+          </div>
+
+          <div class="field">
+            <label for="confirm_password">Confirm Password</label>
+            <input id="confirm_password" type="password" placeholder="••••••••" autocomplete="new-password" class="login-input" />
+            <p class="field-error" id="confirm-password-error"></p>
+          </div>
+
+          <!-- ROLE SELECTION FOR PUBLIC SIGNUP -->
+          <div class="field">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <label style="margin-bottom: 0;">Select Account Role</label>
+              {% if admin_exists %}
+              <span style="font-size: 0.72rem; color: #4338ca; background: rgba(79, 70, 229, 0.08); border: 1px solid rgba(79, 70, 229, 0.15); padding: 2px 9px; border-radius: 999px; font-weight: 600;">
+                <i class="bi bi-shield-check"></i> 1 Admin Limit Enforced
+              </span>
+              {% endif %}
+            </div>
+            <div class="role-selector-grid{% if admin_exists %} grid-cols-3{% endif %}">
+              {% if not admin_exists %}
+              <label class="role-pill">
+                <input type="radio" name="role" value="admin" {% if selected_role == 'admin' %}checked{% endif %} />
+                <span class="role-pill-btn"><i class="bi bi-shield-lock-fill"></i> Admin</span>
+              </label>
+              {% endif %}
+              <label class="role-pill">
+                <input type="radio" name="role" value="manager" {% if selected_role == 'manager' %}checked{% endif %} />
+                <span class="role-pill-btn"><i class="bi bi-briefcase-fill"></i> Manager</span>
+              </label>
+              <label class="role-pill">
+                <input type="radio" name="role" value="analyst" {% if not selected_role or selected_role == 'analyst' or (admin_exists and selected_role == 'admin') %}checked{% endif %} />
+                <span class="role-pill-btn"><i class="bi bi-graph-up-arrow"></i> Analyst</span>
+              </label>
+              <label class="role-pill">
+                <input type="radio" name="role" value="developer" {% if selected_role == 'developer' %}checked{% endif %} />
+                <span class="role-pill-btn"><i class="bi bi-code-slash"></i> Developer</span>
+              </label>
+            </div>
+            <p class="field-error" id="role-error"></p>
+          </div>
+
+          <div class="form-error" id="form-error" style="display:none"></div>
+
+          <button type="submit" class="hover-btn hover-btn-primary full" id="submit-btn">
+            <span class="btn-label" id="submit-label">Create Account</span>
+            <span class="btn-hover">
+              <span id="submit-label-hover">Create Account</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+            </span>
+          </button>
+        </form>
+
+        <div class="divider-wrap">
+          <div class="divider-line"></div>
+          <span class="divider-text">OR</span>
+          <div class="divider-line"></div>
+        </div>
+
+        <div class="google-wrap">
+          <button type="button" class="google-btn" id="google-btn">
+            <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.32 7.33 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.17 0 9.99 0 12s.46 3.83 1.26 5.42l4.02-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.25 2.68 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+        </div>
+
+        <div class="login-link-text">
+          Already have an account? <a href="{{ url_for('auth.login', role=selected_role) if selected_role else url_for('auth.login') }}">Log in</a>
+        </div>
       </div>
 
-      {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-              {% for category, message in messages %}
-                  <div class="alert-box alert-{{ category }}" style="padding: 10px 14px; border-radius: 12px; font-size: 0.88rem; margin-bottom: 16px; background: rgba(79, 70, 229, 0.08); border: 1px solid rgba(79, 70, 229, 0.2); color: #4F46E5;">
-                    <i class="bi bi-info-circle-fill"></i> {{ message }}
-                  </div>
-              {% endfor %}
-          {% endif %}
-      {% endwith %}
+      <!-- STEP 2: OTP VERIFICATION -->
+      <div id="signup-step-otp" style="display: none;" class="step-card-animate">
+        <div class="header-text">
+          <div class="badge-pill"><i class="bi bi-shield-check"></i> Email Verification</div>
+          <h1>Verify your email</h1>
+          <p class="subtitle">
+            We sent a 6-digit verification code to<br>
+            <strong id="otp-display-email" style="color: #4F46E5; word-break: break-all;">you@example.com</strong>
+          </p>
+        </div>
 
-      <form id="signup-form" novalidate>
-        <div class="form-row">
-          <div class="field">
-            <label for="first_name">First Name</label>
-            <input id="first_name" type="text" placeholder="John" autocomplete="given-name" class="login-input" />
-            <p class="field-error" id="first-name-error"></p>
-          </div>
-          <div class="field">
-            <label for="last_name">Last Name</label>
-            <input id="last_name" type="text" placeholder="Doe" autocomplete="family-name" class="login-input" />
-            <p class="field-error" id="last-name-error"></p>
+        <div class="otp-boxes-wrapper">
+          <div class="otp-inputs-grid" id="signup-otp-inputs">
+            <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" data-index="0" />
+            <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="1" />
+            <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="2" />
+            <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="3" />
+            <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="4" />
+            <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="5" />
           </div>
         </div>
 
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" class="login-input" />
-          <p class="field-error" id="email-error"></p>
-        </div>
-
-        <div class="form-row">
-          <div class="field">
-            <label for="organization"><i class="bi bi-building me-1"></i> Organization / Company</label>
-            <input id="organization" type="text" placeholder="e.g. Acme Corp" class="login-input" required />
-            <p class="field-error" id="organization-error"></p>
-          </div>
-          <div class="field">
-            <label for="phone"><i class="bi bi-telephone me-1"></i> Mobile / Phone</label>
-            <input id="phone" type="tel" placeholder="+91 9876543210" class="login-input" />
-            <p class="field-error" id="phone-error"></p>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="password">Password</label>
-          <div class="password-wrap">
-            <input id="password" type="password" placeholder="••••••••" autocomplete="new-password" class="login-input" />
-            <button type="button" class="toggle-password" id="toggle-password" aria-label="Toggle password visibility">
-              <svg id="eye-closed" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg>
-              <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+        <div class="otp-meta-row">
+          <div class="resend-timer-wrap">
+            <span id="signup-resend-timer-text">Resend code in <strong id="signup-resend-countdown">00:30</strong></span>
+            <button type="button" id="btn-signup-resend" class="btn-resend-link" style="display: none;">
+              <i class="bi bi-arrow-clockwise"></i> Resend Code
             </button>
           </div>
-          <p class="field-error" id="password-error"></p>
+          <button type="button" id="btn-signup-edit-email" class="btn-edit-link">
+            <i class="bi bi-pencil-square"></i> Edit Details
+          </button>
         </div>
 
-        <div class="field">
-          <label for="confirm_password">Confirm Password</label>
-          <input id="confirm_password" type="password" placeholder="••••••••" autocomplete="new-password" class="login-input" />
-          <p class="field-error" id="confirm-password-error"></p>
-        </div>
+        <div class="form-error" id="signup-otp-error" style="display:none; margin-top: 1rem;"></div>
 
-        <!-- ROLE SELECTION FOR PUBLIC SIGNUP -->
-        <div class="field">
-          <label>Select Account Role</label>
-          <div class="role-selector-grid" style="grid-template-columns: repeat(2, 1fr);">
-            <label class="role-pill">
-              <input type="radio" name="role" value="admin" {% if selected_role == 'admin' %}checked{% endif %} />
-              <span class="role-pill-btn"><i class="bi bi-shield-lock-fill"></i> Admin</span>
-            </label>
-            <label class="role-pill">
-              <input type="radio" name="role" value="manager" {% if selected_role == 'manager' %}checked{% endif %} />
-              <span class="role-pill-btn"><i class="bi bi-briefcase-fill"></i> Manager</span>
-            </label>
-            <label class="role-pill">
-              <input type="radio" name="role" value="analyst" {% if not selected_role or selected_role == 'analyst' %}checked{% endif %} />
-              <span class="role-pill-btn"><i class="bi bi-graph-up-arrow"></i> Analyst</span>
-            </label>
-            <label class="role-pill">
-              <input type="radio" name="role" value="developer" {% if selected_role == 'developer' %}checked{% endif %} />
-              <span class="role-pill-btn"><i class="bi bi-code-slash"></i> Developer</span>
-            </label>
-          </div>
-          <p class="field-error" id="role-error"></p>
-        </div>
-
-        <div class="form-error" id="form-error" style="display:none"></div>
-
-        <button type="submit" class="hover-btn hover-btn-primary full" id="submit-btn">
-          <span class="btn-label" id="submit-label">Create Account</span>
+        <button type="button" class="hover-btn hover-btn-primary full" id="signup-verify-btn" style="margin-top: 1.25rem;">
+          <span class="btn-label" id="signup-verify-label">Verify &amp; Create Account</span>
           <span class="btn-hover">
-            <span id="submit-label-hover">Create Account</span>
+            <span id="signup-verify-label-hover">Verify &amp; Create Account</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
           </span>
         </button>
-      </form>
 
-      <div class="divider-wrap">
-        <div class="divider-line"></div>
-        <span class="divider-text">OR</span>
-        <div class="divider-line"></div>
-      </div>
-
-      <div class="google-wrap">
-        <button type="button" class="google-btn" id="google-btn">
-          <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.32 7.33 24 12 24z"/>
-            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.17 0 9.99 0 12s.46 3.83 1.26 5.42l4.02-3.15z"/>
-            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.25 2.68 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-          </svg>
-          <span>Continue with Google</span>
-        </button>
-      </div>
-
-      <div class="login-link-text">
-        Already have an account? <a href="{{ url_for('auth.login', role=selected_role) if selected_role else url_for('auth.login') }}">Log in</a>
+        <div class="login-link-text" style="margin-top: 1.5rem;">
+          Already have an account? <a href="{{ url_for('auth.login', role=selected_role) if selected_role else url_for('auth.login') }}">Log in</a>
+        </div>
       </div>
 
 
     </div>
   </div>
-
 </div>
 
+<script src="{{ url_for('static', filename='js/network_resilience.js') }}"></script>
 <script src="{{ url_for('static', filename='js/signup.js') }}"></script>
 </body>
 </html>

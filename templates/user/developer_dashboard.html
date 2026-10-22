@@ -165,6 +165,54 @@
             box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
             transform: translateY(-1px);
         }
+
+        /* API Endpoints & Features Catalog */
+        .endpoint-card-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .endpoint-card-item:hover {
+            border-color: rgba(99, 102, 241, 0.35);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .endpoint-card-header {
+            padding: 12px 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .endpoint-card-body {
+            padding: 16px 18px;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+            background: rgba(0, 0, 0, 0.08);
+            border-radius: 0 0 10px 10px;
+        }
+
+        .endpoint-method-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.75rem;
+            min-width: 58px;
+            text-align: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .endpoint-path-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #6366f1;
+        }
+
+        [data-bs-theme="dark"] .endpoint-path-text {
+            color: #818cf8;
+        }
     </style>
 </head>
 
@@ -198,7 +246,7 @@
                 </a>
 
                 <a href="#devQuickstartSection" class="dn-nav-link" data-action="nav-tab" data-target="#tabQuickstart">
-                    <i class="bi bi-journal-code"></i> Integration SDK
+                    <i class="bi bi-diagram-3-fill"></i> API Endpoints &amp; Features
                 </a>
 
                 <div class="dn-nav-section-label">Account</div>
@@ -412,7 +460,7 @@
                         </li>
                         <li class="nav-item">
                             <button class="nav-link" id="tabQuickstart-btn" onclick="switchDevTab('#tabQuickstart')">
-                                <i class="bi bi-journal-code me-2"></i> Integration SDK
+                                <i class="bi bi-diagram-3-fill me-2"></i> API Endpoints &amp; Features
                             </button>
                         </li>
                         <li class="nav-item">
@@ -476,7 +524,7 @@ try:
         dataset_id = dataset["dataset_id"]
 
         # 3. Run the complete automated analysis
-        analysis = client.run_auto_analysis(dataset_id, enable_ai=True)
+        analysis = client.run_auto_analysis(dataset_id)
         analysis_id = analysis["analysis_id"]
         print("Analysis status:", analysis.get("status"))
 
@@ -510,7 +558,7 @@ try:
         status = client.get_pipeline_status(job["task_id"])
 
         # 12. Developer API key management
-        new_key = client.generate_api_key("MobileAppKey", environment="live", scopes=["datasets:read"])
+        new_key = client.generate_api_key("MobileAppKey", environment="live", scopes=["datasets:read", "datasets:write"])
         client.revoke_api_key(new_key.get("key_id"))
 except DataNovaAPIError as exc:
     print(f"DataNova error: {exc}")</code></pre>
@@ -774,27 +822,1153 @@ print("Datasets:", response.json())</code></pre>
                             </div>
                         </div>
 
-                        <!-- TAB 4: INTEGRATION SDK & QUICKSTART GUIDE -->
+                        <!-- TAB 3: ACTIVE API ENDPOINTS & FEATURE REFERENCE -->
                         <div class="tab-pane fade" id="tabQuickstart">
-                            <div class="dn-card p-5 text-center my-4">
-                                <div class="mb-3">
-                                    <span
-                                        class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 fs-6">
-                                        <i class="bi bi-clock-history me-1"></i> Pending
-                                    </span>
-                                </div>
-                                <div class="text-warning mb-3">
-                                    <i class="bi bi-journal-code display-4"></i>
-                                </div>
-                                <h4 class="fw-bold text-body mb-2">DataNova Integration SDK</h4>
-                                <p class="text-secondary mb-4 mx-auto" style="max-width: 500px;">
-                                    This is pending. Integration SDK documentation, client libraries, and developer
-                                    tools are currently pending.
-                                </p>
+                            <!-- Section Title & Quick Info Bar -->
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
                                 <div>
-                                    <span class="badge bg-secondary-subtle text-secondary px-3 py-2 font-monospace">
-                                        <i class="bi bi-info-circle me-1"></i> Status: This is pending
+                                    <h5 class="fw-bold mb-1">
+                                        <i class="bi bi-diagram-3-fill text-primary me-2"></i> Active API Endpoints
+                                        &amp; Feature Reference
+                                    </h5>
+                                    <p class="text-secondary mb-0">
+                                        Production reference for all active API endpoints and features currently enabled
+                                        on this DataNova platform.
+                                    </p>
+                                </div>
+                                <div>
+                                    <div class="input-group input-group-sm" style="min-width: 280px;">
+                                        <span class="input-group-text bg-body-tertiary border-end-0">
+                                            <i class="bi bi-search text-secondary"></i>
+                                        </span>
+                                        <input type="text" id="endpointSearchInput"
+                                            class="form-control form-control-sm border-start-0"
+                                            placeholder="Search endpoints, methods, or paths...">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Platform Quick Specs Bar -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-3 col-6">
+                                    <div class="dn-card p-3 h-100">
+                                        <div class="text-secondary small mb-1"><i class="bi bi-link-45deg me-1"></i> API
+                                            Base URL</div>
+                                        <div class="font-monospace fw-bold text-primary small text-truncate"
+                                            title="{{ sdk_base_url }}/api/v1">
+                                            {{ sdk_base_url }}/api/v1
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <div class="dn-card p-3 h-100">
+                                        <div class="text-secondary small mb-1"><i class="bi bi-shield-lock me-1"></i>
+                                            Authentication Header</div>
+                                        <div class="font-monospace fw-bold text-success small">
+                                            X-API-Key: &lt;token&gt;
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <div class="dn-card p-3 h-100">
+                                        <div class="text-secondary small mb-1"><i class="bi bi-speedometer2 me-1"></i>
+                                            Monthly Rate Limit</div>
+                                        <div class="fw-bold text-info small">
+                                            2,000 requests / month
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <div class="dn-card p-3 h-100">
+                                        <div class="text-secondary small mb-1"><i class="bi bi-filetype-json me-1"></i>
+                                            Data Format</div>
+                                        <div class="fw-bold text-warning small">
+                                            JSON / UTF-8
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CATEGORY 1: DATASET MANAGEMENT -->
+                            <div class="endpoint-category-section mb-4">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle p-2">
+                                        <i class="bi bi-database-fill"></i>
                                     </span>
+                                    <div>
+                                        <h6 class="fw-bold mb-0">Dataset Operations</h6>
+                                        <span class="text-secondary small">Upload files, view indexed datasets, and
+                                            inspect schema structures.</span>
+                                    </div>
+                                </div>
+
+                                <!-- 1.1 Upload Dataset -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_upload">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/datasets/upload</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Upload
+                                                Dataset</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                datasets:write</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse show" id="epCollapse_upload">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Uploads a CSV, Excel (.xlsx/.xls), or JSON dataset as
+                                                multipart/form-data. Automatically calculates row/column counts, missing
+                                                values, duplicates, and infers column semantic types.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i>
+                                                        Request Parameters (multipart/form-data)
+                                                    </span>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm dn-table mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Field</th>
+                                                                    <th>Type</th>
+                                                                    <th>Required</th>
+                                                                    <th>Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td><code>file</code></td>
+                                                                    <td>File</td>
+                                                                    <td><span
+                                                                            class="badge bg-danger-subtle text-danger">Yes</span>
+                                                                    </td>
+                                                                    <td>CSV, Excel (.xlsx, .xls), or JSON file (Max
+                                                                        100MB)</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (201 Created)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_upload"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_upload" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "dataset_id": 101,
+  "filename": "hotel_bookings.csv",
+  "rows": 5000,
+  "columns": 12,
+  "status": "processed",
+  "retention": "PROCESSED &amp; PURGED"
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 1.2 List Datasets -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_list">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-success text-white">GET</span>
+                                            <span class="endpoint-path-text">/api/v1/datasets</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">List
+                                                Datasets</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                datasets:read</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_list">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Retrieves all datasets uploaded by this developer account along with row
+                                                counts, column counts, file size, and upload timestamps.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> Query
+                                                        Parameters
+                                                    </span>
+                                                    <p class="text-secondary small mb-0">None required. Authentication
+                                                        is handled via <code>X-API-Key</code>.</p>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_list"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_list" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "count": 1,
+  "datasets": [
+    {
+      "id": 101,
+      "filename": "hotel_bookings.csv",
+      "rows": 5000,
+      "columns": 12,
+      "file_size": 245100,
+      "uploaded_at": "2026-10-15 14:30:00"
+    }
+  ]
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 1.3 Dataset Preview -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_preview">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-success text-white">GET</span>
+                                            <span class="endpoint-path-text">/api/v1/datasets/{id}/preview</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Schema &amp;
+                                                Sample Preview</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                datasets:read</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_preview">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Fetches column names, inferred semantic data types, missing value
+                                                percentages, and the first 5 records of the dataset.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> Path
+                                                        Parameters
+                                                    </span>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm dn-table mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Parameter</th>
+                                                                    <th>Type</th>
+                                                                    <th>Required</th>
+                                                                    <th>Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td><code>id</code></td>
+                                                                    <td>Integer</td>
+                                                                    <td><span
+                                                                            class="badge bg-danger-subtle text-danger">Yes</span>
+                                                                    </td>
+                                                                    <td>Unique ID of the uploaded dataset</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_preview"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_preview" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "dataset_id": 101,
+  "columns": ["lead_time", "arrival_date", "adr", "is_canceled"],
+  "semantic_types": { "lead_time": "numeric", "adr": "numeric", "is_canceled": "categorical" },
+  "sample_rows": [
+    { "lead_time": 342, "adr": 102.5, "is_canceled": 0 }
+  ]
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CATEGORY 2: AUTOMATED ANALYTICS & EDA -->
+                            <div class="endpoint-category-section mb-4">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle p-2">
+                                        <i class="bi bi-bar-chart-line-fill"></i>
+                                    </span>
+                                    <div>
+                                        <h6 class="fw-bold mb-0">Automated Analytics &amp; EDA</h6>
+                                        <span class="text-secondary small">End-to-end data pipelines, exploratory
+                                            analysis, cleaning, and visualizations.</span>
+                                    </div>
+                                </div>
+
+                                <!-- 2.1 Auto Analysis -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_auto">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/analysis/auto</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Full Auto
+                                                Analysis Pipeline</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                analysis:execute</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_auto">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Executes the complete automated data analysis pipeline: data cleaning,
+                                                descriptive statistics, correlation matrices, and automated chart
+                                                generation in a single call.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "dataset_id": 101,
+  "enable_ai": true
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_auto"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_auto" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "analysis_id": 42,
+  "status": "completed",
+  "dataset_id": 101,
+  "message": "Auto analysis pipeline executed successfully."
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 2.2 EDA Analysis -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_eda">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/analysis/eda</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Exploratory
+                                                Data Analysis</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                analysis:execute</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_eda">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Computes comprehensive exploratory data analysis: central tendency
+                                                metrics (mean, median, std, quartiles), skewness, missing value rates,
+                                                and Pearson correlations.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "dataset_id": 101,
+  "target_column": "adr"
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_eda"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_eda" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "summary_stats": {
+    "adr": { "mean": 101.8, "median": 94.5, "std": 50.5 }
+  },
+  "correlations": {
+    "lead_time": { "adr": -0.06 }
+  }
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 2.3 Data Cleaning -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_clean">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/analysis/clean</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Data Cleaning
+                                                &amp; Imputation</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                analysis:execute</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_clean">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Imputes missing values using selected strategies (mean, median, mode, or
+                                                constant value) and optionally removes duplicate rows.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "dataset_id": 101,
+  "strategies": { "adr": "median" },
+  "remove_duplicates": true
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_clean"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_clean" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "rows_cleaned": 5000,
+  "imputed_values": 4,
+  "duplicates_removed": 12,
+  "status": "cleaned"
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 2.4 Visualizations -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_vis">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/analysis/visualizations</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Chart Payloads
+                                                Generator</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                analysis:execute</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_vis">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Generates pre-aggregated chart payloads (histograms, heatmaps, box
+                                                plots, and scatter data) ready to render in frontend applications.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "dataset_id": 101,
+  "chart_types": ["histogram", "heatmap"]
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_vis"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_vis" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "charts": [
+    { "type": "histogram", "column": "adr", "bins": [0, 50, 100, 150, 200] },
+    { "type": "heatmap", "correlation_matrix": { "adr": { "lead_time": -0.06 } } }
+  ]
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CATEGORY 3: MACHINE LEARNING & AI -->
+                            <div class="endpoint-category-section mb-4">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle p-2">
+                                        <i class="bi bi-cpu-fill"></i>
+                                    </span>
+                                    <div>
+                                        <h6 class="fw-bold mb-0">Machine Learning &amp; AI Intelligence</h6>
+                                        <span class="text-secondary small">Supervised classification, regression
+                                            modeling, and natural language data queries.</span>
+                                    </div>
+                                </div>
+
+                                <!-- 3.1 Classification -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_cls">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/ml/classification</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Classification
+                                                Model Training</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                ml:execute</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_cls">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Trains supervised classification models (RandomForestClassifier,
+                                                LogisticRegression) with automatic train-test split, calculating
+                                                accuracy, precision, recall, and feature importance.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "dataset_id": 101,
+  "target_column": "is_canceled",
+  "algorithm": "RandomForest"
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_cls"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_cls" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "model_id": "model_101_cls",
+  "metrics": {
+    "accuracy": 0.942,
+    "f1_score": 0.938
+  },
+  "feature_importance": { "lead_time": 0.52, "adr": 0.48 }
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 3.2 Regression -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_reg">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/ml/regression</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Regression
+                                                Model Training</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                ml:execute</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_reg">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Trains supervised regression models (RandomForestRegressor,
+                                                LinearRegression) to predict continuous targets, returning R² score,
+                                                Mean Squared Error, and MAE.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "dataset_id": 101,
+  "target_column": "adr",
+  "algorithm": "RandomForest"
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_reg"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_reg" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "model_id": "model_101_reg",
+  "metrics": {
+    "r2_score": 0.895,
+    "rmse": 16.4,
+    "mae": 11.2
+  }
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 3.3 Ask AI -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_ask">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/ask</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Ask Natural
+                                                Language Question</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                analysis:read</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_ask">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Queries your uploaded data using conversational natural language
+                                                questions to extract summary insights.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "query": "What is the average lead time for canceled bookings?",
+  "dataset_id": 101
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_ask"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_ask" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "answer": "The average lead time for canceled bookings is 144 days compared to 79 days for non-canceled bookings.",
+  "dataset_id": 101
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CATEGORY 4: REPORTS, PIPELINES & SYSTEM -->
+                            <div class="endpoint-category-section mb-4">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle p-2">
+                                        <i class="bi bi-file-earmark-code-fill"></i>
+                                    </span>
+                                    <div>
+                                        <h6 class="fw-bold mb-0">Reports, Code Export &amp; Telemetry</h6>
+                                        <span class="text-secondary small">Retrieve structured reports, generated Python
+                                            code, async job tracking, and platform health.</span>
+                                    </div>
+                                </div>
+
+                                <!-- 4.1 Report -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_report">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-success text-white">GET</span>
+                                            <span class="endpoint-path-text">/api/v1/analysis/{id}/report</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Executive
+                                                Report JSON</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                reports:read</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_report">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Retrieves the full structured executive JSON report for any completed
+                                                analysis, including high-level summaries and data health scorecards.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> Path
+                                                        Parameters
+                                                    </span>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm dn-table mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Parameter</th>
+                                                                    <th>Type</th>
+                                                                    <th>Required</th>
+                                                                    <th>Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td><code>id</code></td>
+                                                                    <td>Integer</td>
+                                                                    <td><span
+                                                                            class="badge bg-danger-subtle text-danger">Yes</span>
+                                                                    </td>
+                                                                    <td>Unique ID of the analysis</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_report"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_report" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "analysis_id": 42,
+  "report": {
+    "title": "Automated Analysis Report",
+    "dataset_health_score": 96.5,
+    "key_findings": ["Strong seasonality in Q3", "Zero high-risk correlations"]
+  }
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 4.2 Auto Python Code -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_code">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-success text-white">GET</span>
+                                            <span class="endpoint-path-text">/api/v1/analysis/{id}/code</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Auto-Generated
+                                                Python Script</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                reports:read</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_code">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Returns a ready-to-run, reproducible Python script containing Pandas and
+                                                Scikit-Learn code that replicates the exact analysis pipeline offline.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> Path
+                                                        Parameters
+                                                    </span>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm dn-table mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Parameter</th>
+                                                                    <th>Type</th>
+                                                                    <th>Required</th>
+                                                                    <th>Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td><code>id</code></td>
+                                                                    <td>Integer</td>
+                                                                    <td><span
+                                                                            class="badge bg-danger-subtle text-danger">Yes</span>
+                                                                    </td>
+                                                                    <td>Unique ID of the analysis</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_code"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_code" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "language": "python",
+  "code": "# DataNova Reproducible Pipeline\nimport pandas as pd\ndf = pd.read_csv('dataset.csv')\n..."
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 4.3 Async Pipeline -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_pipe">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-primary text-white">POST</span>
+                                            <span class="endpoint-path-text">/api/v1/pipeline/execute</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">Execute Async
+                                                Pipeline</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary-subtle text-secondary small">Scope:
+                                                analysis:execute</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_pipe">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Dispatches a multi-stage async job. Poll status anytime via
+                                                <code>GET /api/v1/pipeline/status/{task_id}</code>.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i> JSON
+                                                        Request Body
+                                                    </span>
+                                                    <div class="dev-json-response mb-2">
+                                                        <pre class="m-0"><code>{
+  "dataset_id": 101,
+  "steps": [{"step": "clean"}, {"step": "eda"}]
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_pipe"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_pipe" class="m-0" style="max-height: 140px;"><code>{
+  "success": true,
+  "task_id": "task_9f2c1a",
+  "status": "queued",
+  "message": "Async pipeline job dispatched."
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 4.4 System Health -->
+                                <div class="endpoint-card-item">
+                                    <div class="endpoint-card-header d-flex flex-wrap align-items-center justify-content-between gap-2"
+                                        data-bs-toggle="collapse" data-bs-target="#epCollapse_health">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <span class="endpoint-method-badge bg-success text-white">GET</span>
+                                            <span class="endpoint-path-text">/api/v1/health</span>
+                                            <span class="fw-semibold small d-none d-md-inline text-body">System Health
+                                                &amp; Telemetry</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-success-subtle text-success small">Public (No
+                                                Auth)</span>
+                                            <i class="bi bi-chevron-down text-secondary small"></i>
+                                        </div>
+                                    </div>
+                                    <div class="collapse" id="epCollapse_health">
+                                        <div class="endpoint-card-body">
+                                            <p class="text-secondary small mb-3">
+                                                Provides live operational status of the API Gateway, MySQL database
+                                                connection pool, Analysis compute engine, and ML services.
+                                            </p>
+                                            <div class="row g-3">
+                                                <div class="col-lg-6">
+                                                    <span
+                                                        class="small fw-bold text-uppercase text-secondary d-block mb-1">
+                                                        <i class="bi bi-box-arrow-in-right text-primary me-1"></i>
+                                                        Request Details
+                                                    </span>
+                                                    <p class="text-secondary small mb-0">No headers or parameters
+                                                        needed. Useful for health checks and uptime monitors.</p>
+                                                </div>
+                                                <div class="col-lg-6">
+                                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                                        <span class="small fw-bold text-uppercase text-secondary">
+                                                            <i class="bi bi-arrow-return-right text-success me-1"></i>
+                                                            Sample JSON Response (200 OK)
+                                                        </span>
+                                                        <button class="dev-copy-btn" data-copy-target="#resp_health"
+                                                            type="button">
+                                                            <i class="bi bi-clipboard"></i> Copy
+                                                        </button>
+                                                    </div>
+                                                    <div class="dev-json-response">
+                                                        <pre id="resp_health" class="m-0" style="max-height: 140px;"><code>{
+  "status": "operational",
+  "version": "v1",
+  "services": {
+    "api_gateway": "operational",
+    "database": "operational",
+    "analysis_engine": "operational",
+    "ml_pipeline": "operational"
+  }
+}</code></pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- HTTP STATUS & ERROR CODES CHEAT-SHEET -->
+                            <div class="dn-card p-4 mt-4">
+                                <h6 class="fw-bold mb-2">
+                                    <i class="bi bi-shield-check text-success me-2"></i> Standard HTTP Status Codes
+                                    &amp; Response Handling
+                                </h6>
+                                <p class="text-secondary small mb-3">
+                                    All DataNova API responses return standard HTTP response codes accompanied by a
+                                    structured JSON payload containing <code>success: true/false</code> and detailed
+                                    error messages.
+                                </p>
+                                <div class="table-responsive">
+                                    <table class="table table-sm dn-table align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 120px;">HTTP Code</th>
+                                                <th style="width: 180px;">Status</th>
+                                                <th>Description &amp; Suggested Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><span
+                                                        class="badge bg-success-subtle text-success font-monospace">200
+                                                        / 201</span></td>
+                                                <td class="fw-semibold">OK / Created</td>
+                                                <td class="text-secondary small">Request succeeded. Response body
+                                                    contains requested analytics payload or task identifier.</td>
+                                            </tr>
+                                            <tr>
+                                                <td><span
+                                                        class="badge bg-warning-subtle text-warning font-monospace">400</span>
+                                                </td>
+                                                <td class="fw-semibold">Bad Request</td>
+                                                <td class="text-secondary small">Missing required parameter, unsupported
+                                                    file extension, or empty dataset.</td>
+                                            </tr>
+                                            <tr>
+                                                <td><span
+                                                        class="badge bg-danger-subtle text-danger font-monospace">401</span>
+                                                </td>
+                                                <td class="fw-semibold">Unauthorized</td>
+                                                <td class="text-secondary small">Missing or invalid
+                                                    <code>X-API-Key</code> token header. Check active key in API Key
+                                                    Management.</td>
+                                            </tr>
+                                            <tr>
+                                                <td><span
+                                                        class="badge bg-danger-subtle text-danger font-monospace">403</span>
+                                                </td>
+                                                <td class="fw-semibold">Forbidden</td>
+                                                <td class="text-secondary small">API key has been revoked, or lacks the
+                                                    required scope (e.g. attempting upload without
+                                                    <code>datasets:write</code>).</td>
+                                            </tr>
+                                            <tr>
+                                                <td><span
+                                                        class="badge bg-secondary-subtle text-secondary font-monospace">404</span>
+                                                </td>
+                                                <td class="fw-semibold">Not Found</td>
+                                                <td class="text-secondary small">The requested <code>dataset_id</code>
+                                                    or <code>analysis_id</code> does not exist or belongs to another
+                                                    user.</td>
+                                            </tr>
+                                            <tr>
+                                                <td><span
+                                                        class="badge bg-danger-subtle text-danger font-monospace">429</span>
+                                                </td>
+                                                <td class="fw-semibold">Quota Exceeded</td>
+                                                <td class="text-secondary small">Monthly limit of 2,000 API requests
+                                                    exceeded. Quota resets on the 1st of each calendar month.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -1137,17 +2311,28 @@ print("Datasets:", response.json())</code></pre>
                                         class="bi bi-lock-fill"></i> Email address is permanent.</small>
                             </div>
                             <div class="col-12">
-                                <label class="form-label small fw-semibold">Account Role &amp; Organization</label>
+                                <label class="form-label small fw-semibold">Organization / Company</label>
+                                {% if not user.organization or user.organization == 'Google Auth' %}
+                                <div class="input-group">
+                                    <span class="input-group-text border-end-0"><i class="bi bi-building"></i></span>
+                                    <input type="text"
+                                        class="form-control border-start-0 userProfileOrganization"
+                                        placeholder="Enter your organization name"
+                                        value="">
+                                </div>
+                                <small class="text-primary" style="font-size: 0.72rem;"><i
+                                        class="bi bi-info-circle-fill"></i> Set your organization once. Once saved, it will be locked.</small>
+                                {% else %}
                                 <div class="input-group">
                                     <span class="input-group-text bg-body-tertiary text-muted border-end-0"><i
-                                            class="bi bi-shield-lock"></i></span>
+                                            class="bi bi-building"></i></span>
                                     <input type="text"
                                         class="form-control bg-body-tertiary border-start-0 userProfileOrganization"
-                                        value="Developer — {{ user.organization|default('General') }}" readonly>
+                                        value="{{ user.organization }}" readonly>
                                 </div>
                                 <small class="text-secondary" style="font-size: 0.72rem;"><i
-                                        class="bi bi-lock-fill"></i> Role &amp; Organization managed by
-                                    Administrator.</small>
+                                        class="bi bi-lock-fill"></i> Organization is permanently locked for your account.</small>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="alert alert-danger mt-3 d-none p-2 small userProfileErrorAlert"></div>

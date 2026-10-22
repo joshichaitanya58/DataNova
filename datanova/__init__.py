@@ -5,6 +5,11 @@ import logging
 import traceback
 from flask import Flask, jsonify, request
 from flask_bcrypt import Bcrypt
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+# Force non-interactive matplotlib backend for headless cloud servers
+import matplotlib
+matplotlib.use('Agg')
 
 bcrypt = Bcrypt()
 
@@ -13,16 +18,20 @@ def create_app():
     """
     Application factory to create and configure the Flask app.
     """
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    template_dir = os.path.join(base_dir, 'templates')
-    static_dir = os.path.join(base_dir, 'static')
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    templates_path = os.path.normpath(os.path.join(base_dir, '..', 'templates'))
+    static_path = os.path.normpath(os.path.join(base_dir, '..', 'static'))
 
     app = Flask(
         __name__,
         instance_relative_config=True,
-        template_folder=template_dir,
-        static_folder=static_dir
+        template_folder=templates_path,
+        static_folder=static_path
     )
+
+    # Production reverse proxy support (Render, Heroku, AWS, Cloudflare)
+    # Fixes HTTPS scheme, host, and port behind SSL termination proxies
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # --- Configure Terminal Logging & Suppress Noisy 3rd-Party Debuggers ---
     for noisy in ['matplotlib', 'matplotlib.font_manager', 'PIL', 'urllib3', 'kiwisolver', 'werkzeug']:
@@ -37,13 +46,13 @@ def create_app():
     from dotenv import load_dotenv
     load_dotenv()
 
-    secret_key = os.getenv('SECRET_KEY') or os.getenv('FLASK_SECRET_KEY')
+    secret_key = os.getenv('SECRET_KEY')
     if not secret_key:
-        secret_key = 'datanova-production-default-secret-key-please-set-in-env'
-        logging.warning("SECRET_KEY is not set in environment. Using fallback secret key.")
+        secret_key = os.environ.setdefault('SECRET_KEY', 'datanova-prod-fallback-' + os.urandom(16).hex())
+        app.logger.warning("SECRET_KEY environment variable was not found; auto-generated secure fallback key. Recommended: Set SECRET_KEY in Render Environment Variables.")
 
-    # Determine safe upload folder for local or cloud hosting (Render / PaaS)
-    if os.getenv('RENDER') or os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'):
+    # Determine safe upload folder for local or serverless/Vercel environments
+    if os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME'):
         upload_folder = os.path.join(tempfile.gettempdir(), 'uploads')
     else:
         upload_folder = os.path.join(app.instance_path, 'uploads')
@@ -60,13 +69,18 @@ def create_app():
     )
 
     try:
-        if not (os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME')):
+        if not os.getenv('VERCEL'):
             os.makedirs(app.instance_path, exist_ok=True)
         os.makedirs(upload_folder, exist_ok=True)
+        for sub in ['raw', 'processed', 'temp']:
+            os.makedirs(os.path.join(upload_folder, sub), exist_ok=True)
+        os.makedirs(os.path.join(static_path, 'uploads', 'support'), exist_ok=True)
     except OSError as e:
         app.logger.warning(f"Could not create primary upload folder, using system temp dir: {e}")
         upload_folder = os.path.join(tempfile.gettempdir(), 'uploads')
         os.makedirs(upload_folder, exist_ok=True)
+        for sub in ['raw', 'processed', 'temp']:
+            os.makedirs(os.path.join(upload_folder, sub), exist_ok=True)
         app.config['UPLOAD_FOLDER'] = upload_folder
 
     # --- Auto-Initialize Database Schema & Tables ---
@@ -83,7 +97,7 @@ def create_app():
         'platform_name': 'DataNova Analytics Platform',
         'default_role': 'developer',
         'max_file_size_mb': '50',
-        'allowed_extensions': '.csv, .xlsx, .xls, .json',
+        'allowed_extensions': '.csv, .xlsx, .xls, .json, .sql',
         'allow_user_registration': True,
         'maintenance_mode': False,
         # Security
@@ -104,7 +118,8 @@ def create_app():
         'ai_model': 'gemini-2.0-flash',
         'ai_max_tokens': '1024',
         'ai_temperature': '0.7',
-        'auto_eda_on_upload': True
+        'auto_eda_on_upload': True,
+        'storage_mode': 'local'
     }
     app.config['SYSTEM_SETTINGS'] = load_merged_system_settings(default_settings, app.instance_path)
 
@@ -119,12 +134,18 @@ def create_app():
 
     # Start background file retention cleanup (both local instance/uploads and Google Drive)
     from .services import gdrive_service
-    if not (os.getenv('VERCEL') or os.getenv('AWS_LAMBDA_FUNCTION_NAME')):
-        gdrive_service.start_background_retention_cleanup()
+    gdrive_service.start_background_retention_cleanup()
     if gdrive_service.is_configured():
         app.logger.info("Google Drive Cloud Storage: ACTIVE & CONFIGURED")
     else:
         app.logger.info("Google Drive Cloud Storage: PENDING CREDENTIALS (Local Instance Storage Fallback Active)")
+
+    # Start Keep-Alive daemon for Render / cloud deployment (prevents 15m idle shutdown)
+    try:
+        from .services.keep_alive_service import start_keep_alive_daemon
+        start_keep_alive_daemon(interval_seconds=600)
+    except Exception as keep_err:
+        app.logger.warning(f"Could not initialize keep-alive daemon: {keep_err}")
 
 
     @app.route('/sw.js')
@@ -136,6 +157,15 @@ def create_app():
     def serve_favicon():
         """Serves the favicon file to avoid 404 logs from browser requests."""
         return app.send_static_file('assets/favicon.png')
+
+    @app.route('/health')
+    def render_health_check():
+        """Health check endpoint for Render service monitoring and zero-downtime deploys."""
+        return jsonify({
+            'status': 'healthy',
+            'service': 'DataNova Smart Analytics Platform',
+            'environment': 'production' if os.getenv('RENDER') else 'development'
+        }), 200
 
     @app.route('/static/uploads/<path:filename>')
     def serve_uploaded_static_file(filename):

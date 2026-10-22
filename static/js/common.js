@@ -9,6 +9,14 @@
 (function (window) {
     'use strict';
 
+    // Auto-mount Network Resilience & Render Cold-Start Handler if not already loaded
+    if (!window.__DATANOVA_RESILIENCE_ACTIVE) {
+        const resScript = document.createElement('script');
+        resScript.src = '/static/js/network_resilience.js';
+        resScript.async = true;
+        document.head.appendChild(resScript);
+    }
+
     class StateBus {
         constructor() {
             this.listeners = {};
@@ -661,9 +669,31 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (fn) fn.value = p.first_name || '';
                         if (ln) ln.value = p.last_name || '';
                         if (em) em.value = p.email || '';
-                        if (org) org.value = p.organization || 'General';
                         if (ph) ph.value = p.phone || '';
                         if (bio) bio.value = p.bio || '';
+
+                        if (org) {
+                            var orgCol = org.closest('.col-12, .col-6');
+                            var orgHelper = orgCol ? orgCol.querySelector('small') : null;
+                            if (p.can_set_organization) {
+                                org.readOnly = false;
+                                org.classList.remove('bg-light', 'bg-body-tertiary');
+                                org.placeholder = "Enter your organization name";
+                                org.value = p.organization || '';
+                                if (orgHelper) {
+                                    orgHelper.className = "text-primary";
+                                    orgHelper.innerHTML = '<i class="bi bi-info-circle-fill"></i> Set your organization once. Once saved, it will be locked.';
+                                }
+                            } else {
+                                org.readOnly = true;
+                                org.classList.add('bg-light');
+                                org.value = p.organization || 'General';
+                                if (orgHelper) {
+                                    orgHelper.className = "text-secondary";
+                                    orgHelper.innerHTML = '<i class="bi bi-lock-fill"></i> Organization is permanently locked for your account.';
+                                }
+                            }
+                        }
                     }
                 })
                 .catch(function (err) {
@@ -679,12 +709,14 @@ document.addEventListener('DOMContentLoaded', function () {
             var modalEl = form.closest('.modal');
             var fnInput = form.querySelector('.userProfileFirstName') || document.getElementById('userProfileFirstName');
             var lnInput = form.querySelector('.userProfileLastName') || document.getElementById('userProfileLastName');
+            var orgInput = form.querySelector('.userProfileOrganization') || document.getElementById('userProfileOrganization');
             var phInput = form.querySelector('.userProfilePhone') || document.getElementById('userProfilePhone');
             var bioInput = form.querySelector('.userProfileBio') || document.getElementById('userProfileBio');
             var errAlert = form.querySelector('.userProfileErrorAlert') || (modalEl ? modalEl.querySelector('.alert-danger') : null);
 
             var firstName = (fnInput ? fnInput.value : '').trim();
             var lastName = (lnInput ? lnInput.value : '').trim();
+            var orgValue = (orgInput && !orgInput.readOnly) ? orgInput.value.trim() : undefined;
             var phone = (phInput ? phInput.value : '').trim();
             var bio = (bioInput ? bioInput.value : '').trim();
 
@@ -706,15 +738,20 @@ document.addEventListener('DOMContentLoaded', function () {
             if (spinner) spinner.classList.remove('d-none');
             if (icon) icon.classList.add('d-none');
 
+            var payload = {
+                first_name: firstName,
+                last_name: lastName,
+                phone: phone,
+                bio: bio
+            };
+            if (orgValue !== undefined && orgValue !== '') {
+                payload.organization = orgValue;
+            }
+
             fetch('/api/user/profile/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    first_name: firstName,
-                    last_name: lastName,
-                    phone: phone,
-                    bio: bio
-                })
+                body: JSON.stringify(payload)
             })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
@@ -732,6 +769,16 @@ document.addEventListener('DOMContentLoaded', function () {
                             alert(m);
                         };
                         toastFn(res.message || "Profile updated successfully!", "success");
+
+                        if (res.user && res.user.organization) {
+                            var orgBadges = document.querySelectorAll('.userProfileOrgDisplay, .badge i.bi-building');
+                            orgBadges.forEach(function (badge) {
+                                var parentBadge = badge.closest('.badge');
+                                if (parentBadge) {
+                                    parentBadge.innerHTML = '<i class="bi bi-building me-1 text-primary"></i>' + res.user.organization;
+                                }
+                            });
+                        }
 
                         // Update page display name
                         var fullNameDisplays = document.querySelectorAll('.userProfileFullNameDisplay, #userProfileFullNameDisplay');

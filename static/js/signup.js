@@ -442,11 +442,290 @@
 
   function setLoading(loading) {
     submitBtn.disabled = loading;
-    const text = loading ? 'Creating Account...' : 'Create Account';
+    const text = loading ? 'Sending Verification Code...' : 'Create Account';
     if (submitLabel) submitLabel.textContent = text;
     if (submitLabelHover) submitLabelHover.textContent = text;
   }
 
+  // ---------- OTP STEP ELEMENTS & LOGIC ----------
+  let activeSignupEmail = '';
+  let resendInterval = null;
+  const stepDetails = document.getElementById('signup-step-details');
+  const stepOtp = document.getElementById('signup-step-otp');
+  const otpDisplayEmail = document.getElementById('otp-display-email');
+  const otpDigits = Array.from(document.querySelectorAll('#signup-otp-inputs .otp-digit'));
+  const resendTimerText = document.getElementById('signup-resend-timer-text');
+  const resendCountdown = document.getElementById('signup-resend-countdown');
+  const btnResendOtp = document.getElementById('btn-signup-resend');
+  const btnEditDetails = document.getElementById('btn-signup-edit-email');
+  const otpError = document.getElementById('signup-otp-error');
+  const verifyBtn = document.getElementById('signup-verify-btn');
+  const verifyLabel = document.getElementById('signup-verify-label');
+  const verifyLabelHover = document.getElementById('signup-verify-label-hover');
+
+  function startResendTimer(seconds = 30) {
+    clearInterval(resendInterval);
+    if (btnResendOtp) btnResendOtp.style.display = 'none';
+    if (resendTimerText) resendTimerText.style.display = 'inline';
+    let timeLeft = seconds;
+    if (resendCountdown) resendCountdown.textContent = `00:${timeLeft < 10 ? '0' : ''}${timeLeft}`;
+
+    resendInterval = setInterval(() => {
+      timeLeft -= 1;
+      if (timeLeft <= 0) {
+        clearInterval(resendInterval);
+        if (resendTimerText) resendTimerText.style.display = 'none';
+        if (btnResendOtp) {
+          btnResendOtp.style.display = 'inline-flex';
+          btnResendOtp.disabled = false;
+        }
+      } else {
+        if (resendCountdown) resendCountdown.textContent = `00:${timeLeft < 10 ? '0' : ''}${timeLeft}`;
+      }
+    }, 1000);
+  }
+
+  function getEnteredOtp() {
+    return otpDigits.map(d => d.value.trim()).join('');
+  }
+
+  function clearOtpInputs() {
+    otpDigits.forEach(d => {
+      d.value = '';
+      d.classList.remove('filled');
+    });
+    if (otpDigits[0]) otpDigits[0].focus();
+  }
+
+  function showOtpStep(email) {
+    activeSignupEmail = email;
+    if (otpDisplayEmail) otpDisplayEmail.textContent = email;
+    if (stepDetails) stepDetails.style.display = 'none';
+    if (stepOtp) stepOtp.style.display = 'block';
+    if (otpError) {
+      otpError.style.display = 'none';
+      otpError.textContent = '';
+      otpError.style.background = '';
+      otpError.style.borderColor = '';
+      otpError.style.color = '';
+    }
+    clearOtpInputs();
+    startResendTimer(30);
+  }
+
+  function showDetailsStep() {
+    clearInterval(resendInterval);
+    if (stepOtp) stepOtp.style.display = 'none';
+    if (stepDetails) stepDetails.style.display = 'block';
+  }
+
+  function setupOtpDigitInputs() {
+    otpDigits.forEach((input, index) => {
+      input.addEventListener('focus', () => {
+        input.select();
+        setTyping(true);
+        scheduleRender();
+      });
+
+      input.addEventListener('blur', () => {
+        setTyping(false);
+        scheduleRender();
+      });
+
+      input.addEventListener('input', () => {
+        const val = input.value.replace(/[^0-9]/g, '');
+        input.value = val ? val[val.length - 1] : '';
+        if (input.value) {
+          input.classList.add('filled');
+          if (index < otpDigits.length - 1) {
+            otpDigits[index + 1].focus();
+          } else {
+            input.blur();
+            if (getEnteredOtp().length === 6) {
+              handleVerifyOtp();
+            }
+          }
+        } else {
+          input.classList.remove('filled');
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace') {
+          if (!input.value && index > 0) {
+            otpDigits[index - 1].focus();
+            otpDigits[index - 1].value = '';
+            otpDigits[index - 1].classList.remove('filled');
+            e.preventDefault();
+          }
+        } else if (e.key === 'ArrowLeft' && index > 0) {
+          otpDigits[index - 1].focus();
+        } else if (e.key === 'ArrowRight' && index < otpDigits.length - 1) {
+          otpDigits[index + 1].focus();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          handleVerifyOtp();
+        }
+      });
+
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text').trim();
+        const numeric = text.replace(/[^0-9]/g, '').slice(0, 6);
+        if (numeric) {
+          numeric.split('').forEach((ch, i) => {
+            if (otpDigits[i]) {
+              otpDigits[i].value = ch;
+              otpDigits[i].classList.add('filled');
+            }
+          });
+          const nextIdx = Math.min(numeric.length, 5);
+          if (otpDigits[nextIdx]) otpDigits[nextIdx].focus();
+          if (numeric.length === 6) {
+            handleVerifyOtp();
+          }
+        }
+      });
+    });
+  }
+
+  setupOtpDigitInputs();
+
+  if (btnEditDetails) {
+    btnEditDetails.addEventListener('click', showDetailsStep);
+  }
+
+  if (btnResendOtp) {
+    btnResendOtp.addEventListener('click', async () => {
+      btnResendOtp.disabled = true;
+      if (otpError) {
+        otpError.style.display = 'none';
+        otpError.textContent = '';
+      }
+
+      try {
+        const response = await fetch('/signup/resend-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ email: activeSignupEmail })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          if (otpError) {
+            otpError.style.display = 'block';
+            otpError.style.background = 'rgba(16, 185, 129, 0.12)';
+            otpError.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+            otpError.style.color = '#10B981';
+            otpError.textContent = data.message || 'A new code has been sent to your email!';
+          }
+          clearOtpInputs();
+          startResendTimer(30);
+        } else {
+          btnResendOtp.disabled = false;
+          if (otpError) {
+            otpError.style.display = 'block';
+            otpError.style.background = '';
+            otpError.style.borderColor = '';
+            otpError.style.color = '';
+            otpError.textContent = data.message || 'Failed to resend verification code.';
+          }
+        }
+      } catch (err) {
+        btnResendOtp.disabled = false;
+        if (otpError) {
+          otpError.style.display = 'block';
+          otpError.textContent = 'Server connection error. Please try again.';
+        }
+      }
+    });
+  }
+
+  function setVerifyLoading(loading) {
+    if (verifyBtn) verifyBtn.disabled = loading;
+    const text = loading ? 'Verifying Code...' : 'Verify & Create Account';
+    if (verifyLabel) verifyLabel.textContent = text;
+    if (verifyLabelHover) verifyLabelHover.textContent = text;
+  }
+
+  async function handleVerifyOtp() {
+    const code = getEnteredOtp();
+    if (code.length !== 6) {
+      if (otpError) {
+        otpError.style.display = 'block';
+        otpError.style.background = '';
+        otpError.style.borderColor = '';
+        otpError.style.color = '';
+        otpError.textContent = 'Please enter the complete 6-digit verification code.';
+      }
+      return;
+    }
+
+    if (otpError) {
+      otpError.style.display = 'none';
+      otpError.textContent = '';
+    }
+
+    setVerifyLoading(true);
+
+    try {
+      const response = await fetch('/signup/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          email: activeSignupEmail,
+          otp_code: code
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (otpError) {
+          otpError.style.display = 'block';
+          otpError.style.background = 'rgba(16, 185, 129, 0.12)';
+          otpError.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+          otpError.style.color = '#10B981';
+          otpError.textContent = data.message || 'Email verified successfully! Redirecting to login...';
+        }
+
+        setTimeout(() => {
+          window.location.href = data.redirect_url || '/login';
+        }, 1200);
+      } else {
+        setVerifyLoading(false);
+        if (otpError) {
+          otpError.style.display = 'block';
+          otpError.style.background = '';
+          otpError.style.borderColor = '';
+          otpError.style.color = '';
+          otpError.textContent = data.message || 'Verification failed. Please try again.';
+        }
+      }
+    } catch (err) {
+      setVerifyLoading(false);
+      if (otpError) {
+        otpError.style.display = 'block';
+        otpError.style.background = '';
+        otpError.style.borderColor = '';
+        otpError.style.color = '';
+        otpError.textContent = 'Server connection error. Please try again.';
+      }
+      console.error('OTP verification error:', err);
+    }
+  }
+
+  if (verifyBtn) {
+    verifyBtn.addEventListener('click', handleVerifyOtp);
+  }
+
+  // Initial Signup Form Submit
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     formError.style.display = 'none';
@@ -492,19 +771,14 @@
       });
 
       const data = await response.json();
+      setLoading(false);
 
-      if (data.success) {
-        formError.style.display = 'block';
-        formError.style.background = 'rgba(16, 185, 129, 0.12)';
-        formError.style.borderColor = 'rgba(16, 185, 129, 0.35)';
-        formError.style.color = '#10B981';
-        formError.textContent = data.message || 'Account created successfully! Redirecting to login...';
-
-        setTimeout(() => {
-          window.location.href = data.redirect_url || '/login';
-        }, 1200);
+      if (data.success && data.otp_sent) {
+        showOtpStep(payload.email);
+      } else if (data.success && data.redirect_url) {
+        // Direct creation fallback if OTP was bypassed
+        window.location.href = data.redirect_url;
       } else {
-        setLoading(false);
         formError.style.display = 'block';
         formError.textContent = data.message || 'Account creation failed.';
       }

@@ -920,6 +920,28 @@ a {
     color: var(--dn-ink-faint);
 }
 
+.dn-badge-status[role="button"] {
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dn-badge-status[role="button"]:hover {
+    color: var(--dn-ink);
+    background: var(--dn-surface-3, rgba(0, 0, 0, 0.08));
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.dn-badge-status[role="button"]:active {
+    transform: translateY(0);
+}
+
+.dn-badge-status[role="button"]:focus-visible {
+    outline: 2px solid var(--dn-primary);
+    outline-offset: 2px;
+}
+
 .dn-table-action {
     width: 30px;
     height: 30px;
@@ -1086,6 +1108,11 @@ a {
     text-align: center;
     transition: border-color .2s ease, background .2s ease;
     cursor: pointer;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100%;
 }
 
 .dn-dropzone:hover,
@@ -1104,63 +1131,24 @@ a {
 .dn-dropzone h4 {
     font-size: 1rem;
     margin-bottom: 6px;
+    color: var(--dn-ink);
 }
 
 .dn-dropzone p {
     color: var(--dn-ink-faint);
     font-size: 0.82rem;
     margin: 0;
+    max-width: 600px;
 }
 
-/* ---- Professional Uniform Data Source Pills ---- */
-.dn-source-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    padding: 7px 16px;
-    background: #ffffff;
-    border: 1px solid var(--dn-border, #E2E8F0);
-    border-radius: 999px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-    user-select: none;
-}
-
-.dn-source-pill:hover {
-    transform: translateY(-2px);
-    border-color: #4F46E5;
-    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.14);
-    background: #ffffff;
-}
-
-.dn-source-pill .dn-source-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+.dn-dropzone-badges {
     display: flex;
-    align-items: center;
     justify-content: center;
-    font-size: 1.05rem;
-    flex-shrink: 0;
-}
-
-.dn-source-pill .dn-source-text {
-    display: flex;
-    flex-direction: column;
-    text-align: left;
-    line-height: 1.15;
-}
-
-.dn-source-pill .dn-source-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--dn-ink-strong, #1E293B);
-}
-
-.dn-source-pill .dn-source-sub {
-    font-size: 0.68rem;
-    color: var(--dn-ink-faint, #64748B);
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    width: 100%;
 }
 
 /* ---- Chat / Ask Your Data ---- */
@@ -2735,5 +2723,393 @@ html {
     70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
+
+/* ==========================================================================
+   ML & Predictive Analytics Panel — Spacious & Professional Design
+   ========================================================================== */
+#ml.dn-panel {
+    padding: 30px 32px;
+    border-radius: 20px;
+    background: var(--dn-surface);
+    border: 1px solid var(--dn-border);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+/* Modality Tool Selector Cards */
+.dn-predict-card {
+    border: 1px solid var(--dn-border) !important;
+    border-radius: 18px !important;
+    padding: 22px 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.025) !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.dn-predict-card:hover {
+    border-color: var(--dn-primary) !important;
+    background: rgba(79, 70, 229, 0.04) !important;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(79, 70, 229, 0.12) !important;
+}
+
+.dn-predict-card.active {
+    border-color: var(--dn-primary) !important;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%) !important;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15) !important;
+    outline: 2px solid rgba(99, 102, 241, 0.35);
+}
+
+.dn-predict-icon-bubble {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    margin-bottom: 10px;
+    transition: transform 0.25s ease;
+}
+
+.dn-predict-card:hover .dn-predict-icon-bubble {
+    transform: scale(1.12);
+}
+
+.dn-predict-card-title {
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: var(--dn-ink);
+    margin-top: 4px;
+}
+
+/* Step 7 Results Container */
+#step7PredictionResultsContainer {
+    margin-top: 32px !important;
+    padding-top: 28px !important;
+    border-top: 1px solid var(--dn-border) !important;
+}
+
+/* Dedicated Modern Action Toolbar */
+.dn-ml-action-bar {
+    background: #ffffff;
+    border: 1px solid var(--dn-border);
+    border-radius: 18px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-bottom: 26px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+}
+
+.dn-ml-badge-pill {
+    padding: 7px 18px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(99, 102, 241, 0.08);
+    color: #4F46E5;
+    border: 1px solid rgba(99, 102, 241, 0.22);
+}
+
+.dn-ml-target-pill {
+    font-size: 0.88rem;
+    color: var(--dn-ink-soft);
+    font-weight: 600;
+}
+
+.dn-ml-target-pill strong {
+    background: var(--dn-surface, #f8fafc);
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--dn-border);
+    color: var(--dn-ink);
+    margin-left: 5px;
+    font-weight: 700;
+}
+
+.dn-ml-action-btns {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.dn-ml-action-btns .btn {
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.dn-ml-action-btns .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(79, 70, 229, 0.16) !important;
+}
+
+.dn-ml-action-btns .btn:active {
+    transform: translateY(0);
+}
+
+/* 4 Professional KPI Metric Cards */
+.dn-ml-metric-card {
+    background: #ffffff;
+    border: 1px solid var(--dn-border);
+    border-radius: 18px;
+    padding: 22px 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.035);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.dn-ml-metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.07);
+    border-color: var(--dn-primary);
+}
+
+.dn-ml-metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: transparent;
+    transition: background 0.25s ease;
+}
+
+.dn-ml-metric-card:hover::before {
+    background: var(--dn-primary);
+}
+
+.dn-ml-metric-label {
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--dn-ink-soft, #64748B);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dn-ml-icon-bubble {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.dn-ml-metric-value {
+    font-size: 1.95rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 8px;
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+}
+
+.dn-ml-metric-subtext {
+    font-size: 0.82rem;
+    color: var(--dn-ink-soft, #64748B);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.dn-ml-formula-badge {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.55;
+    padding: 8px 12px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.22);
+    border-radius: 10px;
+    color: #10B981;
+    margin: 4px 0 8px;
+    word-break: break-all;
+}
+
+/* Predictions Table Card */
+.dn-ml-table-card {
+    border: 1px solid var(--dn-border);
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+    background: #ffffff;
+}
+
+.dn-ml-table-card .card-header {
+    padding: 18px 24px;
+    background: var(--dn-surface, #f8fafc);
+    border-bottom: 1px solid var(--dn-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dn-ml-table-scroll {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.dn-ml-table {
+    margin-bottom: 0;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.dn-ml-table thead th {
+    background: var(--dn-surface) !important;
+    padding: 14px 22px !important;
+    font-size: 0.76rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--dn-ink-faint, #64748B) !important;
+    border-bottom: 2px solid var(--dn-border) !important;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.dn-ml-table tbody td {
+    padding: 15px 22px !important;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--dn-border);
+    font-size: 0.88rem;
+    color: var(--dn-ink);
+}
+
+.dn-ml-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.dn-ml-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.dn-ml-table tbody tr:hover {
+    background-color: rgba(79, 70, 229, 0.035) !important;
+}
+
+.dn-ml-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+/* Quick Predictor Box */
+.dn-ml-predictor-box {
+    padding: 26px 30px !important;
+    border-radius: 18px;
+    border: 1px solid var(--dn-border);
+    background: var(--dn-surface);
+    margin-top: 26px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+}
+
+/* Dark Theme overrides for ML panel */
+[data-theme="dark"] #ml.dn-panel,
+[data-bs-theme="dark"] #ml.dn-panel {
+    background: var(--dn-surface);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .dn-predict-card,
+[data-bs-theme="dark"] .dn-predict-card {
+    background: var(--dn-surface-2) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .dn-predict-card:hover,
+[data-bs-theme="dark"] .dn-predict-card:hover {
+    background: rgba(99, 102, 241, 0.15) !important;
+    border-color: var(--dn-primary) !important;
+}
+[data-theme="dark"] .dn-ml-action-bar,
+[data-bs-theme="dark"] .dn-ml-action-bar {
+    background: var(--dn-surface-2);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .dn-ml-action-btns .btn-outline-secondary,
+[data-bs-theme="dark"] .dn-ml-action-btns .btn-outline-secondary {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--dn-ink);
+}
+
+[data-theme="dark"] .dn-ml-action-btns .btn-outline-secondary:hover,
+[data-bs-theme="dark"] .dn-ml-action-btns .btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .dn-ml-metric-card,
+[data-bs-theme="dark"] .dn-ml-metric-card {
+    background: var(--dn-surface-2);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .dn-ml-table-card,
+[data-bs-theme="dark"] .dn-ml-table-card {
+    background: var(--dn-surface-2);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .dn-ml-table thead th,
+[data-bs-theme="dark"] .dn-ml-table thead th {
+    background: var(--dn-surface-2) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+    color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .dn-ml-table tbody td,
+[data-bs-theme="dark"] .dn-ml-table tbody td {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    color: var(--dn-ink);
+}
+
+[data-theme="dark"] .dn-ml-predictor-box,
+[data-bs-theme="dark"] .dn-ml-predictor-box {
+    background: var(--dn-surface-2);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
 
 

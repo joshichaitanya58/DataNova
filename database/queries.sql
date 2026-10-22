@@ -140,4 +140,19 @@ CREATE TABLE IF NOT EXISTS contact_admin_messages (
     INDEX idx_contact_user (user_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Email OTP Verification Table for Signup & Forgot Password
+CREATE TABLE IF NOT EXISTS email_otps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL,
+    otp_code VARCHAR(10) NOT NULL,
+    purpose VARCHAR(30) NOT NULL,
+    payload LONGTEXT DEFAULT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts INT DEFAULT 0,
+    is_verified TINYINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_otp_email_purpose (email, purpose),
+    INDEX idx_otp_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
