@@ -59,7 +59,7 @@ def create_signup_otp(
     last_name = (last_name or '').strip()
     email = (email or '').strip().lower()
     role_clean = (role or 'developer').strip().lower()
-    org_clean = (organization or '').strip() or None
+    org_clean = (organization or 'General').strip() or 'General'
     phone_clean = (phone or '').strip() or None
 
     if not all([first_name, last_name, email, password]):
@@ -132,15 +132,25 @@ def create_signup_otp(
     session.modified = True
 
     # 5. Dispatch professional verification email (with 3-minute validity)
+    logger.info(f"🔑 [DATANOVA OTP] Generated 6-digit signup OTP for {email}: {otp_code}")
     try:
-        email_service.send_signup_otp_email(
+        mail_ok, mail_err = email_service.send_signup_otp_email(
             user_email=email,
             otp_code=otp_code,
             first_name=first_name,
             valid_minutes=OTP_EXPIRY_MINUTES,
             base_url=base_url
         )
+        if not mail_ok:
+            session.pop('signup_pending', None)
+            session.pop('signup_otp_sent_at', None)
+            session.modified = True
+            logger.error(f"Failed to deliver signup OTP email to {email}: {mail_err}")
+            return False, f"Failed to deliver verification code email: {mail_err}", 500
     except Exception as mail_err:
+        session.pop('signup_pending', None)
+        session.pop('signup_otp_sent_at', None)
+        session.modified = True
         logger.error(f"Failed to dispatch signup OTP email to {email}: {mail_err}")
         return False, f"Failed to deliver verification code email: {mail_err}", 500
 
@@ -151,7 +161,7 @@ def create_signup_otp(
 def verify_signup_otp(
     email: str,
     otp_code: str,
-    base_url: str = 'http://127.0.0.1:5000'
+    base_url: str = 'http://127.0.0.1:5000' or 'https://datanova-fude.onrender.com'
 ) -> Tuple[bool, str, int, Optional[Dict[str, Any]]]:
     """
     Verifies the OTP stored in session. If valid and within 3 minutes, completes user registration
@@ -236,7 +246,7 @@ def verify_signup_otp(
                     user_data['email'],
                     user_data['password'],
                     user_data['role'],
-                    user_data.get('organization') or None,
+                    (user_data.get('organization') or 'General').strip() or 'General',
                     user_data.get('phone')
                 )
             )
@@ -301,13 +311,17 @@ def resend_signup_otp(email: str, base_url: str = 'http://127.0.0.1:5000') -> Tu
     session.modified = True
 
     first_name = pending.get('first_name', 'there')
-    email_service.send_signup_otp_email(
+    logger.info(f"🔑 [DATANOVA OTP] Resent 6-digit signup OTP for {email}: {new_otp}")
+    mail_ok, mail_err = email_service.send_signup_otp_email(
         user_email=email,
         otp_code=new_otp,
         first_name=first_name,
         valid_minutes=OTP_EXPIRY_MINUTES,
         base_url=base_url
     )
+    if not mail_ok:
+        logger.error(f"Failed to resend signup OTP email to {email}: {mail_err}")
+        return False, f"Failed to deliver verification code email: {mail_err}", 500
 
     return True, "A new verification code has been sent to your email address.", 200
 
@@ -371,7 +385,8 @@ def create_forgot_password_otp(
     device_str, client_ip, _ = email_service.parse_client_device(req)
 
     # 5. Dispatch professional password reset OTP email
-    email_service.send_forgot_password_otp_email(
+    logger.info(f"🔑 [DATANOVA OTP] Generated password reset OTP for {email}: {otp_code}")
+    mail_ok, mail_err = email_service.send_forgot_password_otp_email(
         user_email=email,
         otp_code=otp_code,
         first_name=user.get('first_name', 'User'),
@@ -380,6 +395,12 @@ def create_forgot_password_otp(
         device_info=device_str,
         base_url=base_url
     )
+    if not mail_ok:
+        session.pop('forgot_pending', None)
+        session.pop('forgot_otp_sent_at', None)
+        session.modified = True
+        logger.error(f"Failed to dispatch password reset OTP email to {email}: {mail_err}")
+        return False, f"Failed to deliver verification code email: {mail_err}", 500
 
     logger.info(f"Generated session-based password reset OTP for {email} (valid 3 mins)")
     return True, "Verification code sent to your email address.", 200
@@ -533,7 +554,8 @@ def resend_forgot_password_otp(
     session.modified = True
 
     device_str, client_ip, _ = email_service.parse_client_device(req)
-    email_service.send_forgot_password_otp_email(
+    logger.info(f"🔑 [DATANOVA OTP] Resent password reset OTP for {email}: {new_otp}")
+    mail_ok, mail_err = email_service.send_forgot_password_otp_email(
         user_email=email,
         otp_code=new_otp,
         first_name=pending.get('first_name', 'User'),
@@ -542,5 +564,8 @@ def resend_forgot_password_otp(
         device_info=device_str,
         base_url=base_url
     )
+    if not mail_ok:
+        logger.error(f"Failed to resend password reset OTP email to {email}: {mail_err}")
+        return False, f"Failed to deliver verification code email: {mail_err}", 500
 
     return True, "A new verification code has been sent to your email address.", 200

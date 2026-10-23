@@ -116,14 +116,53 @@ Render dashboard me **Environment** tab me jakar niche diye gaye variables add k
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | AI model |
 | `OPENROUTER_API_KEY` | *Optional* | Fallback AI Provider 1 |
 | `GEMINI_API_KEY` | *Optional* | Fallback AI Provider 2 |
-| `MAIL_SERVER` | `smtp.gmail.com` | Email notifications |
-| `MAIL_PORT` | `587` | SMTP port |
-| `MAIL_USERNAME` | `your_email@gmail.com` | Sender email |
-| `MAIL_PASSWORD` | `your_gmail_app_password` | Google 16-digit App Password |
-| `GOOGLE_CLIENT_ID` | *Optional* | "Continue with Google" OAuth |
-| `GOOGLE_CLIENT_SECRET` | *Optional* | Google OAuth secret |
+| `MAIL_SERVER` | `smtp.gmail.com` | Email server |
+| `MAIL_PORT` | `587` | SMTP port (System me automatic Port 465 SSL fallback built-in hai) |
+| `MAIL_USE_TLS` | `true` | STARTTLS encryption |
+| `MAIL_USE_SSL` | `false` | SSL encryption |
+| `MAIL_USERNAME` | `your_email@gmail.com` | Aapka Gmail address |
+| `MAIL_PASSWORD` | `xxxx xxxx xxxx xxxx` | Google 16-digit App Password (Spaces auto-handled) |
+| `MAIL_DEFAULT_SENDER` | `your_email@gmail.com` | Sender header (Gmail address) |
+| `GOOGLE_CLIENT_ID` | `xxxx.apps.googleusercontent.com` | "Continue with Google" OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | `GOCSPX-xxxx` | Google OAuth secret |
+| `GOOGLE_REDIRECT_URI` | `https://<your-app>.onrender.com/auth/google/callback` | OAuth callback URL |
 | `GDRIVE_FOLDER_ID` | *Optional* | Google Drive storage backup |
 | `GDRIVE_SERVICE_ACCOUNT_JSON` | *Optional* | Google Service Account JSON |
+
+---
+
+### 🔑 Google OAuth & Mail (OTP) Setup Guide for Render:
+
+#### A. Gmail SMTP / OTP Setup (Email & OTP Ke Liye):
+1. Apne Google Account me **2-Step Verification** ON karein: [myaccount.google.com/security](https://myaccount.google.com/security).
+2. Search bar me type karein **App Passwords** ya visit karein: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
+3. App name me `DataNova` daalein aur **Create** par click karein.
+4. Google aapko 16-character ka App Password dega (jaise `icsr csvi vfto fhkd`).
+5. Render ke **Environment** tab me add karein:
+   - `MAIL_USERNAME` = `your_email@gmail.com`
+   - `MAIL_PASSWORD` = `icsr csvi vfto fhkd` (spaces ho ya na ho, DataNova automatically clean kar lega)
+   - `MAIL_DEFAULT_SENDER` = `your_email@gmail.com`
+   - `MAIL_PORT` = `587`
+   - `MAIL_SERVER` = `smtp.gmail.com`
+   *(DataNova me intelligent dual-port retry built-in hai: agar port 587 cloud par block ya slow ho, toh turant port 465 SSL fallback use karega).*
+
+#### B. Google Sign-In Setup ("Continue with Google" Ke Liye):
+1. [Google Cloud Console](https://console.cloud.google.com/) me jayein.
+2. **APIs & Services** -> **Credentials** me jayein.
+3. Apne OAuth 2.0 Client ID ko open karein.
+4. **Authorized JavaScript origins** me add karein:
+   - `http://127.0.0.1:5000`
+   - `https://<your-app-name>.onrender.com`
+5. **Authorized redirect URIs** me dono URIs add karein:
+   - `http://127.0.0.1:5000/auth/google/callback`
+   - `http://127.0.0.1:5000/google/callback`
+   - `https://<your-app-name>.onrender.com/auth/google/callback`
+   - `https://<your-app-name>.onrender.com/google/callback`
+6. Save karein!
+7. Render Environment me add karein:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `GOOGLE_REDIRECT_URI` = `https://<your-app-name>.onrender.com/auth/google/callback`
 
 ---
 

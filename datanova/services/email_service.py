@@ -37,17 +37,17 @@ def send_smtp_email(to_email: str, subject: str, body_text: str, body_html: str 
 
         # 1. Resolve Host
         smtp_host = (
-            settings.get('smtp_host')
-            or _clean_env_val(os.getenv('MAIL_SERVER'))
+            _clean_env_val(os.getenv('MAIL_SERVER'))
             or _clean_env_val(os.getenv('SMTP_HOST'))
+            or settings.get('smtp_host')
             or 'smtp.gmail.com'
         )
 
         # 2. Resolve Port
         raw_port = (
-            settings.get('smtp_port')
-            or _clean_env_val(os.getenv('MAIL_PORT'))
+            _clean_env_val(os.getenv('MAIL_PORT'))
             or _clean_env_val(os.getenv('SMTP_PORT'))
+            or settings.get('smtp_port')
             or '587'
         )
         try:
@@ -55,29 +55,37 @@ def send_smtp_email(to_email: str, subject: str, body_text: str, body_html: str 
         except (ValueError, TypeError):
             smtp_port = 587
 
-        # 3. Resolve Sender Email
-        sender_email = (
-            settings.get('sender_email')
-            or _clean_env_val(os.getenv('MAIL_DEFAULT_SENDER'))
-            or _clean_env_val(os.getenv('SENDER_EMAIL'))
-            or _clean_env_val(os.getenv('MAIL_USERNAME'))
-            or 'noreply@datanova.com'
-        )
-
-        # 4. Resolve Username & Password
+        # 3. Resolve Username & Password
         mail_user = (
-            settings.get('smtp_username')
-            or _clean_env_val(os.getenv('MAIL_USERNAME'))
+            _clean_env_val(os.getenv('MAIL_USERNAME'))
             or _clean_env_val(os.getenv('SMTP_USER'))
-            or sender_email
+            or settings.get('smtp_username')
+            or ''
         )
         mail_password = (
-            settings.get('smtp_password')
-            or _clean_env_val(os.getenv('MAIL_PASSWORD'))
+            _clean_env_val(os.getenv('MAIL_PASSWORD'))
             or _clean_env_val(os.getenv('SMTP_PASSWORD'))
             or _clean_env_val(os.getenv('SMTP_PASS'))
             or _clean_env_val(os.getenv('SENDER_PASSWORD'))
+            or settings.get('smtp_password')
+            or ''
         )
+        if mail_password:
+            mail_password = mail_password.strip()
+            # If Google 16-character App Password contains spaces (e.g. 'icsr csvi vfto fhkd')
+            if ' ' in mail_password and len(mail_password.replace(' ', '')) == 16:
+                mail_password = mail_password.replace(' ', '')
+
+        # 4. Resolve Sender Email
+        sender_email = (
+            _clean_env_val(os.getenv('MAIL_DEFAULT_SENDER'))
+            or _clean_env_val(os.getenv('SENDER_EMAIL'))
+            or mail_user
+            or settings.get('sender_email')
+            or 'noreply@datanova.com'
+        )
+        if ('noreply@datanova.com' in sender_email or not sender_email) and mail_user and '@' in mail_user:
+            sender_email = mail_user
 
         # 5. Resolve Encryption (TLS / SSL / None)
         smtp_encryption = str(settings.get('smtp_encryption', '')).lower().strip()
@@ -88,6 +96,15 @@ def send_smtp_email(to_email: str, subject: str, body_text: str, body_html: str 
                 smtp_encryption = 'tls'
             else:
                 smtp_encryption = 'tls' if smtp_port == 587 else ('ssl' if smtp_port == 465 else 'none')
+
+        # Check SMTP configuration prerequisites
+        if not mail_user or not mail_password:
+            err_msg = (
+                "SMTP credentials are not configured. Please set MAIL_USERNAME and MAIL_PASSWORD "
+                "in your environment variables (.env / Render dashboard)."
+            )
+            logger.error(f"[EMAIL SERVICE] {err_msg}")
+            return False, err_msg
 
         msg_root = MIMEMultipart('related')
         msg_root['Subject'] = subject
@@ -117,23 +134,47 @@ def send_smtp_email(to_email: str, subject: str, body_text: str, body_html: str 
             except Exception as le:
                 logger.warning(f"Could not attach inline logo: {le}")
 
-        # Connect to SMTP server
+        # Resilient SMTP delivery: Try primary port first; if it fails/times out, fallback to alternate port
+        # (Port 587 TLS <-> Port 465 SSL) for high reliability on cloud providers like Render.
+        ports_to_try = []
         if smtp_port == 465 or smtp_encryption == 'ssl':
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15)
+            ports_to_try = [(465, 'ssl'), (587, 'tls')]
         else:
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
-            if smtp_encryption != 'none':
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
+            ports_to_try = [(smtp_port, smtp_encryption or 'tls'), (465, 'ssl')]
 
-        if mail_password and mail_user:
-            server.login(mail_user, mail_password)
+        last_error = None
+        for port, enc in ports_to_try:
+            server = None
+            try:
+                logger.info(f"[EMAIL SERVICE] Connecting to SMTP server {smtp_host}:{port} ({enc})...")
+                if port == 465 or enc == 'ssl':
+                    server = smtplib.SMTP_SSL(smtp_host, port, timeout=12)
+                else:
+                    server = smtplib.SMTP(smtp_host, port, timeout=12)
+                    if enc != 'none':
+                        server.ehlo()
+                        server.starttls()
+                        server.ehlo()
 
-        server.sendmail(sender_email, [to_email], msg_root.as_string())
-        server.quit()
-        logger.info(f"Successfully sent email to {to_email} via {smtp_host}:{smtp_port}")
-        return True, "Email sent successfully."
+                if mail_password and mail_user:
+                    server.login(mail_user, mail_password)
+
+                server.sendmail(sender_email, [to_email], msg_root.as_string())
+                server.quit()
+                logger.info(f"[EMAIL SERVICE] Successfully delivered email to {to_email} via {smtp_host}:{port}")
+                return True, "Email sent successfully."
+            except Exception as conn_err:
+                last_error = conn_err
+                logger.warning(f"[EMAIL SERVICE] Delivery attempt via {smtp_host}:{port} ({enc}) failed: {conn_err}")
+                if server:
+                    try:
+                        server.close()
+                    except Exception:
+                        pass
+                continue
+
+        logger.error(f"[EMAIL SERVICE] All SMTP connection attempts failed for {to_email}: {last_error}")
+        return False, f"Email delivery failed: {str(last_error)}"
 
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {e}")
@@ -476,7 +517,7 @@ def send_signup_otp_email(user_email: str, otp_code: str, first_name: str = 'Use
         footer_note="Automated account security dispatch &bull; DataNova Smart Analytics Platform"
     )
 
-    send_email_async(user_email, subject, body_text, body_html)
+    return send_smtp_email(user_email, subject, body_text, body_html)
 
 
 def send_forgot_password_otp_email(user_email: str, otp_code: str, first_name: str = 'User', valid_minutes: int = 3, ip_address: str = '127.0.0.1', device_info: str = 'Web Browser', base_url: str = 'http://127.0.0.1:5000'):
@@ -545,7 +586,7 @@ def send_forgot_password_otp_email(user_email: str, otp_code: str, first_name: s
         footer_note="Automated security service &bull; DataNova Smart Analytics Platform"
     )
 
-    send_email_async(user_email, subject, body_text, body_html)
+    return send_smtp_email(user_email, subject, body_text, body_html)
 
 
 def send_password_reset_success_email(

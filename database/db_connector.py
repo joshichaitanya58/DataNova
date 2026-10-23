@@ -540,6 +540,16 @@ def init_db(connection: Optional[Any] = None) -> bool:
             cursor.execute("SHOW COLUMNS FROM users LIKE 'organization'")
             if not cursor.fetchone():
                 cursor.execute("ALTER TABLE users ADD COLUMN organization VARCHAR(100) NOT NULL DEFAULT 'General'")
+            else:
+                try:
+                    cursor.execute("ALTER TABLE users MODIFY organization VARCHAR(100) NOT NULL DEFAULT 'General'")
+                except Exception:
+                    pass
+
+            try:
+                cursor.execute("UPDATE users SET organization = 'General' WHERE organization IS NULL OR organization = '' OR organization = 'Google Auth'")
+            except Exception:
+                pass
 
             cursor.execute("SHOW COLUMNS FROM users LIKE 'phone'")
             if not cursor.fetchone():

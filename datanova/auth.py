@@ -556,8 +556,14 @@ def google_login():
     session['google_oauth_state'] = state
 
     redirect_uri = os.getenv('GOOGLE_REDIRECT_URI', '').strip()
+    is_cloud = bool(os.getenv('RENDER') or os.getenv('IS_PULL_REQUEST') or (request and 'localhost' not in request.host and '127.0.0.1' not in request.host))
+    if redirect_uri and is_cloud and ('127.0.0.1' in redirect_uri or 'localhost' in redirect_uri):
+        redirect_uri = ''
     if not redirect_uri:
         redirect_uri = url_for('auth.google_callback', _external=True)
+        if is_cloud and redirect_uri.startswith('http://'):
+            redirect_uri = 'https://' + redirect_uri[7:]
+    session['google_oauth_redirect_uri'] = redirect_uri
 
     params = {
         'client_id': client_id,
@@ -600,9 +606,16 @@ def google_callback():
         flash('Invalid OAuth state parameter. Security verification failed.', 'danger')
         return redirect(url_for('auth.login'))
 
-    redirect_uri = os.getenv('GOOGLE_REDIRECT_URI', '').strip()
+    redirect_uri = session.pop('google_oauth_redirect_uri', None)
     if not redirect_uri:
-        redirect_uri = url_for('auth.google_callback', _external=True)
+        redirect_uri = os.getenv('GOOGLE_REDIRECT_URI', '').strip()
+        is_cloud = bool(os.getenv('RENDER') or os.getenv('IS_PULL_REQUEST') or (request and 'localhost' not in request.host and '127.0.0.1' not in request.host))
+        if redirect_uri and is_cloud and ('127.0.0.1' in redirect_uri or 'localhost' in redirect_uri):
+            redirect_uri = ''
+        if not redirect_uri:
+            redirect_uri = url_for('auth.google_callback', _external=True)
+            if is_cloud and redirect_uri.startswith('http://'):
+                redirect_uri = 'https://' + redirect_uri[7:]
 
     # 1. Exchange authorization code for access token
     token_url = 'https://oauth2.googleapis.com/token'
@@ -666,10 +679,10 @@ def google_callback():
 
                     # Log in existing user
                     current_org = (user.get('organization') or '').strip()
-                    if current_org == 'Google Auth':
-                        current_org = ''
+                    if not current_org or current_org == 'Google Auth':
+                        current_org = 'General'
                         try:
-                            cursor.execute("UPDATE users SET organization = NULL WHERE id = %s", (user['id'],))
+                            cursor.execute("UPDATE users SET organization = 'General' WHERE id = %s", (user['id'],))
                             conn.commit()
                         except Exception:
                             pass
@@ -729,7 +742,7 @@ def google_callback():
                     cursor.execute(
                         """
                         INSERT INTO users (first_name, last_name, email, password, role, organization)
-                        VALUES (%s, %s, %s, %s, %s, NULL)
+                        VALUES (%s, %s, %s, %s, %s, 'General')
                         """,
                         (first_name, last_name, email, hashed_password, role)
                     )
@@ -742,7 +755,7 @@ def google_callback():
                     session['role'] = role
                     session['first_name'] = first_name
                     session['last_name'] = last_name
-                    session['organization'] = ''
+                    session['organization'] = 'General'
                     session['phone'] = ''
                     session.pop('active_dataset_id', None)
 
